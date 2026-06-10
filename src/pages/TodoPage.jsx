@@ -28,7 +28,7 @@ export default function TodoPage() {
     try {
       const { data, error } = await supabase
         .from('tasks').select('*').eq('user_id', user.id)
-        .is('deleted_at', null).order('created_at', { ascending: false })
+        .is('deleted_at', null).order('position', { ascending: true }).order('created_at', { ascending: false })
       if (error) throw error
       setTasks(data ?? [])
     } catch (err) {
@@ -40,11 +40,33 @@ export default function TodoPage() {
   }
 
   async function addTask(task) {
+    const minPosition = tasks.length > 0 ? Math.min(...tasks.map(t => t.position ?? 0)) - 1 : 0
     const { data, error } = await supabase
-      .from('tasks').insert([{ ...task, user_id: user.id }]).select().single()
+      .from('tasks').insert([{ ...task, user_id: user.id, position: minPosition }]).select().single()
     if (error) { alert('タスクの保存に失敗しました: ' + error.message); return }
     setTasks([data, ...tasks])
     setShowForm(false)
+  }
+
+  async function reorderTasks(activeId, overId) {
+    const oldIndex = tasks.findIndex(t => t.id === activeId)
+    const newIndex = tasks.findIndex(t => t.id === overId)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = [...tasks]
+    const [moved] = reordered.splice(oldIndex, 1)
+    reordered.splice(newIndex, 0, moved)
+
+    // 楽観的UI更新
+    setTasks(reordered)
+
+    // DB に position を一括保存
+    const updates = reordered.map((t, i) => ({ id: t.id, position: i }))
+    await Promise.all(
+      updates.map(({ id, position }) =>
+        supabase.from('tasks').update({ position }).eq('id', id)
+      )
+    )
   }
 
   async function updateTask(id, updates) {
@@ -158,6 +180,7 @@ export default function TodoPage() {
             onToggle={toggleTask}
             onDelete={trashTask}
             onEdit={setEditingTask}
+            onReorder={reorderTasks}
           />
         )}
       </main>

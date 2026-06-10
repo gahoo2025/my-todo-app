@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import SubtaskPanel from './SubtaskPanel'
 import MemoSection from './MemoSection'
 
@@ -13,6 +15,22 @@ const CATEGORY_STYLES = {
 export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
   const [expanded, setExpanded] = useState(false)
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id, disabled: task.completed })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    opacity: isDragging ? 0.5 : undefined,
+  }
+
   const isOverdue = task.due_date && !task.completed && new Date(task.due_date) < new Date()
   const dueLabel = task.due_date
     ? new Date(task.due_date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
@@ -20,8 +38,30 @@ export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
   const cat = CATEGORY_STYLES[task.category] ?? { bg: 'bg-gray-100', text: 'text-gray-500', dot: 'bg-gray-400' }
 
   return (
-    <div className={`bg-white rounded-2xl px-4 py-3.5 shadow-sm border border-gray-100 transition-opacity ${task.completed ? 'opacity-50' : ''}`}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white rounded-2xl px-4 py-3.5 shadow-sm border border-gray-100 transition-opacity ${
+        task.completed ? 'opacity-50' : ''
+      } ${isDragging ? 'shadow-lg border-violet-200' : ''}`}
+    >
       <div className="flex items-center gap-3">
+        {/* Drag handle */}
+        {!task.completed && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="flex-shrink-0 text-gray-200 hover:text-gray-400 cursor-grab active:cursor-grabbing touch-none p-1 -ml-1"
+            aria-label="並び替え"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
+              <circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/>
+              <circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+            </svg>
+          </button>
+        )}
+
         {/* Checkbox */}
         <button
           onClick={() => onToggle(task.id, task.completed)}
@@ -60,19 +100,16 @@ export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
 
         {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Subtask toggle */}
           <button
             onClick={() => setExpanded(!expanded)}
             className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${
               expanded ? 'bg-violet-100 text-violet-500' : 'text-gray-300 hover:text-violet-400 hover:bg-violet-50'
             }`}
-            aria-label="小タスクを表示"
           >
             <svg className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-
           {!task.completed && (
             <button
               onClick={() => onEdit(task)}
@@ -94,7 +131,6 @@ export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
         </div>
       </div>
 
-      {/* Expanded panel */}
       {expanded && (
         <>
           <MemoSection task={task} />
