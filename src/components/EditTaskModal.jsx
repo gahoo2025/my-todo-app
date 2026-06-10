@@ -1,13 +1,5 @@
 import { useState } from 'react'
 
-const CATEGORY_COLORS = {
-  '仕事': 'bg-blue-100 text-blue-700',
-  '個人': 'bg-purple-100 text-purple-700',
-  '買い物': 'bg-green-100 text-green-700',
-  '健康': 'bg-red-100 text-red-700',
-  'その他': 'bg-gray-100 text-gray-600',
-}
-
 const CATEGORIES = ['仕事', '個人', '買い物', '健康', 'その他']
 
 export default function EditTaskModal({ task, onSave, onClose }) {
@@ -25,56 +17,55 @@ export default function EditTaskModal({ task, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end z-30" onClick={onClose}>
-      <div
-        className="w-full bg-white rounded-t-2xl p-6 max-w-lg mx-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end z-30" onClick={onClose}>
+      <div className="w-full bg-white rounded-t-3xl p-6 max-w-lg mx-auto shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+        <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-800">タスクを編集</h2>
-          <button onClick={onClose} className="text-gray-400 text-2xl leading-none">&times;</button>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-500 text-lg">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">タイトル *</label>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">タイトル</label>
             <input
               autoFocus
               type="text"
               required
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-base"
+              className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:bg-white text-base transition-all"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">カテゴリ</label>
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-base bg-white"
-            >
-              {CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">期限</label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-base"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">カテゴリ</label>
+              <select
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400 text-base text-gray-700"
+              >
+                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">期限</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400 text-base text-gray-700"
+              />
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={loading || !title.trim()}
-            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold text-base disabled:opacity-50 active:bg-indigo-700 transition-colors"
+            className="w-full py-3.5 text-white rounded-xl font-bold text-base disabled:opacity-50 transition-all active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
           >
             {loading ? '保存中...' : '保存する'}
           </button>
