@@ -1,8 +1,6 @@
 import { useState } from 'react'
 
-const CATEGORIES = ['仕事', '個人', '買い物', '健康', 'その他']
-
-export default function EditTaskModal({ task, onSave, onClose }) {
+export default function EditTaskModal({ task, categories, onSave, onClose }) {
   const [title, setTitle] = useState(task.title)
   const [category, setCategory] = useState(task.category)
   const [dueDate, setDueDate] = useState(task.due_date ?? '')
@@ -47,7 +45,7 @@ export default function EditTaskModal({ task, onSave, onClose }) {
                 onChange={e => setCategory(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400 text-base text-gray-700"
               >
-                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
               </select>
             </div>
             <div>

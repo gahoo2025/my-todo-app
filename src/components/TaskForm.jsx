@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 export default function TaskForm({ categories, onAdd, onClose }) {
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState(categories[0])
+  const [category, setCategory] = useState(categories[0]?.name ?? '')
   const [dueDate, setDueDate] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -46,7 +46,7 @@ export default function TaskForm({ categories, onAdd, onClose }) {
                 onChange={e => setCategory(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400 text-base text-gray-700"
               >
-                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
               </select>
             </div>
             <div>

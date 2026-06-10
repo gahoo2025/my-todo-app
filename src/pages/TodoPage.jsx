@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useCategories } from '../hooks/useCategories'
 import TaskForm from '../components/TaskForm'
 import TaskList from '../components/TaskList'
 import EditTaskModal from '../components/EditTaskModal'
 import HistoryPage from './HistoryPage'
 import TrashPage from './TrashPage'
-
-const CATEGORIES = ['仕事', '個人', '買い物', '健康', 'その他']
+import CategoryPage from './CategoryPage'
 
 export default function TodoPage() {
   const { user, signOut } = useAuth()
+  const { categories, loading: catLoading, addCategory, updateCategory, deleteCategory } = useCategories()
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
@@ -26,11 +27,8 @@ export default function TodoPage() {
   async function fetchTasks() {
     try {
       const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('user_id', user.id)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
+        .from('tasks').select('*').eq('user_id', user.id)
+        .is('deleted_at', null).order('created_at', { ascending: false })
       if (error) throw error
       setTasks(data ?? [])
     } catch (err) {
@@ -43,10 +41,7 @@ export default function TodoPage() {
 
   async function addTask(task) {
     const { data, error } = await supabase
-      .from('tasks')
-      .insert([{ ...task, user_id: user.id }])
-      .select()
-      .single()
+      .from('tasks').insert([{ ...task, user_id: user.id }]).select().single()
     if (error) { alert('タスクの保存に失敗しました: ' + error.message); return }
     setTasks([data, ...tasks])
     setShowForm(false)
@@ -74,10 +69,19 @@ export default function TodoPage() {
 
   if (page === 'history') return <HistoryPage onBack={() => setPage('todo')} />
   if (page === 'trash') return <TrashPage onBack={() => setPage('todo')} />
+  if (page === 'category') return (
+    <CategoryPage
+      categories={categories}
+      onAdd={addCategory}
+      onUpdate={updateCategory}
+      onDelete={deleteCategory}
+      onBack={() => setPage('todo')}
+    />
+  )
 
+  const categoryNames = categories.map(c => c.name)
   const filtered = filterCategory === 'すべて'
     ? tasks : tasks.filter(t => t.category === filterCategory)
-
   const pending = tasks.filter(t => !t.completed).length
   const completedCount = tasks.filter(t => t.completed).length
 
@@ -87,16 +91,22 @@ export default function TodoPage() {
       <header className="text-white px-4 py-4 sticky top-0 z-10"
         style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="text-xl">✅</span>
               <h1 className="text-lg font-bold tracking-wide">My Todo</h1>
             </div>
             <div className="flex items-center gap-1.5">
+              <button onClick={() => setPage('category')}
+                className="flex items-center justify-center w-8 h-8 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur-sm transition-colors"
+                title="カテゴリ管理">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </button>
               <button onClick={() => setPage('history')}
                 className="flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl backdrop-blur-sm transition-colors font-medium">
-                📋
-                {completedCount > 0 && <span className="bg-white/30 text-white text-xs px-1.5 rounded-full">{completedCount}</span>}
+                📋{completedCount > 0 && <span className="bg-white/30 px-1.5 rounded-full">{completedCount}</span>}
               </button>
               <button onClick={() => setPage('trash')}
                 className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl backdrop-blur-sm transition-colors font-medium">
@@ -116,8 +126,8 @@ export default function TodoPage() {
 
       <main className="max-w-lg mx-auto px-4 py-4 pb-24">
         {/* Category filter */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-4 no-scrollbar">
-          {['すべて', ...CATEGORIES].map(cat => (
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+          {['すべて', ...categoryNames].map(cat => (
             <button
               key={cat}
               onClick={() => setFilterCategory(cat)}
@@ -139,10 +149,16 @@ export default function TodoPage() {
           </div>
         )}
 
-        {loading ? (
+        {loading || catLoading ? (
           <div className="text-center py-16 text-gray-300 text-sm">読み込み中...</div>
         ) : (
-          <TaskList tasks={filtered} onToggle={toggleTask} onDelete={trashTask} onEdit={setEditingTask} />
+          <TaskList
+            tasks={filtered}
+            userId={user.id}
+            onToggle={toggleTask}
+            onDelete={trashTask}
+            onEdit={setEditingTask}
+          />
         )}
       </main>
 
@@ -151,13 +167,21 @@ export default function TodoPage() {
         onClick={() => setShowForm(true)}
         className="fixed bottom-6 right-6 w-14 h-14 text-white rounded-2xl shadow-lg shadow-violet-300 text-2xl flex items-center justify-center transition-all active:scale-95 z-20"
         style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
-        aria-label="タスクを追加"
       >
         +
       </button>
 
-      {showForm && <TaskForm categories={CATEGORIES} onAdd={addTask} onClose={() => setShowForm(false)} />}
-      {editingTask && <EditTaskModal task={editingTask} onSave={updateTask} onClose={() => setEditingTask(null)} />}
+      {showForm && (
+        <TaskForm categories={categories} onAdd={addTask} onClose={() => setShowForm(false)} />
+      )}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          categories={categories}
+          onSave={updateTask}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
     </div>
   )
 }
