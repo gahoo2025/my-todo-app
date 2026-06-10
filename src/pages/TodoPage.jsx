@@ -5,6 +5,7 @@ import TaskForm from '../components/TaskForm'
 import TaskList from '../components/TaskList'
 import EditTaskModal from '../components/EditTaskModal'
 import HistoryPage from './HistoryPage'
+import TrashPage from './TrashPage'
 
 const CATEGORIES = ['仕事', '個人', '買い物', '健康', 'その他']
 
@@ -15,7 +16,7 @@ export default function TodoPage() {
   const [fetchError, setFetchError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
-  const [showHistory, setShowHistory] = useState(false)
+  const [page, setPage] = useState('todo') // 'todo' | 'history' | 'trash'
   const [filterCategory, setFilterCategory] = useState('すべて')
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function TodoPage() {
         .from('tasks')
         .select('*')
         .eq('user_id', user.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
       if (error) throw error
       setTasks(data ?? [])
@@ -79,14 +81,16 @@ export default function TodoPage() {
     if (!error) setTasks(tasks.map(t => t.id === id ? data : t))
   }
 
-  async function deleteTask(id) {
-    const { error } = await supabase.from('tasks').delete().eq('id', id)
+  async function trashTask(id) {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
     if (!error) setTasks(tasks.filter(t => t.id !== id))
   }
 
-  if (showHistory) {
-    return <HistoryPage onBack={() => setShowHistory(false)} />
-  }
+  if (page === 'history') return <HistoryPage onBack={() => setPage('todo')} />
+  if (page === 'trash') return <TrashPage onBack={() => setPage('todo')} />
 
   const filtered = filterCategory === 'すべて'
     ? tasks
@@ -106,10 +110,16 @@ export default function TodoPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowHistory(true)}
-              className="text-xs bg-indigo-500 px-3 py-1.5 rounded-lg active:bg-indigo-400 flex items-center gap-1"
+              onClick={() => setPage('history')}
+              className="text-xs bg-indigo-500 px-3 py-1.5 rounded-lg active:bg-indigo-400"
             >
-              📋 履歴{completedCount > 0 && ` (${completedCount})`}
+              📋{completedCount > 0 && ` (${completedCount})`}
+            </button>
+            <button
+              onClick={() => setPage('trash')}
+              className="text-xs bg-indigo-500 px-3 py-1.5 rounded-lg active:bg-indigo-400"
+            >
+              🗑
             </button>
             <button
               onClick={signOut}
@@ -151,7 +161,7 @@ export default function TodoPage() {
           <TaskList
             tasks={filtered}
             onToggle={toggleTask}
-            onDelete={deleteTask}
+            onDelete={trashTask}
             onEdit={setEditingTask}
           />
         )}
