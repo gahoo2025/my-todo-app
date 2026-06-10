@@ -1,6 +1,6 @@
 import TaskItem from './TaskItem'
 
-export default function TaskList({ tasks, onToggle, onDelete }) {
+export default function TaskList({ tasks, onToggle, onDelete, onEdit }) {
   if (tasks.length === 0) {
     return (
       <div className="text-center py-16 text-gray-400">
@@ -17,13 +17,13 @@ export default function TaskList({ tasks, onToggle, onDelete }) {
   return (
     <div className="space-y-2">
       {pending.map(task => (
-        <TaskItem key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} />
+        <TaskItem key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
       ))}
       {completed.length > 0 && (
         <>
           <p className="text-xs font-medium text-gray-400 pt-2 pb-1">完了済み ({completed.length})</p>
           {completed.map(task => (
-            <TaskItem key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} />
+            <TaskItem key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
           ))}
         </>
       )}

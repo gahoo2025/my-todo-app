@@ -6,7 +6,7 @@ const CATEGORY_COLORS = {
   'その他': 'bg-gray-100 text-gray-600',
 }
 
-export default function TaskItem({ task, onToggle, onDelete }) {
+export default function TaskItem({ task, onToggle, onDelete, onEdit }) {
   const isOverdue = task.due_date && !task.completed && new Date(task.due_date) < new Date()
   const dueLabel = task.due_date
     ? new Date(task.due_date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
@@ -42,13 +42,24 @@ export default function TaskItem({ task, onToggle, onDelete }) {
         </div>
       </div>
 
-      <button
-        onClick={() => onDelete(task.id)}
-        className="flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors p-1"
-        aria-label="削除"
-      >
-        🗑
-      </button>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {!task.completed && (
+          <button
+            onClick={() => onEdit(task)}
+            className="text-gray-300 hover:text-indigo-400 transition-colors p-1 text-base"
+            aria-label="編集"
+          >
+            ✏️
+          </button>
+        )}
+        <button
+          onClick={() => onDelete(task.id)}
+          className="text-gray-300 hover:text-red-400 transition-colors p-1 text-base"
+          aria-label="削除"
+        >
+          🗑
+        </button>
+      </div>
     </div>
   )
 }

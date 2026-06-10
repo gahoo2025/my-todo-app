@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import TaskForm from '../components/TaskForm'
 import TaskList from '../components/TaskList'
+import EditTaskModal from '../components/EditTaskModal'
+import HistoryPage from './HistoryPage'
 
 const CATEGORIES = ['仕事', '個人', '買い物', '健康', 'その他']
 
@@ -12,6 +14,8 @@ export default function TodoPage() {
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
+  const [showHistory, setShowHistory] = useState(false)
   const [filterCategory, setFilterCategory] = useState('すべて')
 
   useEffect(() => {
@@ -43,12 +47,26 @@ export default function TodoPage() {
       .select()
       .single()
     if (error) {
-      console.error('タスク追加エラー:', error.message, error.code)
       alert('タスクの保存に失敗しました: ' + error.message)
       return
     }
     setTasks([data, ...tasks])
     setShowForm(false)
+  }
+
+  async function updateTask(id, updates) {
+    const { data, error } = await supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) {
+      alert('更新に失敗しました: ' + error.message)
+      return
+    }
+    setTasks(tasks.map(t => t.id === id ? data : t))
+    setEditingTask(null)
   }
 
   async function toggleTask(id, completed) {
@@ -66,11 +84,16 @@ export default function TodoPage() {
     if (!error) setTasks(tasks.filter(t => t.id !== id))
   }
 
+  if (showHistory) {
+    return <HistoryPage onBack={() => setShowHistory(false)} />
+  }
+
   const filtered = filterCategory === 'すべて'
     ? tasks
     : tasks.filter(t => t.category === filterCategory)
 
   const pending = tasks.filter(t => !t.completed).length
+  const completedCount = tasks.filter(t => t.completed).length
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -81,12 +104,20 @@ export default function TodoPage() {
             <h1 className="text-lg font-bold">✅ My Todo</h1>
             <p className="text-xs text-indigo-200">{pending}件のタスクが残っています</p>
           </div>
-          <button
-            onClick={signOut}
-            className="text-xs bg-indigo-700 px-3 py-1.5 rounded-lg active:bg-indigo-800"
-          >
-            ログアウト
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowHistory(true)}
+              className="text-xs bg-indigo-500 px-3 py-1.5 rounded-lg active:bg-indigo-400 flex items-center gap-1"
+            >
+              📋 履歴{completedCount > 0 && ` (${completedCount})`}
+            </button>
+            <button
+              onClick={signOut}
+              className="text-xs bg-indigo-700 px-3 py-1.5 rounded-lg active:bg-indigo-800"
+            >
+              ログアウト
+            </button>
+          </div>
         </div>
       </header>
 
@@ -113,6 +144,7 @@ export default function TodoPage() {
             ⚠️ エラー: {fetchError}
           </div>
         )}
+
         {loading ? (
           <div className="text-center py-12 text-gray-400">読み込み中...</div>
         ) : (
@@ -120,6 +152,7 @@ export default function TodoPage() {
             tasks={filtered}
             onToggle={toggleTask}
             onDelete={deleteTask}
+            onEdit={setEditingTask}
           />
         )}
       </main>
@@ -133,12 +166,19 @@ export default function TodoPage() {
         +
       </button>
 
-      {/* Add Task Modal */}
       {showForm && (
         <TaskForm
           categories={CATEGORIES}
           onAdd={addTask}
           onClose={() => setShowForm(false)}
+        />
+      )}
+
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onSave={updateTask}
+          onClose={() => setEditingTask(null)}
         />
       )}
     </div>
