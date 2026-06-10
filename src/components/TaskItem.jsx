@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import SubtaskPanel from './SubtaskPanel'
+import MemoSection from './MemoSection'
 
 const CATEGORY_STYLES = {
   '仕事':  { bg: 'bg-blue-50',   text: 'text-blue-600',   dot: 'bg-blue-400' },
@@ -93,8 +94,13 @@ export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
         </div>
       </div>
 
-      {/* Subtask panel */}
-      {expanded && <SubtaskPanel task={task} userId={userId} />}
+      {/* Expanded panel */}
+      {expanded && (
+        <>
+          <MemoSection task={task} />
+          <SubtaskPanel task={task} userId={userId} />
+        </>
+      )}
     </div>
   )
 }

@@ -4,13 +4,14 @@ export default function TaskForm({ categories, onAdd, onClose }) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState(categories[0]?.name ?? '')
   const [dueDate, setDueDate] = useState('')
+  const [memo, setMemo] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title.trim()) return
     setLoading(true)
-    await onAdd({ title: title.trim(), category, due_date: dueDate || null, completed: false })
+    await onAdd({ title: title.trim(), category, due_date: dueDate || null, memo: memo || null, completed: false })
     setLoading(false)
   }
 
@@ -58,6 +59,17 @@ export default function TaskForm({ categories, onAdd, onClose }) {
                 className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400 text-base text-gray-700"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">メモ</label>
+            <textarea
+              rows={2}
+              value={memo}
+              onChange={e => setMemo(e.target.value)}
+              placeholder="メモ（任意）"
+              className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:bg-white text-sm resize-none leading-relaxed"
+            />
           </div>
 
           <button
