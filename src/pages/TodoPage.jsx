@@ -18,13 +18,20 @@ export default function TodoPage() {
   }, [])
 
   async function fetchTasks() {
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-    if (!error) setTasks(data)
-    setLoading(false)
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setTasks(data ?? [])
+    } catch (err) {
+      console.error('タスク取得エラー:', err.message)
+      setTasks([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function addTask(task) {
