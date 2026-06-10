@@ -20,8 +20,8 @@ export default function TodoPage() {
   const [filterCategory, setFilterCategory] = useState('すべて')
 
   useEffect(() => {
-    if (user) fetchTasks()
-  }, [user?.id])
+    if (user && page === 'todo') fetchTasks()
+  }, [user?.id, page])
 
   async function fetchTasks() {
     try {
