@@ -40,10 +40,13 @@ export default function TodoPage() {
       .insert([{ ...task, user_id: user.id }])
       .select()
       .single()
-    if (!error) {
-      setTasks([data, ...tasks])
-      setShowForm(false)
+    if (error) {
+      console.error('タスク追加エラー:', error.message, error.code)
+      alert('タスクの保存に失敗しました: ' + error.message)
+      return
     }
+    setTasks([data, ...tasks])
+    setShowForm(false)
   }
 
   async function toggleTask(id, completed) {
