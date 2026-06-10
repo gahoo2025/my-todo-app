@@ -10,6 +10,7 @@ export default function TodoPage() {
   const { user, signOut } = useAuth()
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [filterCategory, setFilterCategory] = useState('すべて')
 
@@ -28,6 +29,7 @@ export default function TodoPage() {
       setTasks(data ?? [])
     } catch (err) {
       console.error('タスク取得エラー:', err.message)
+      setFetchError(err.message)
       setTasks([])
     } finally {
       setLoading(false)
@@ -106,6 +108,11 @@ export default function TodoPage() {
           ))}
         </div>
 
+        {fetchError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-sm text-red-700 break-all">
+            ⚠️ エラー: {fetchError}
+          </div>
+        )}
         {loading ? (
           <div className="text-center py-12 text-gray-400">読み込み中...</div>
         ) : (
