@@ -11,7 +11,7 @@ import CategoryPage from './CategoryPage'
 
 export default function TodoPage() {
   const { user, signOut } = useAuth()
-  const { categories, loading: catLoading, addCategory, updateCategory, deleteCategory } = useCategories()
+  const { categories, loading: catLoading, addCategory, updateCategory, deleteCategory, reorderCategories } = useCategories()
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
@@ -97,6 +97,7 @@ export default function TodoPage() {
       onAdd={addCategory}
       onUpdate={updateCategory}
       onDelete={deleteCategory}
+      onReorder={reorderCategories}
       onBack={() => setPage('todo')}
     />
   )

@@ -19,13 +19,14 @@ export function useCategories() {
       .from('categories')
       .select('*')
       .eq('user_id', user.id)
+      .order('position', { ascending: true })
       .order('created_at', { ascending: true })
 
     if (error || !data || data.length === 0) {
       // 初回: デフォルトカテゴリを挿入
-      const inserts = DEFAULTS.map(name => ({ name, user_id: user.id }))
+      const inserts = DEFAULTS.map((name, i) => ({ name, user_id: user.id, position: i }))
       const { data: inserted } = await supabase
-        .from('categories').insert(inserts).select()
+        .from('categories').insert(inserts).select().order('position', { ascending: true })
       setCategories(inserted ?? [])
     } else {
       setCategories(data)
@@ -54,5 +55,20 @@ export function useCategories() {
     if (!error) setCategories(categories.filter(c => c.id !== id))
   }
 
-  return { categories, loading, addCategory, updateCategory, deleteCategory }
+  async function reorderCategories(activeId, overId) {
+    const oldIndex = categories.findIndex(c => c.id === activeId)
+    const newIndex = categories.findIndex(c => c.id === overId)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = [...categories]
+    const [moved] = reordered.splice(oldIndex, 1)
+    reordered.splice(newIndex, 0, moved)
+
+    setCategories(reordered)
+    await Promise.all(
+      reordered.map((c, i) => supabase.from('categories').update({ position: i }).eq('id', c.id))
+    )
+  }
+
+  return { categories, loading, addCategory, updateCategory, deleteCategory, reorderCategories }
 }
