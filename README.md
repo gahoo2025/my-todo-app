@@ -1,1 +1,47 @@
-# my-todo-app
+# My Todo App
+
+カテゴリと期限付きタスク管理 PWA アプリ
+
+## 技術スタック
+
+- React 19 + Vite
+- Supabase（認証 + データベース）
+- Tailwind CSS v4
+- PWA対応（vite-plugin-pwa）
+
+## セットアップ
+
+1. 依存関係のインストール
+   ```bash
+   npm install
+   ```
+
+2. 環境変数の設定
+   ```bash
+   cp .env.example .env
+   # .env を編集して Supabase の URL と ANON_KEY を設定
+   ```
+
+3. Supabase でテーブルを作成（SQL エディタで実行）
+   ```sql
+   create table tasks (
+     id uuid default gen_random_uuid() primary key,
+     user_id uuid references auth.users not null,
+     title text not null,
+     category text not null default 'その他',
+     due_date date,
+     completed boolean not null default false,
+     created_at timestamptz default now()
+   );
+
+   alter table tasks enable row level security;
+
+   create policy "Users can manage their own tasks"
+     on tasks for all
+     using (auth.uid() = user_id);
+   ```
+
+4. 開発サーバー起動
+   ```bash
+   npm run dev
+   ```
