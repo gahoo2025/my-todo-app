@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
-export default function TaskForm({ categories, onAdd, onClose }) {
+export default function TaskForm({ categories, defaultCategory, onAdd, onClose }) {
   const [title, setTitle] = useState('')
-  const [category, setCategory] = useState(categories[0]?.name ?? '')
+  const [category, setCategory] = useState(defaultCategory ?? categories[0]?.name ?? '')
   const [dueDate, setDueDate] = useState('')
   const [memo, setMemo] = useState('')
   const [loading, setLoading] = useState(false)

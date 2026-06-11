@@ -196,7 +196,12 @@ export default function TodoPage() {
       </button>
 
       {showForm && (
-        <TaskForm categories={categories} onAdd={addTask} onClose={() => setShowForm(false)} />
+        <TaskForm
+          categories={categories}
+          defaultCategory={filterCategory !== 'すべて' ? filterCategory : undefined}
+          onAdd={addTask}
+          onClose={() => setShowForm(false)}
+        />
       )}
       {editingTask && (
         <EditTaskModal
