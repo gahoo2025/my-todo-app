@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useCategories } from '../hooks/useCategories'
 import TaskForm from '../components/TaskForm'
 import TaskList from '../components/TaskList'
+import CalendarView from '../components/CalendarView'
 import EditTaskModal from '../components/EditTaskModal'
 import HistoryPage from './HistoryPage'
 import TrashPage from './TrashPage'
@@ -18,6 +19,7 @@ export default function TodoPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [page, setPage] = useState('todo')
+  const [view, setView] = useState('list') // 'list' | 'calendar'
   const [filterCategory, setFilterCategory] = useState('すべて')
 
   useEffect(() => {
@@ -123,6 +125,25 @@ export default function TodoPage() {
               </p>
             </div>
             <div className="flex items-center gap-1.5">
+              {/* ビュー切り替え */}
+              <div className="flex bg-white/20 rounded-xl p-0.5">
+                <button
+                  onClick={() => setView('list')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${view === 'list' ? 'bg-white text-violet-600' : 'text-white/80 hover:text-white'}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setView('calendar')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${view === 'calendar' ? 'bg-white text-violet-600' : 'text-white/80 hover:text-white'}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
               <button onClick={() => setPage('category')}
                 className="flex items-center justify-center gap-1 w-8 md:w-auto h-8 md:px-3 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur-sm transition-colors text-xs font-medium"
                 title="カテゴリ管理">
@@ -152,8 +173,8 @@ export default function TodoPage() {
       </header>
 
       <main className="max-w-lg md:max-w-5xl mx-auto px-4 py-4 pb-24 md:pb-8 md:flex md:gap-6 md:items-start">
-        {/* Category sidebar (desktop) */}
-        <aside className="hidden md:block w-48 flex-shrink-0 sticky top-20">
+        {/* Category sidebar (desktop) — リストビュー時のみ表示 */}
+        <aside className={`${view === 'list' ? 'hidden md:block' : 'hidden'} w-48 flex-shrink-0 sticky top-20`}>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">カテゴリ</p>
           <div className="space-y-1">
             {['すべて', ...categoryNames].map(cat => (
@@ -181,8 +202,8 @@ export default function TodoPage() {
         </aside>
 
         <div className="flex-1 min-w-0">
-          {/* Category filter (mobile) */}
-          <div className="md:hidden flex gap-2 overflow-x-auto pb-2 mb-4">
+          {/* Category filter (mobile) — リストビュー時のみ */}
+          <div className={`${view === 'list' ? 'md:hidden' : 'hidden'} flex gap-2 overflow-x-auto pb-2 mb-4`}>
             {['すべて', ...categoryNames].map(cat => (
               <button
                 key={cat}
@@ -207,6 +228,12 @@ export default function TodoPage() {
 
           {loading || catLoading ? (
             <div className="text-center py-16 text-gray-300 text-sm">読み込み中...</div>
+          ) : view === 'calendar' ? (
+            <CalendarView
+              tasks={tasks}
+              categories={categories}
+              onEdit={setEditingTask}
+            />
           ) : (
             <TaskList
               tasks={filtered}
