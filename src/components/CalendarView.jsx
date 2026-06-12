@@ -226,46 +226,47 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
               )}
 
               {/* 予定・タスクチップ */}
-              <div className="space-y-[3px]">
+              <div className="space-y-[2px]">
                 {allItems.slice(0, 3).map(item => {
                   if (item.kind === 'event') {
                     const { event, info } = item
                     return (
                       <div
                         key={`ev-${event.id}`}
-                        className={`w-full flex items-center gap-1 text-[10px] font-medium leading-tight px-1 py-[3px] ${
+                        className={`w-full text-[10px] font-medium leading-none py-[3px] pl-1 pr-0.5 truncate ${
                           info.isSpan
-                            ? `${info.isStart ? 'rounded-l-[5px] ml-0.5' : ''} ${info.isEnd ? 'rounded-r-[5px] mr-0.5' : ''}`
-                            : 'rounded-[5px] mx-0.5'
+                            ? `${info.isStart ? 'rounded-l-[4px]' : 'pl-0'} ${info.isEnd ? 'rounded-r-[4px]' : 'pr-0'}`
+                            : 'rounded-[4px]'
                         }`}
-                        style={{ backgroundColor: `${event.color}20`, color: event.color }}
+                        style={{
+                          backgroundColor: `${event.color}22`,
+                          color: event.color,
+                          borderLeft: (info.isStart || !info.isSpan) ? `2px solid ${event.color}` : 'none',
+                        }}
                       >
-                        {(info.isStart || !info.isSpan) && (
-                          <span className="flex-shrink-0 w-[3px] h-[10px] rounded-full" style={{ backgroundColor: event.color }} />
-                        )}
-                        <span className="truncate">
-                          {info.isStart || !info.isSpan ? event.title : ' '}
-                        </span>
+                        {info.isStart || !info.isSpan ? event.title : ' '}
                       </div>
                     )
                   }
                   const { task, info } = item
                   const color = getCategoryColor(task.category, categories)
+                  // border-left color は bar クラスから16進数を取り出せないので inline style で指定
+                  const barColors = ['#007AFF','#AF52DE','#34C759','#FF3B30','#FF9500','#5AC8FA','#FF2D55']
+                  const catIdx = categories.findIndex(c => c.name === task.category)
+                  const barColor = barColors[(catIdx >= 0 ? catIdx : 0) % barColors.length]
                   return (
                     <div
                       key={`task-${task.id}`}
-                      className={`w-full flex items-center gap-1 text-[10px] font-medium leading-tight px-1 py-[3px] ${color.bg} ${color.text} ${
+                      className={`w-full text-[10px] font-medium leading-none py-[3px] pl-1 pr-0.5 truncate ${color.bg} ${color.text} ${
                         info.isSpan
-                          ? `${info.isStart ? 'rounded-l-[5px] ml-0.5' : ''} ${info.isEnd ? 'rounded-r-[5px] mr-0.5' : ''}`
-                          : 'rounded-[5px] mx-0.5'
+                          ? `${info.isStart ? 'rounded-l-[4px]' : 'pl-0'} ${info.isEnd ? 'rounded-r-[4px]' : 'pr-0'}`
+                          : 'rounded-[4px]'
                       }`}
+                      style={{
+                        borderLeft: (info.isStart || !info.isSpan) ? `2px solid ${barColor}` : 'none',
+                      }}
                     >
-                      {(info.isStart || !info.isSpan) && (
-                        <span className={`flex-shrink-0 w-[3px] h-[10px] rounded-full ${color.bar}`} />
-                      )}
-                      <span className="truncate">
-                        {info.isStart || !info.isSpan ? task.title : ' '}
-                      </span>
+                      {info.isStart || !info.isSpan ? task.title : ' '}
                     </div>
                   )
                 })}
