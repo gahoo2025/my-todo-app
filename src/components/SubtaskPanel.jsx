@@ -42,48 +42,52 @@ export default function SubtaskPanel({ task, userId }) {
   const done = subtasks.filter(s => s.completed).length
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-100">
-      {/* Progress */}
+    <div className="pt-1">
+      {/* 進捗バー */}
       {subtasks.length > 0 && (
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="flex items-center gap-2.5 mb-2">
+          <div className="flex-1 h-[4px] bg-[#767680]/15 rounded-full overflow-hidden">
             <div
-              className="h-full bg-violet-400 rounded-full transition-all"
+              className="h-full bg-[#007AFF] rounded-full transition-all duration-300"
               style={{ width: `${(done / subtasks.length) * 100}%` }}
             />
           </div>
-          <span className="text-xs text-gray-400 font-medium flex-shrink-0">{done}/{subtasks.length}</span>
+          <span className="text-[11px] text-[#8E8E93] font-medium tabular-nums flex-shrink-0">
+            {done}/{subtasks.length}
+          </span>
         </div>
       )}
 
-      {/* Subtask list */}
+      {/* 小タスク一覧 */}
       {loading ? (
-        <p className="text-xs text-gray-300 py-1">読み込み中...</p>
+        <p className="text-[12px] text-[#AEAEB2] py-1">読み込み中…</p>
       ) : (
-        <div className="space-y-1 mb-2">
+        <div className="space-y-0.5 mb-2">
           {subtasks.map(s => (
-            <div key={s.id} className="flex items-center gap-2 group">
+            <div key={s.id} className="flex items-center gap-2.5 py-1 group">
               <button
                 onClick={() => toggleSubtask(s.id, s.completed)}
-                className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                  s.completed ? 'bg-violet-400 border-violet-400' : 'border-gray-200 hover:border-violet-300'
+                className={`flex-shrink-0 w-[18px] h-[18px] rounded-full border-[1.5px] flex items-center justify-center transition-all duration-200 ${
+                  s.completed
+                    ? 'bg-[#007AFF] border-[#007AFF]'
+                    : 'border-[#C7C7CC] hover:border-[#007AFF] active:scale-90'
                 }`}
               >
                 {s.completed && (
-                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
-                    <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg className="w-[9px] h-[9px] text-white" fill="none" viewBox="0 0 10 10">
+                    <path d="M1.5 5.2l2.3 2.3 4.7-4.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 )}
               </button>
-              <span className={`flex-1 text-xs ${s.completed ? 'line-through text-gray-300' : 'text-gray-600'}`}>
+              <span className={`flex-1 text-[13px] ${s.completed ? 'line-through text-[#AEAEB2]' : 'text-[#1C1C1E]'}`}>
                 {s.title}
               </span>
               <button
                 onClick={() => deleteSubtask(s.id)}
-                className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center text-gray-300 hover:text-red-400 transition-all"
+                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center text-[#C7C7CC] hover:text-[#FF3B30] transition-all"
               >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
@@ -91,22 +95,22 @@ export default function SubtaskPanel({ task, userId }) {
         </div>
       )}
 
-      {/* Add subtask */}
+      {/* 追加フォーム */}
       <form onSubmit={addSubtask} className="flex items-center gap-2">
         <input
           type="text"
           value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
-          placeholder="小タスクを追加..."
-          className="flex-1 text-xs px-3 py-1.5 rounded-lg border border-gray-100 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-violet-300 focus:bg-white"
+          placeholder="小タスクを追加…"
+          className="flex-1 text-[13px] px-3 py-1.5 rounded-full bg-[#767680]/10 text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-all"
         />
         <button
           type="submit"
           disabled={adding || !newTitle.trim()}
-          className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-lg bg-violet-100 text-violet-500 hover:bg-violet-200 disabled:opacity-40 transition-colors"
+          className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-[#007AFF] text-white active:opacity-70 disabled:opacity-30 transition-opacity"
         >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}>
+            <path strokeLinecap="round" d="M12 5v14m-7-7h14" />
           </svg>
         </button>
       </form>

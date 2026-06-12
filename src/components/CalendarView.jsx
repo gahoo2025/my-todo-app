@@ -1,11 +1,16 @@
 import { useState, useMemo } from 'react'
-import { formatSchedule } from '../lib/schedule'
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
+// iOSカレンダー風のイベントカラーパレット
 const CATEGORY_COLORS = [
-  'bg-violet-400', 'bg-blue-400', 'bg-emerald-400',
-  'bg-rose-400', 'bg-amber-400', 'bg-sky-400', 'bg-pink-400',
+  { bg: 'bg-[#007AFF]/12', text: 'text-[#007AFF]', bar: 'bg-[#007AFF]' },
+  { bg: 'bg-[#AF52DE]/12', text: 'text-[#AF52DE]', bar: 'bg-[#AF52DE]' },
+  { bg: 'bg-[#34C759]/14', text: 'text-[#248A3D]', bar: 'bg-[#34C759]' },
+  { bg: 'bg-[#FF3B30]/12', text: 'text-[#FF3B30]', bar: 'bg-[#FF3B30]' },
+  { bg: 'bg-[#FF9500]/14', text: 'text-[#C93400]', bar: 'bg-[#FF9500]' },
+  { bg: 'bg-[#5AC8FA]/16', text: 'text-[#0071A4]', bar: 'bg-[#5AC8FA]' },
+  { bg: 'bg-[#FF2D55]/12', text: 'text-[#FF2D55]', bar: 'bg-[#FF2D55]' },
 ]
 
 function getCategoryColor(categoryName, categories) {
@@ -16,7 +21,6 @@ function getCategoryColor(categoryName, categories) {
 // タスクが対象日に表示されるか判定し、そのメタ情報を返す
 function getTaskDayInfo(task, date) {
   const d = new Date(date); d.setHours(0, 0, 0, 0)
-  const next = new Date(d); next.setDate(d.getDate() + 1)
 
   if (task.start_at || task.end_at) {
     const start = task.start_at ? new Date(task.start_at) : null
@@ -80,37 +84,35 @@ export default function CalendarView({ tasks, categories, onEdit }) {
   const activeTasks = tasks.filter(t => !t.completed)
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <button onClick={prevMonth}
-          className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 transition-colors">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-bold text-gray-800">
-            {year}年{month + 1}月
-          </h2>
+    <div className="ios-card overflow-hidden">
+      {/* カレンダーヘッダー */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <h2 className="text-[17px] font-bold text-[#1C1C1E] tracking-tight">
+          {year}年{month + 1}月
+        </h2>
+        <div className="flex items-center gap-1">
           <button onClick={goToday}
-            className="text-xs px-2 py-1 rounded-lg bg-violet-50 text-violet-600 font-medium hover:bg-violet-100 transition-colors">
+            className="text-[13px] font-medium text-[#007AFF] px-2.5 py-1 rounded-full active:opacity-50 transition-opacity">
             今日
           </button>
+          <button onClick={prevMonth} className="ios-icon-btn text-[#007AFF]">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button onClick={nextMonth} className="ios-icon-btn text-[#007AFF]">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
-        <button onClick={nextMonth}
-          className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 transition-colors">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
       </div>
 
       {/* 曜日ヘッダー */}
-      <div className="grid grid-cols-7 border-b border-gray-100">
+      <div className="grid grid-cols-7 border-b border-black/[0.06]">
         {WEEKDAYS.map((w, i) => (
-          <div key={w} className={`py-2 text-center text-xs font-semibold ${
-            i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'
+          <div key={w} className={`pb-2 text-center text-[11px] font-semibold ${
+            i === 0 ? 'text-[#FF3B30]/70' : i === 6 ? 'text-[#007AFF]/70' : 'text-[#8E8E93]'
           }`}>{w}</div>
         ))}
       </div>
@@ -127,43 +129,48 @@ export default function CalendarView({ tasks, categories, onEdit }) {
           return (
             <div
               key={idx}
-              className={`min-h-[72px] md:min-h-[88px] border-b border-r border-gray-50 p-1 ${
-                !currentMonth ? 'bg-gray-50/50' : ''
+              className={`min-h-[76px] md:min-h-[96px] border-b border-r border-black/[0.04] last:border-r-0 p-1 ${
+                !currentMonth ? 'bg-[#F2F2F7]/60' : ''
               }`}
             >
               {/* 日付数字 */}
-              <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-semibold mb-0.5 ${
-                isToday
-                  ? 'text-white'
-                  : !currentMonth
-                    ? 'text-gray-300'
-                    : dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-700'
-              }`}
-                style={isToday ? { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' } : {}}
-              >
-                {date.getDate()}
+              <div className="flex justify-center mb-1">
+                <span className={`w-[22px] h-[22px] flex items-center justify-center rounded-full text-[12px] font-medium tabular-nums ${
+                  isToday
+                    ? 'bg-[#FF3B30] text-white font-semibold'
+                    : !currentMonth
+                      ? 'text-[#C7C7CC]'
+                      : dow === 0 ? 'text-[#FF3B30]/80' : dow === 6 ? 'text-[#007AFF]/80' : 'text-[#1C1C1E]'
+                }`}>
+                  {date.getDate()}
+                </span>
               </div>
 
               {/* タスクチップ */}
-              <div className="space-y-0.5">
+              <div className="space-y-[3px]">
                 {dayTasks.slice(0, 3).map(({ task, info }) => {
                   const color = getCategoryColor(task.category, categories)
                   return (
                     <button
                       key={task.id}
                       onClick={() => onEdit(task)}
-                      className={`w-full text-left text-white text-[10px] font-medium leading-tight px-1.5 py-0.5 transition-opacity hover:opacity-80 truncate ${color} ${
+                      className={`w-full flex items-center gap-1 text-left text-[10px] font-medium leading-tight px-1 py-[3px] transition-opacity hover:opacity-70 active:opacity-50 ${color.bg} ${color.text} ${
                         info.isSpan
-                          ? `${info.isStart ? 'rounded-l-full' : ''} ${info.isEnd ? 'rounded-r-full' : ''} ${!info.isStart && !info.isEnd ? '' : ''}`
-                          : 'rounded-full'
+                          ? `${info.isStart ? 'rounded-l-[5px] ml-0.5' : ''} ${info.isEnd ? 'rounded-r-[5px] mr-0.5' : ''}`
+                          : 'rounded-[5px] mx-0.5'
                       }`}
                     >
-                      {info.isStart || !info.isSpan ? task.title : ''}
+                      {(info.isStart || !info.isSpan) && (
+                        <span className={`flex-shrink-0 w-[3px] h-[10px] rounded-full ${color.bar}`} />
+                      )}
+                      <span className="truncate">
+                        {info.isStart || !info.isSpan ? task.title : ' '}
+                      </span>
                     </button>
                   )
                 })}
                 {dayTasks.length > 3 && (
-                  <p className="text-[10px] text-gray-400 pl-1">+{dayTasks.length - 3}</p>
+                  <p className="text-[10px] text-[#AEAEB2] text-center">+{dayTasks.length - 3}</p>
                 )}
               </div>
             </div>

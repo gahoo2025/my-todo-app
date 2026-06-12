@@ -17,10 +17,14 @@ export default function TaskList({ tasks, userId, onToggle, onDelete, onEdit, on
 
   if (tasks.length === 0) {
     return (
-      <div className="text-center py-20">
-        <div className="text-6xl mb-4 opacity-30">📝</div>
-        <p className="text-sm font-medium text-gray-400">タスクがありません</p>
-        <p className="text-xs mt-1 text-gray-300">右下の＋ボタンで追加しましょう</p>
+      <div className="text-center py-24">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#767680]/10 flex items-center justify-center">
+          <svg className="w-7 h-7 text-[#AEAEB2]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+        </div>
+        <p className="text-[15px] font-medium text-[#8E8E93]">タスクがありません</p>
+        <p className="text-[13px] mt-1 text-[#AEAEB2]">＋ボタンから追加しましょう</p>
       </div>
     )
   }
@@ -35,26 +39,32 @@ export default function TaskList({ tasks, userId, onToggle, onDelete, onEdit, on
   }
 
   return (
-    <div className="space-y-2">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={pending.map(t => t.id)} strategy={verticalListSortingStrategy}>
-          {pending.map(task => (
-            <TaskItem key={task.id} task={task} userId={userId} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
-          ))}
-        </SortableContext>
-      </DndContext>
+    <div className="space-y-6">
+      {/* 未完了グループ */}
+      {pending.length > 0 && (
+        <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={pending.map(t => t.id)} strategy={verticalListSortingStrategy}>
+              {pending.map(task => (
+                <TaskItem key={task.id} task={task} userId={userId} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
+              ))}
+            </SortableContext>
+          </DndContext>
+        </div>
+      )}
 
+      {/* 完了済みグループ */}
       {completed.length > 0 && (
-        <>
-          <div className="flex items-center gap-2 pt-3 pb-1">
-            <div className="flex-1 h-px bg-gray-100" />
-            <p className="text-xs font-medium text-gray-300">完了済み {completed.length}件</p>
-            <div className="flex-1 h-px bg-gray-100" />
+        <div>
+          <p className="text-[13px] font-semibold text-[#8E8E93] mb-2 px-3">
+            完了済み · {completed.length}件
+          </p>
+          <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+            {completed.map(task => (
+              <TaskItem key={task.id} task={task} userId={userId} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
+            ))}
           </div>
-          {completed.map(task => (
-            <TaskItem key={task.id} task={task} userId={userId} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
-          ))}
-        </>
+        </div>
       )}
     </div>
   )

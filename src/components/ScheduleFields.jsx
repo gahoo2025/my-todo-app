@@ -21,48 +21,57 @@ export default function ScheduleFields({ value, onChange }) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">スケジュール</span>
-        <label className="flex items-center gap-1.5 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={allDay}
-            onChange={e => toggleAllDay(e.target.checked)}
-            className="w-4 h-4 accent-violet-500"
-          />
-          <span className="text-xs font-medium text-gray-500">終日</span>
-        </label>
-      </div>
+    <div>
+      <p className="text-[13px] font-semibold text-[#8E8E93] mb-2 px-3">スケジュール</p>
+      <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+        {/* 終日トグル（iOSスイッチ風） */}
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <span className="text-[15px] text-[#1C1C1E]">終日</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={allDay}
+            onClick={() => toggleAllDay(!allDay)}
+            className={`relative w-[51px] h-[31px] rounded-full transition-colors duration-200 ${
+              allDay ? 'bg-[#34C759]' : 'bg-[#767680]/25'
+            }`}
+          >
+            <span className={`absolute top-[2px] w-[27px] h-[27px] bg-white rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-all duration-200 ${
+              allDay ? 'left-[22px]' : 'left-[2px]'
+            }`} />
+          </button>
+        </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1">開始</label>
+        {/* 開始 */}
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <span className="text-[15px] text-[#1C1C1E]">開始</span>
           {allDay ? (
             <input
               type="date"
               value={startDate}
               onChange={e => set({ startDate: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm text-gray-700"
+              className="text-[15px] text-[#8E8E93] bg-transparent focus:outline-none text-right"
             />
           ) : (
             <input
               type="datetime-local"
               value={startTime}
               onChange={e => set({ startTime: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm text-gray-700"
+              className="text-[15px] text-[#8E8E93] bg-transparent focus:outline-none text-right"
             />
           )}
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1">終了</label>
+
+        {/* 終了 */}
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <span className="text-[15px] text-[#1C1C1E]">終了</span>
           {allDay ? (
             <input
               type="date"
               value={endDate}
               min={startDate || undefined}
               onChange={e => set({ endDate: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm text-gray-700"
+              className="text-[15px] text-[#8E8E93] bg-transparent focus:outline-none text-right"
             />
           ) : (
             <input
@@ -70,7 +79,7 @@ export default function ScheduleFields({ value, onChange }) {
               value={endTime}
               min={startTime || undefined}
               onChange={e => set({ endTime: e.target.value })}
-              className="w-full px-3 py-2 rounded-lg border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 text-sm text-gray-700"
+              className="text-[15px] text-[#8E8E93] bg-transparent focus:outline-none text-right"
             />
           )}
         </div>
