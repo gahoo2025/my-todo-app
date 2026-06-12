@@ -293,6 +293,7 @@ export default function TodoPage() {
         <EditTaskModal
           task={editingTask}
           categories={categories}
+          userId={user.id}
           onSave={updateTask}
           onClose={() => setEditingTask(null)}
         />

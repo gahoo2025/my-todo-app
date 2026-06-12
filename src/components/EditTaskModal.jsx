@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import ScheduleFields from './ScheduleFields'
+import SubtaskPanel from './SubtaskPanel'
 import { buildScheduleUpdates, toLocalDateInput, toLocalDateTimeInput } from '../lib/schedule'
 
-export default function EditTaskModal({ task, categories, onSave, onClose }) {
+export default function EditTaskModal({ task, categories, userId, onSave, onClose }) {
   const [title, setTitle] = useState(task.title)
   const [category, setCategory] = useState(task.category)
   const [dueDate, setDueDate] = useState(task.due_date ?? '')
@@ -95,6 +96,12 @@ export default function EditTaskModal({ task, categories, onSave, onClose }) {
           </div>
 
           <ScheduleFields value={schedule} onChange={setSchedule} />
+
+          {/* 小タスク */}
+          <div className="ios-card overflow-hidden px-4 py-3">
+            <p className="text-[13px] font-semibold text-[#8E8E93] mb-2">小タスク</p>
+            <SubtaskPanel task={task} userId={userId} />
+          </div>
         </form>
       </div>
     </div>
