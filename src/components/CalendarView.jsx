@@ -1,6 +1,20 @@
 import { useState, useMemo } from 'react'
+import holidayJp from '@holiday-jp/holiday_jp'
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+
+// 月の祝日マップを返す（キー: "YYYY-M-D"）
+function buildHolidayMap(year, month) {
+  const first = new Date(year, month, 1)
+  const last = new Date(year, month + 1, 0)
+  const holidays = holidayJp.between(first, last)
+  const map = {}
+  holidays.forEach(h => {
+    const d = new Date(h.date)
+    map[`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`] = h.name
+  })
+  return map
+}
 
 // iOSカレンダー風のイベントカラーパレット
 const CATEGORY_COLORS = [
@@ -66,6 +80,8 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
   const { year, month } = current
   const firstDay = new Date(year, month, 1)
   const lastDay = new Date(year, month + 1, 0)
+
+  const holidayMap = useMemo(() => buildHolidayMap(year, month), [year, month])
 
   // カレンダーグリッド（前月末 padding 込み）
   const cells = useMemo(() => {
@@ -143,6 +159,8 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
         {cells.map(({ date, currentMonth }, idx) => {
           const isToday = date.toDateString() === today.toDateString()
           const dow = date.getDay()
+          const holidayName = holidayMap[`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`]
+          const isHoliday = !!holidayName
           const dayTasks = activeTasks
             .map(t => ({ task: t, info: getTaskDayInfo(t, date) }))
             .filter(x => x.info !== null)
@@ -172,11 +190,18 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
                     ? 'bg-[#FF3B30] text-white font-semibold'
                     : !currentMonth
                       ? 'text-[#C7C7CC]'
-                      : dow === 0 ? 'text-[#FF3B30]/80' : dow === 6 ? 'text-[#007AFF]/80' : 'text-[#1C1C1E]'
+                      : (dow === 0 || isHoliday) ? 'text-[#FF3B30]/80' : dow === 6 ? 'text-[#007AFF]/80' : 'text-[#1C1C1E]'
                 }`}>
                   {date.getDate()}
                 </span>
               </div>
+
+              {/* 祝日名 */}
+              {holidayName && currentMonth && (
+                <p className="text-[8px] leading-tight text-[#FF3B30]/80 text-center truncate px-0.5 mb-0.5">
+                  {holidayName}
+                </p>
+              )}
 
               {/* 予定・タスクチップ */}
               <div className="space-y-[3px]">
