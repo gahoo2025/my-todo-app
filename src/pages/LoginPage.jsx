@@ -27,65 +27,62 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50 px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-2">✅</div>
-          <h1 className="text-2xl font-bold text-indigo-600">My Todo App</h1>
-          <p className="text-sm text-gray-500 mt-1">タスクをスマートに管理しよう</p>
+    <div className="min-h-screen flex items-center justify-center px-5 bg-[#F2F2F7]">
+      <div className="w-full max-w-sm">
+        {/* アプリアイコン＆タイトル */}
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-[72px] h-[72px] rounded-[18px] bg-[#007AFF] shadow-[0_8px_24px_rgba(0,122,255,0.35)] mb-5">
+            <svg className="w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-[26px] font-bold tracking-tight text-[#1C1C1E]">My Todo</h1>
+          <p className="text-[14px] text-[#8E8E93] mt-1">タスクをスマートに管理</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              メールアドレス
-            </label>
+        {/* フォームグループ */}
+        <form onSubmit={handleSubmit}>
+          <div className="ios-card overflow-hidden divide-y divide-black/[0.04] mb-4">
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-base"
-              placeholder="you@example.com"
+              className="w-full px-4 py-3.5 text-[16px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none"
+              placeholder="メールアドレス"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              パスワード
-            </label>
             <input
               type="password"
               required
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-base"
-              placeholder="6文字以上"
+              className="w-full px-4 py-3.5 text-[16px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none"
+              placeholder="パスワード（6文字以上）"
             />
           </div>
 
           {error && (
-            <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+            <p className="text-[13px] text-[#FF3B30] px-3 mb-4">{error}</p>
           )}
           {message && (
-            <p className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">{message}</p>
+            <p className="text-[13px] text-[#34C759] px-3 mb-4">{message}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold text-base active:bg-indigo-700 disabled:opacity-50 transition-colors"
+            className="ios-btn-primary shadow-[0_2px_12px_rgba(0,122,255,0.3)]"
           >
-            {loading ? '処理中...' : isSignUp ? 'アカウント作成' : 'ログイン'}
+            {loading ? '処理中…' : isSignUp ? 'アカウント作成' : 'ログイン'}
           </button>
         </form>
 
         <button
           onClick={() => { setIsSignUp(!isSignUp); setError(''); setMessage('') }}
-          className="mt-4 w-full text-sm text-indigo-600 hover:underline"
+          className="mt-5 w-full text-center text-[14px] text-[#007AFF] active:opacity-50 transition-opacity"
         >
-          {isSignUp ? 'すでにアカウントをお持ちの方はこちら' : 'アカウントを作成する'}
+          {isSignUp ? 'すでにアカウントをお持ちの方' : 'アカウントを新規作成'}
         </button>
       </div>
     </div>

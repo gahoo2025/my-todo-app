@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import ScheduleFields from './ScheduleFields'
-import { buildScheduleUpdates } from '../lib/schedule'
+import { buildScheduleUpdates, toLocalDateInput, toLocalDateTimeInput } from '../lib/schedule'
 
-export default function TaskForm({ categories, defaultCategory, onAdd, onClose }) {
-  const [title, setTitle] = useState('')
-  const [category, setCategory] = useState(defaultCategory ?? categories[0]?.name ?? '')
-  const [dueDate, setDueDate] = useState('')
-  const [memo, setMemo] = useState('')
+export default function EditTaskModal({ task, categories, onSave, onClose }) {
+  const [title, setTitle] = useState(task.title)
+  const [category, setCategory] = useState(task.category)
+  const [dueDate, setDueDate] = useState(task.due_date ?? '')
+  const [memo, setMemo] = useState(task.memo ?? '')
   const [schedule, setSchedule] = useState({
-    allDay: false,
-    startDate: '', startTime: '', endDate: '', endTime: '',
+    allDay: task.all_day ?? false,
+    startDate: toLocalDateInput(task.start_at),
+    startTime: toLocalDateTimeInput(task.start_at),
+    endDate: toLocalDateInput(task.end_at),
+    endTime: toLocalDateTimeInput(task.end_at),
   })
   const [loading, setLoading] = useState(false)
 
@@ -17,12 +20,11 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
     e.preventDefault()
     if (!title.trim()) return
     setLoading(true)
-    await onAdd({
+    await onSave(task.id, {
       title: title.trim(),
       category,
       due_date: dueDate || null,
       memo: memo || null,
-      completed: false,
       ...buildScheduleUpdates(schedule),
     })
     setLoading(false)
@@ -38,13 +40,13 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
         {/* シートヘッダー */}
         <div className="sticky top-0 bg-[#F2F2F7]/90 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b border-black/5 rounded-t-[16px]">
           <button onClick={onClose} className="ios-toolbar-btn">キャンセル</button>
-          <h2 className="text-[16px] font-semibold text-[#1C1C1E]">新規タスク</h2>
+          <h2 className="text-[16px] font-semibold text-[#1C1C1E]">タスクを編集</h2>
           <button
             onClick={handleSubmit}
             disabled={loading || !title.trim()}
             className="ios-toolbar-btn font-semibold disabled:opacity-30"
           >
-            {loading ? '追加中…' : '追加'}
+            {loading ? '保存中…' : '保存'}
           </button>
         </div>
 
@@ -61,7 +63,7 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
               placeholder="タイトル"
             />
             <textarea
-              rows={2}
+              rows={3}
               value={memo}
               onChange={e => setMemo(e.target.value)}
               placeholder="メモ"
