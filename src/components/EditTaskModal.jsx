@@ -1,17 +1,33 @@
 import { useState } from 'react'
+import ScheduleFields from './ScheduleFields'
+import { buildScheduleUpdates, toLocalDateInput, toLocalDateTimeInput } from '../lib/schedule'
 
 export default function EditTaskModal({ task, categories, onSave, onClose }) {
   const [title, setTitle] = useState(task.title)
   const [category, setCategory] = useState(task.category)
   const [dueDate, setDueDate] = useState(task.due_date ?? '')
   const [memo, setMemo] = useState(task.memo ?? '')
+  const [schedule, setSchedule] = useState({
+    enabled: !!(task.start_at || task.end_at),
+    allDay: task.all_day ?? false,
+    startDate: toLocalDateInput(task.start_at),
+    startTime: toLocalDateTimeInput(task.start_at),
+    endDate: toLocalDateInput(task.end_at),
+    endTime: toLocalDateTimeInput(task.end_at),
+  })
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title.trim()) return
     setLoading(true)
-    await onSave(task.id, { title: title.trim(), category, due_date: dueDate || null, memo: memo || null })
+    await onSave(task.id, {
+      title: title.trim(),
+      category,
+      due_date: dueDate || null,
+      memo: memo || null,
+      ...buildScheduleUpdates(schedule),
+    })
     setLoading(false)
   }
 
@@ -59,6 +75,8 @@ export default function EditTaskModal({ task, categories, onSave, onClose }) {
               />
             </div>
           </div>
+
+          <ScheduleFields value={schedule} onChange={setSchedule} />
 
           <div>
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">メモ</label>

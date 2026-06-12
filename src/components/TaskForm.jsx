@@ -1,17 +1,30 @@
 import { useState } from 'react'
+import ScheduleFields from './ScheduleFields'
+import { buildScheduleUpdates } from '../lib/schedule'
 
 export default function TaskForm({ categories, defaultCategory, onAdd, onClose }) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState(defaultCategory ?? categories[0]?.name ?? '')
   const [dueDate, setDueDate] = useState('')
   const [memo, setMemo] = useState('')
+  const [schedule, setSchedule] = useState({
+    enabled: false, allDay: false,
+    startDate: '', startTime: '', endDate: '', endTime: '',
+  })
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title.trim()) return
     setLoading(true)
-    await onAdd({ title: title.trim(), category, due_date: dueDate || null, memo: memo || null, completed: false })
+    await onAdd({
+      title: title.trim(),
+      category,
+      due_date: dueDate || null,
+      memo: memo || null,
+      completed: false,
+      ...buildScheduleUpdates(schedule),
+    })
     setLoading(false)
   }
 
@@ -60,6 +73,8 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
               />
             </div>
           </div>
+
+          <ScheduleFields value={schedule} onChange={setSchedule} />
 
           <div>
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">メモ</label>

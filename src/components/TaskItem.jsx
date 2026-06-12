@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import SubtaskPanel from './SubtaskPanel'
 import MemoSection from './MemoSection'
+import { formatSchedule } from '../lib/schedule'
 
 const CATEGORY_STYLES = {
   '仕事':  { bg: 'bg-blue-50',   text: 'text-blue-600',   dot: 'bg-blue-400' },
@@ -35,6 +36,9 @@ export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
   const dueLabel = task.due_date
     ? new Date(task.due_date).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' })
     : null
+  const scheduleLabel = formatSchedule(task)
+  const isOngoing = !task.completed && task.start_at && task.end_at
+    && new Date(task.start_at) <= new Date() && new Date() <= new Date(task.end_at)
   const cat = CATEGORY_STYLES[task.category] ?? { bg: 'bg-gray-100', text: 'text-gray-500', dot: 'bg-gray-400' }
 
   return (
@@ -93,6 +97,13 @@ export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
                 isOverdue ? 'bg-red-50 text-red-500' : 'bg-gray-50 text-gray-400'
               }`}>
                 {isOverdue ? '⚠ ' : ''}{dueLabel}
+              </span>
+            )}
+            {scheduleLabel && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                isOngoing ? 'bg-amber-50 text-amber-600' : 'bg-sky-50 text-sky-500'
+              }`}>
+                {isOngoing ? '▶ ' : '🕒 '}{scheduleLabel}
               </span>
             )}
           </div>
