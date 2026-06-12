@@ -179,7 +179,7 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
             <button
               key={idx}
               onClick={() => onDayPress(date)}
-              className={`min-h-[76px] md:min-h-[96px] border-b border-r border-black/[0.04] last:border-r-0 p-1 text-left active:bg-black/[0.03] transition-colors ${
+              className={`min-h-[76px] md:min-h-[96px] flex flex-col items-stretch justify-start border-b border-r border-black/[0.04] last:border-r-0 p-1 text-left active:bg-black/[0.03] transition-colors ${
                 !currentMonth ? 'bg-[#F2F2F7]/60' : ''
               }`}
             >
