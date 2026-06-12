@@ -43,15 +43,14 @@ export function formatSchedule(task) {
   return `${fmtDate(d)} ${fmtTime(d)}${start ? '〜' : 'まで'}`
 }
 
-// フォーム値 → DB 保存値
-export function buildScheduleUpdates({ enabled, allDay, startDate, startTime, endDate, endTime }) {
-  if (!enabled) return { start_at: null, end_at: null, all_day: false }
-
+// フォーム値 → DB 保存値（未入力はすべて null）
+export function buildScheduleUpdates({ allDay, startDate, startTime, endDate, endTime }) {
   if (allDay) {
+    const hasDate = startDate || endDate
     return {
       start_at: startDate ? new Date(`${startDate}T00:00`).toISOString() : null,
       end_at: endDate ? new Date(`${endDate}T23:59:59`).toISOString() : null,
-      all_day: true,
+      all_day: !!hasDate,
     }
   }
   return {

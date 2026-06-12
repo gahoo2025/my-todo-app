@@ -8,7 +8,7 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
   const [dueDate, setDueDate] = useState('')
   const [memo, setMemo] = useState('')
   const [schedule, setSchedule] = useState({
-    enabled: false, allDay: false,
+    allDay: false,
     startDate: '', startTime: '', endDate: '', endTime: '',
   })
   const [loading, setLoading] = useState(false)

@@ -8,7 +8,6 @@ export default function EditTaskModal({ task, categories, onSave, onClose }) {
   const [dueDate, setDueDate] = useState(task.due_date ?? '')
   const [memo, setMemo] = useState(task.memo ?? '')
   const [schedule, setSchedule] = useState({
-    enabled: !!(task.start_at || task.end_at),
     allDay: task.all_day ?? false,
     startDate: toLocalDateInput(task.start_at),
     startTime: toLocalDateTimeInput(task.start_at),
