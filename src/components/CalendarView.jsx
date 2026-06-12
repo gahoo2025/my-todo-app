@@ -44,7 +44,22 @@ function getTaskDayInfo(task, date) {
   return null
 }
 
-export default function CalendarView({ tasks, categories, onEdit }) {
+// 予定が対象日に表示されるか判定
+function getEventDayInfo(event, date) {
+  const d = new Date(date); d.setHours(0, 0, 0, 0)
+  const start = new Date(event.start_at)
+  const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  if (event.end_at) {
+    const end = new Date(event.end_at)
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+    if (startDay > d || endDay < d) return null
+    return { isStart: +startDay === +d, isEnd: +endDay === +d, isSpan: +startDay !== +endDay }
+  }
+  if (+startDay === +d) return { isStart: true, isEnd: true, isSpan: false }
+  return null
+}
+
+export default function CalendarView({ tasks, events, categories, onEdit, onDayPress, onAddEvent }) {
   const today = new Date()
   const [current, setCurrent] = useState({ year: today.getFullYear(), month: today.getMonth() })
 
@@ -91,6 +106,12 @@ export default function CalendarView({ tasks, categories, onEdit }) {
           {year}年{month + 1}月
         </h2>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => onAddEvent(new Date(year, month, today.getDate()))}
+            className="text-[13px] font-medium text-[#007AFF] px-2.5 py-1 rounded-full active:opacity-50 transition-opacity"
+          >
+            ＋ 予定
+          </button>
           <button onClick={goToday}
             className="text-[13px] font-medium text-[#007AFF] px-2.5 py-1 rounded-full active:opacity-50 transition-opacity">
             今日
@@ -125,11 +146,22 @@ export default function CalendarView({ tasks, categories, onEdit }) {
           const dayTasks = activeTasks
             .map(t => ({ task: t, info: getTaskDayInfo(t, date) }))
             .filter(x => x.info !== null)
+          const dayEvents = (events || [])
+            .map(e => ({ event: e, info: getEventDayInfo(e, date) }))
+            .filter(x => x.info !== null)
+
+          const totalItems = dayTasks.length + dayEvents.length
+          // 予定→タスクの順で最大3件表示
+          const allItems = [
+            ...dayEvents.map(x => ({ kind: 'event', ...x })),
+            ...dayTasks.map(x => ({ kind: 'task', ...x })),
+          ]
 
           return (
-            <div
+            <button
               key={idx}
-              className={`min-h-[76px] md:min-h-[96px] border-b border-r border-black/[0.04] last:border-r-0 p-1 ${
+              onClick={() => onDayPress(date)}
+              className={`min-h-[76px] md:min-h-[96px] border-b border-r border-black/[0.04] last:border-r-0 p-1 text-left active:bg-black/[0.03] transition-colors ${
                 !currentMonth ? 'bg-[#F2F2F7]/60' : ''
               }`}
             >
@@ -146,15 +178,36 @@ export default function CalendarView({ tasks, categories, onEdit }) {
                 </span>
               </div>
 
-              {/* タスクチップ */}
+              {/* 予定・タスクチップ */}
               <div className="space-y-[3px]">
-                {dayTasks.slice(0, 3).map(({ task, info }) => {
+                {allItems.slice(0, 3).map(item => {
+                  if (item.kind === 'event') {
+                    const { event, info } = item
+                    return (
+                      <div
+                        key={`ev-${event.id}`}
+                        className={`w-full flex items-center gap-1 text-[10px] font-medium leading-tight px-1 py-[3px] ${
+                          info.isSpan
+                            ? `${info.isStart ? 'rounded-l-[5px] ml-0.5' : ''} ${info.isEnd ? 'rounded-r-[5px] mr-0.5' : ''}`
+                            : 'rounded-[5px] mx-0.5'
+                        }`}
+                        style={{ backgroundColor: `${event.color}20`, color: event.color }}
+                      >
+                        {(info.isStart || !info.isSpan) && (
+                          <span className="flex-shrink-0 w-[3px] h-[10px] rounded-full" style={{ backgroundColor: event.color }} />
+                        )}
+                        <span className="truncate">
+                          {info.isStart || !info.isSpan ? event.title : ' '}
+                        </span>
+                      </div>
+                    )
+                  }
+                  const { task, info } = item
                   const color = getCategoryColor(task.category, categories)
                   return (
-                    <button
-                      key={task.id}
-                      onClick={() => onEdit(task)}
-                      className={`w-full flex items-center gap-1 text-left text-[10px] font-medium leading-tight px-1 py-[3px] transition-opacity hover:opacity-70 active:opacity-50 ${color.bg} ${color.text} ${
+                    <div
+                      key={`task-${task.id}`}
+                      className={`w-full flex items-center gap-1 text-[10px] font-medium leading-tight px-1 py-[3px] ${color.bg} ${color.text} ${
                         info.isSpan
                           ? `${info.isStart ? 'rounded-l-[5px] ml-0.5' : ''} ${info.isEnd ? 'rounded-r-[5px] mr-0.5' : ''}`
                           : 'rounded-[5px] mx-0.5'
@@ -164,16 +217,16 @@ export default function CalendarView({ tasks, categories, onEdit }) {
                         <span className={`flex-shrink-0 w-[3px] h-[10px] rounded-full ${color.bar}`} />
                       )}
                       <span className="truncate">
-                        {info.isStart || !info.isSpan ? task.title : ' '}
+                        {info.isStart || !info.isSpan ? task.title : ' '}
                       </span>
-                    </button>
+                    </div>
                   )
                 })}
-                {dayTasks.length > 3 && (
-                  <p className="text-[10px] text-[#AEAEB2] text-center">+{dayTasks.length - 3}</p>
+                {totalItems > 3 && (
+                  <p className="text-[10px] text-[#AEAEB2] text-center">+{totalItems - 3}</p>
                 )}
               </div>
-            </div>
+            </button>
           )
         })}
       </div>
