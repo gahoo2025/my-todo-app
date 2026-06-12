@@ -18,13 +18,13 @@ function buildHolidayMap(year, month) {
 
 // iOSカレンダー風のイベントカラーパレット
 const CATEGORY_COLORS = [
-  { bg: 'bg-[#007AFF]/12', text: 'text-[#007AFF]', bar: 'bg-[#007AFF]' },
-  { bg: 'bg-[#AF52DE]/12', text: 'text-[#AF52DE]', bar: 'bg-[#AF52DE]' },
-  { bg: 'bg-[#34C759]/14', text: 'text-[#248A3D]', bar: 'bg-[#34C759]' },
-  { bg: 'bg-[#FF3B30]/12', text: 'text-[#FF3B30]', bar: 'bg-[#FF3B30]' },
-  { bg: 'bg-[#FF9500]/14', text: 'text-[#C93400]', bar: 'bg-[#FF9500]' },
-  { bg: 'bg-[#5AC8FA]/16', text: 'text-[#0071A4]', bar: 'bg-[#5AC8FA]' },
-  { bg: 'bg-[#FF2D55]/12', text: 'text-[#FF2D55]', bar: 'bg-[#FF2D55]' },
+  { bg: 'bg-[#007AFF]/12', text: 'text-[#007AFF]' },
+  { bg: 'bg-[#AF52DE]/12', text: 'text-[#AF52DE]' },
+  { bg: 'bg-[#34C759]/14', text: 'text-[#248A3D]' },
+  { bg: 'bg-[#FF3B30]/12', text: 'text-[#FF3B30]' },
+  { bg: 'bg-[#FF9500]/14', text: 'text-[#C93400]' },
+  { bg: 'bg-[#5AC8FA]/16', text: 'text-[#0071A4]' },
+  { bg: 'bg-[#FF2D55]/12', text: 'text-[#FF2D55]' },
 ]
 
 function getCategoryColor(categoryName, categories) {
@@ -71,6 +71,17 @@ function getEventDayInfo(event, date) {
   }
   if (+startDay === +d) return { isStart: true, isEnd: true, isSpan: false }
   return null
+}
+
+// チップの共通スタイル
+function chipClass(info) {
+  const base = 'w-full text-[9px] font-medium py-[2.5px] px-[2px] truncate leading-tight'
+  if (info.isSpan) {
+    const l = info.isStart ? 'rounded-l-[3px]' : ''
+    const r = info.isEnd ? 'rounded-r-[3px]' : ''
+    return `${base} ${l} ${r}`
+  }
+  return `${base} rounded-[3px]`
 }
 
 export default function CalendarView({ tasks, events, categories, onEdit, onDayPress, onAddEvent }) {
@@ -124,7 +135,6 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
     const dx = e.changedTouches[0].clientX - touchStart.current.x
     const dy = e.changedTouches[0].clientY - touchStart.current.y
     touchStart.current = null
-    // 横方向のスワイプが優勢で、50px以上動いた場合のみ
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
     if (dx < 0) nextMonth()
     else prevMonth()
@@ -191,7 +201,6 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
             .filter(x => x.info !== null)
 
           const totalItems = dayTasks.length + dayEvents.length
-          // 予定→タスクの順で最大3件表示
           const allItems = [
             ...dayEvents.map(x => ({ kind: 'event', ...x })),
             ...dayTasks.map(x => ({ kind: 'task', ...x })),
@@ -201,12 +210,12 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
             <button
               key={idx}
               onClick={() => onDayPress(date)}
-              className={`min-h-[76px] md:min-h-[96px] flex flex-col items-stretch justify-start border-b border-r border-black/[0.04] last:border-r-0 p-1 text-left active:bg-black/[0.03] transition-colors ${
+              className={`min-h-[76px] md:min-h-[96px] flex flex-col items-stretch justify-start border-b border-r border-black/[0.04] last:border-r-0 pt-1 pb-0.5 px-0.5 text-left active:bg-black/[0.03] transition-colors ${
                 !currentMonth ? 'bg-[#F2F2F7]/60' : ''
               }`}
             >
               {/* 日付数字 */}
-              <div className="flex justify-center mb-1">
+              <div className="flex justify-center mb-0.5">
                 <span className={`w-[22px] h-[22px] flex items-center justify-center rounded-full text-[12px] font-medium tabular-nums ${
                   isToday
                     ? 'bg-[#FF3B30] text-white font-semibold'
@@ -225,7 +234,7 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
                 </p>
               )}
 
-              {/* 予定・タスクチップ */}
+              {/* 予定・タスクチップ（左バーなし・最小パディングで最大文字数を確保） */}
               <div className="space-y-[2px]">
                 {allItems.slice(0, 3).map(item => {
                   if (item.kind === 'event') {
@@ -233,16 +242,8 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
                     return (
                       <div
                         key={`ev-${event.id}`}
-                        className={`w-full text-[10px] font-medium leading-none py-[3px] pl-1 pr-0.5 truncate ${
-                          info.isSpan
-                            ? `${info.isStart ? 'rounded-l-[4px]' : 'pl-0'} ${info.isEnd ? 'rounded-r-[4px]' : 'pr-0'}`
-                            : 'rounded-[4px]'
-                        }`}
-                        style={{
-                          backgroundColor: `${event.color}22`,
-                          color: event.color,
-                          borderLeft: (info.isStart || !info.isSpan) ? `2px solid ${event.color}` : 'none',
-                        }}
+                        className={chipClass(info)}
+                        style={{ backgroundColor: `${event.color}22`, color: event.color }}
                       >
                         {info.isStart || !info.isSpan ? event.title : ' '}
                       </div>
@@ -250,28 +251,17 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
                   }
                   const { task, info } = item
                   const color = getCategoryColor(task.category, categories)
-                  // border-left color は bar クラスから16進数を取り出せないので inline style で指定
-                  const barColors = ['#007AFF','#AF52DE','#34C759','#FF3B30','#FF9500','#5AC8FA','#FF2D55']
-                  const catIdx = categories.findIndex(c => c.name === task.category)
-                  const barColor = barColors[(catIdx >= 0 ? catIdx : 0) % barColors.length]
                   return (
                     <div
                       key={`task-${task.id}`}
-                      className={`w-full text-[10px] font-medium leading-none py-[3px] pl-1 pr-0.5 truncate ${color.bg} ${color.text} ${
-                        info.isSpan
-                          ? `${info.isStart ? 'rounded-l-[4px]' : 'pl-0'} ${info.isEnd ? 'rounded-r-[4px]' : 'pr-0'}`
-                          : 'rounded-[4px]'
-                      }`}
-                      style={{
-                        borderLeft: (info.isStart || !info.isSpan) ? `2px solid ${barColor}` : 'none',
-                      }}
+                      className={`${chipClass(info)} ${color.bg} ${color.text}`}
                     >
                       {info.isStart || !info.isSpan ? task.title : ' '}
                     </div>
                   )
                 })}
                 {totalItems > 3 && (
-                  <p className="text-[10px] text-[#AEAEB2] text-center">+{totalItems - 3}</p>
+                  <p className="text-[9px] text-[#AEAEB2] text-center">+{totalItems - 3}</p>
                 )}
               </div>
             </button>
