@@ -113,27 +113,31 @@ export default function TodoPage() {
       {/* Header */}
       <header className="text-white px-4 py-4 sticky top-0 z-10"
         style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-        <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-2">
+        <div className="max-w-lg md:max-w-5xl mx-auto">
+          <div className="flex items-center justify-between mb-2 md:mb-0">
             <div className="flex items-center gap-2">
               <span className="text-xl">✅</span>
               <h1 className="text-lg font-bold tracking-wide">My Todo</h1>
+              <p className="hidden md:block text-white/80 text-xs font-medium ml-4">
+                {pending > 0 ? `${pending}件のタスクが残っています` : 'すべてのタスクが完了しています 🎉'}
+              </p>
             </div>
             <div className="flex items-center gap-1.5">
               <button onClick={() => setPage('category')}
-                className="flex items-center justify-center w-8 h-8 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur-sm transition-colors"
+                className="flex items-center justify-center gap-1 w-8 md:w-auto h-8 md:px-3 bg-white/20 hover:bg-white/30 rounded-xl backdrop-blur-sm transition-colors text-xs font-medium"
                 title="カテゴリ管理">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                 </svg>
+                <span className="hidden md:inline">カテゴリ</span>
               </button>
               <button onClick={() => setPage('history')}
                 className="flex items-center gap-1 text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl backdrop-blur-sm transition-colors font-medium">
-                📋{completedCount > 0 && <span className="bg-white/30 px-1.5 rounded-full">{completedCount}</span>}
+                📋<span className="hidden md:inline">履歴</span>{completedCount > 0 && <span className="bg-white/30 px-1.5 rounded-full">{completedCount}</span>}
               </button>
               <button onClick={() => setPage('trash')}
                 className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl backdrop-blur-sm transition-colors font-medium">
-                🗑
+                🗑<span className="hidden md:inline ml-1">ゴミ箱</span>
               </button>
               <button onClick={signOut}
                 className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl backdrop-blur-sm transition-colors font-medium">
@@ -141,55 +145,85 @@ export default function TodoPage() {
               </button>
             </div>
           </div>
-          <p className="text-white/80 text-xs font-medium">
+          <p className="md:hidden text-white/80 text-xs font-medium">
             {pending > 0 ? `${pending}件のタスクが残っています` : 'すべてのタスクが完了しています 🎉'}
           </p>
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-4 pb-24">
-        {/* Category filter */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
-          {['すべて', ...categoryNames].map(cat => (
-            <button
-              key={cat}
-              onClick={() => setFilterCategory(cat)}
-              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${
-                filterCategory === cat
-                  ? 'text-white shadow-md shadow-violet-200'
-                  : 'bg-white text-gray-500 border border-gray-100 shadow-sm'
-              }`}
-              style={filterCategory === cat ? { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' } : {}}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {fetchError && (
-          <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3 mb-4 text-sm text-red-500">
-            ⚠️ {fetchError}
+      <main className="max-w-lg md:max-w-5xl mx-auto px-4 py-4 pb-24 md:pb-8 md:flex md:gap-6 md:items-start">
+        {/* Category sidebar (desktop) */}
+        <aside className="hidden md:block w-48 flex-shrink-0 sticky top-20">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">カテゴリ</p>
+          <div className="space-y-1">
+            {['すべて', ...categoryNames].map(cat => (
+              <button
+                key={cat}
+                onClick={() => setFilterCategory(cat)}
+                className={`w-full text-left px-3.5 py-2 rounded-xl text-sm font-medium transition-all ${
+                  filterCategory === cat
+                    ? 'text-white shadow-md shadow-violet-200'
+                    : 'bg-white text-gray-500 border border-gray-100 shadow-sm hover:border-violet-200'
+                }`}
+                style={filterCategory === cat ? { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' } : {}}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
-        )}
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full mt-4 py-2.5 text-white rounded-xl font-bold text-sm transition-all active:scale-95 shadow-md shadow-violet-200"
+            style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
+          >
+            ＋ タスクを追加
+          </button>
+        </aside>
 
-        {loading || catLoading ? (
-          <div className="text-center py-16 text-gray-300 text-sm">読み込み中...</div>
-        ) : (
-          <TaskList
-            tasks={filtered}
-            userId={user.id}
-            onToggle={toggleTask}
-            onDelete={trashTask}
-            onEdit={setEditingTask}
-            onReorder={reorderTasks}
-          />
-        )}
+        <div className="flex-1 min-w-0">
+          {/* Category filter (mobile) */}
+          <div className="md:hidden flex gap-2 overflow-x-auto pb-2 mb-4">
+            {['すべて', ...categoryNames].map(cat => (
+              <button
+                key={cat}
+                onClick={() => setFilterCategory(cat)}
+                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  filterCategory === cat
+                    ? 'text-white shadow-md shadow-violet-200'
+                    : 'bg-white text-gray-500 border border-gray-100 shadow-sm'
+                }`}
+                style={filterCategory === cat ? { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' } : {}}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {fetchError && (
+            <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3 mb-4 text-sm text-red-500">
+              ⚠️ {fetchError}
+            </div>
+          )}
+
+          {loading || catLoading ? (
+            <div className="text-center py-16 text-gray-300 text-sm">読み込み中...</div>
+          ) : (
+            <TaskList
+              tasks={filtered}
+              userId={user.id}
+              onToggle={toggleTask}
+              onDelete={trashTask}
+              onEdit={setEditingTask}
+              onReorder={reorderTasks}
+            />
+          )}
+        </div>
       </main>
 
-      {/* FAB */}
+      {/* FAB (mobile) */}
       <button
         onClick={() => setShowForm(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 text-white rounded-2xl shadow-lg shadow-violet-300 text-2xl flex items-center justify-center transition-all active:scale-95 z-20"
+        className="md:hidden fixed bottom-6 right-6 w-14 h-14 text-white rounded-2xl shadow-lg shadow-violet-300 text-2xl flex items-center justify-center transition-all active:scale-95 z-20"
         style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
       >
         +

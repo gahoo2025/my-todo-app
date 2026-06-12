@@ -45,7 +45,7 @@ export default function TrashPage({ onBack }) {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="bg-gray-700 text-white px-4 py-4 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
+        <div className="max-w-lg md:max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={onBack}
               className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
@@ -67,7 +67,7 @@ export default function TrashPage({ onBack }) {
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-4 pb-8">
+      <main className="max-w-lg md:max-w-2xl mx-auto px-4 py-4 pb-8">
         {loading ? (
           <div className="text-center py-16 text-gray-300 text-sm">読み込み中...</div>
         ) : tasks.length === 0 ? (

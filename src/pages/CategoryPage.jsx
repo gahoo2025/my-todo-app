@@ -116,7 +116,7 @@ export default function CategoryPage({ categories, onAdd, onUpdate, onDelete, on
     <div className="min-h-screen bg-slate-50">
       <header className="text-white px-4 py-4 sticky top-0 z-10"
         style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-        <div className="max-w-lg mx-auto flex items-center gap-3">
+        <div className="max-w-lg md:max-w-2xl mx-auto flex items-center gap-3">
           <button onClick={onBack}
             className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/20 hover:bg-white/30 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -130,7 +130,7 @@ export default function CategoryPage({ categories, onAdd, onUpdate, onDelete, on
         </div>
       </header>
 
-      <main className="max-w-lg mx-auto px-4 py-4 pb-8">
+      <main className="max-w-lg md:max-w-2xl mx-auto px-4 py-4 pb-8">
         {/* Add form */}
         <form onSubmit={handleAdd} className="flex gap-2 mb-6">
           <input

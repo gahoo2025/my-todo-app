@@ -16,10 +16,10 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end z-30" onClick={onClose}>
-      <div className="w-full bg-white rounded-t-3xl p-6 max-w-lg mx-auto shadow-2xl"
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end md:items-center md:justify-center z-30" onClick={onClose}>
+      <div className="w-full bg-white rounded-t-3xl md:rounded-3xl p-6 max-w-lg mx-auto shadow-2xl"
         onClick={e => e.stopPropagation()}>
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5 md:hidden" />
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-gray-800">タスクを追加</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-500 text-lg">&times;</button>
