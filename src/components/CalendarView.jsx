@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import holidayJp from '@holiday-jp/holiday_jp'
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
@@ -112,10 +112,32 @@ export default function CalendarView({ tasks, events, categories, onEdit, onDayP
     setCurrent({ year: today.getFullYear(), month: today.getMonth() })
   }
 
+  // スワイプで月切り替え
+  const touchStart = useRef(null)
+
+  function handleTouchStart(e) {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }
+
+  function handleTouchEnd(e) {
+    if (!touchStart.current) return
+    const dx = e.changedTouches[0].clientX - touchStart.current.x
+    const dy = e.changedTouches[0].clientY - touchStart.current.y
+    touchStart.current = null
+    // 横方向のスワイプが優勢で、50px以上動いた場合のみ
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return
+    if (dx < 0) nextMonth()
+    else prevMonth()
+  }
+
   const activeTasks = tasks.filter(t => !t.completed)
 
   return (
-    <div className="ios-card overflow-hidden">
+    <div
+      className="ios-card overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* カレンダーヘッダー */}
       <div className="flex items-center justify-between px-4 py-3">
         <h2 className="text-[17px] font-bold text-[#1C1C1E] tracking-tight">
