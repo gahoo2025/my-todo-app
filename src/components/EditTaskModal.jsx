@@ -3,7 +3,7 @@ import ScheduleFields from './ScheduleFields'
 import SubtaskPanel from './SubtaskPanel'
 import { buildScheduleUpdates, toLocalDateInput, toLocalDateTimeInput } from '../lib/schedule'
 
-export default function EditTaskModal({ task, categories, userId, onSave, onClose }) {
+export default function EditTaskModal({ task, categories, userId, onSave, onClose, onSwitchToList }) {
   const [title, setTitle] = useState(task.title)
   const [category, setCategory] = useState(task.category)
   const [dueDate, setDueDate] = useState(task.due_date ?? '')
@@ -33,16 +33,21 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
 
   async function toggleComplete() {
     setLoading(true)
-    // タイトル等の編集中の内容も一緒に保存する
+    const nextCompleted = !task.completed
     await onSave(task.id, {
       title: title.trim() || task.title,
       category,
       due_date: dueDate || null,
       memo: memo || null,
       ...buildScheduleUpdates(schedule),
-      completed: !task.completed,
+      completed: nextCompleted,
     })
     setLoading(false)
+    // 未完了に戻した場合、日付がないタスクはカレンダーに表示されないのでリストへ切り替える
+    if (!nextCompleted) {
+      const hasDates = !!(dueDate || schedule.startDate || schedule.endDate)
+      if (!hasDates && onSwitchToList) onSwitchToList()
+    }
   }
 
   return (

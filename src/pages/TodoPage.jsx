@@ -101,7 +101,11 @@ export default function TodoPage() {
   }
 
   if (page === 'notes') return <NotesPage onBack={() => setPage('todo')} />
-  if (page === 'history') return <HistoryPage onBack={() => setPage('todo')} />
+  if (page === 'history') return (
+    <HistoryPage
+      onBack={() => { setView('list'); setPage('todo') }}
+    />
+  )
   if (page === 'trash') return <TrashPage onBack={() => setPage('todo')} />
   if (page === 'category') return (
     <CategoryPage
@@ -303,6 +307,7 @@ export default function TodoPage() {
           userId={user.id}
           onSave={updateTask}
           onClose={() => setEditingTask(null)}
+          onSwitchToList={() => setView('list')}
         />
       )}
       {showEventForm && (
