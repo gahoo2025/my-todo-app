@@ -27,6 +27,11 @@ export default function HistoryPage({ onBack }) {
       .then(({ data }) => { setTasks(data ?? []); setLoading(false) })
   }, [user?.id])
 
+  async function restoreTask(id) {
+    const { error } = await supabase.from('tasks').update({ completed: false }).eq('id', id)
+    if (!error) setTasks(tasks.filter(t => t.id !== id))
+  }
+
   const grouped = tasks.reduce((acc, task) => {
     const date = new Date(task.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
     if (!acc[date]) acc[date] = []
@@ -87,6 +92,12 @@ export default function HistoryPage({ onBack }) {
                         )}
                       </div>
                     </div>
+                    <button
+                      onClick={() => restoreTask(task.id)}
+                      className="flex-shrink-0 text-[14px] text-[#007AFF] font-medium px-3 py-1.5 rounded-full bg-[#007AFF]/[0.08] active:opacity-50 transition-opacity"
+                    >
+                      戻す
+                    </button>
                   </div>
                 ))}
               </div>
