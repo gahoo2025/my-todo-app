@@ -31,6 +31,20 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
     setLoading(false)
   }
 
+  async function toggleComplete() {
+    setLoading(true)
+    // タイトル等の編集中の内容も一緒に保存する
+    await onSave(task.id, {
+      title: title.trim() || task.title,
+      category,
+      due_date: dueDate || null,
+      memo: memo || null,
+      ...buildScheduleUpdates(schedule),
+      completed: !task.completed,
+    })
+    setLoading(false)
+  }
+
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] flex items-end md:items-center md:justify-center z-30"
       onClick={onClose}>
@@ -52,6 +66,34 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* 完了ボタン */}
+          <button
+            type="button"
+            onClick={toggleComplete}
+            disabled={loading}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-[12px] text-[15px] font-semibold active:opacity-70 disabled:opacity-40 transition-opacity ${
+              task.completed
+                ? 'bg-[#767680]/15 text-[#8E8E93]'
+                : 'bg-[#34C759] text-white shadow-[0_2px_8px_rgba(52,199,89,0.3)]'
+            }`}
+          >
+            {task.completed ? (
+              <>
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3" />
+                </svg>
+                未完了に戻す
+              </>
+            ) : (
+              <>
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                タスクを完了にする
+              </>
+            )}
+          </button>
+
           {/* タイトル・メモのグループ */}
           <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
             <input
