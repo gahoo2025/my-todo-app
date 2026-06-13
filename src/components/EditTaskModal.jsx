@@ -96,13 +96,15 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
           </div>
 
           <ScheduleFields value={schedule} onChange={setSchedule} />
+        </form>
 
-          {/* 小タスク */}
+        {/* 小タスク（form の外に置く：内部に追加フォームを持つため入れ子にしない） */}
+        <div className="px-4 pb-4">
           <div className="ios-card overflow-hidden px-4 py-3">
             <p className="text-[13px] font-semibold text-[#8E8E93] mb-2">小タスク</p>
             <SubtaskPanel task={task} userId={userId} />
           </div>
-        </form>
+        </div>
       </div>
     </div>
   )
