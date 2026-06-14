@@ -13,6 +13,7 @@ import HistoryPage from './HistoryPage'
 import TrashPage from './TrashPage'
 import CategoryPage from './CategoryPage'
 import NotesPage from './NotesPage'
+import GoalsPage from './GoalsPage'
 
 // ボトムタブアイコン
 function TabIcon({ tab, active }) {
@@ -32,18 +33,26 @@ function TabIcon({ tab, active }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
     </svg>
   )
+  if (tab === 'goals') return (
+    <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 21l1.9-5.7a8.5 8.5 0 1113.8 0L21 21" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v4m0 4h.01" />
+    </svg>
+  )
 }
 
 const TABS = [
   { id: 'tasks',    label: 'タスク' },
   { id: 'calendar', label: 'カレンダー' },
-  { id: 'notes',   label: 'メモ' },
+  { id: 'goals',    label: '目標' },
+  { id: 'notes',    label: 'メモ' },
 ]
 
 const TAB_TITLES = {
   tasks:    'タスク',
   calendar: 'カレンダー',
   notes:    'メモ',
+  goals:    '目標',
 }
 
 export default function TodoPage() {
@@ -54,7 +63,7 @@ export default function TodoPage() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
-  const [tab, setTab] = useState('tasks')     // 'tasks' | 'calendar' | 'notes'
+  const [tab, setTab] = useState('tasks')
   const [page, setPage] = useState(null)      // null | 'history' | 'trash' | 'category'
   const [filterCategory, setFilterCategory] = useState('すべて')
 
@@ -69,7 +78,6 @@ export default function TodoPage() {
     if (user) fetchTasks()
   }, [user?.id])
 
-  // サブページから戻ったときも再取得
   useEffect(() => {
     if (!page && user) fetchTasks()
   }, [page])
@@ -164,7 +172,6 @@ export default function TodoPage() {
       <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-lg md:max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-11">
-            {/* ラージタイトル（インライン） */}
             <span className="text-[17px] font-bold text-[#1C1C1E] tracking-tight">
               {TAB_TITLES[tab]}
               {tab === 'tasks' && (
@@ -174,16 +181,13 @@ export default function TodoPage() {
               )}
             </span>
 
-            {/* 右側アイコン群 */}
             <div className="flex items-center gap-0.5">
-              {/* 全タブ共通 */}
-              {(tab === 'tasks' || tab === 'calendar' || tab === 'notes') && (
-                <button onClick={() => setPage('category')} className="ios-icon-btn text-[#007AFF]" title="カテゴリ">
-                  <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                  </svg>
-                </button>
-              )}
+              {/* カテゴリ管理（全タブ共通） */}
+              <button onClick={() => setPage('category')} className="ios-icon-btn text-[#007AFF]" title="カテゴリ">
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </button>
               {tab === 'tasks' && (
                 <>
                   <button onClick={() => setPage('history')} className="ios-icon-btn text-[#007AFF]" title="完了履歴">
@@ -212,7 +216,6 @@ export default function TodoPage() {
         {/* ── タスクタブ ── */}
         {tab === 'tasks' && (
           <main className="max-w-lg md:max-w-5xl mx-auto px-4 py-4 pb-28 md:pb-10 md:flex md:gap-8 md:items-start">
-            {/* PCサイドバー */}
             <aside className="hidden md:block w-52 flex-shrink-0 sticky top-[60px]">
               <p className="text-[13px] font-semibold text-[#8E8E93] mb-2 px-3">カテゴリ</p>
               <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
@@ -244,7 +247,6 @@ export default function TodoPage() {
             </aside>
 
             <div className="flex-1 min-w-0">
-              {/* モバイル カテゴリピル */}
               <div className="md:hidden flex gap-2 overflow-x-auto pb-3 -mx-4 px-4">
                 {['すべて', ...categoryNames].map(cat => (
                   <button
@@ -283,7 +285,6 @@ export default function TodoPage() {
         {/* ── カレンダータブ ── */}
         {tab === 'calendar' && (
           <main className="max-w-lg md:max-w-5xl mx-auto px-4 py-4 pb-28 md:pb-10 md:flex md:gap-8 md:items-start">
-            {/* PCサイドバー */}
             <aside className="hidden md:block w-52 flex-shrink-0 sticky top-[60px]">
               <p className="text-[13px] font-semibold text-[#8E8E93] mb-2 px-3">カテゴリ</p>
               <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
@@ -309,7 +310,6 @@ export default function TodoPage() {
             </aside>
 
             <div className="flex-1 min-w-0">
-              {/* モバイル カテゴリピル */}
               <div className="md:hidden flex gap-2 overflow-x-auto pb-3 -mx-4 px-4">
                 {['すべて', ...categoryNames].map(cat => (
                   <button
@@ -340,6 +340,16 @@ export default function TodoPage() {
               )}
             </div>
           </main>
+        )}
+
+        {/* ── 目標タブ ── */}
+        {tab === 'goals' && (
+          <GoalsPage
+            embedded
+            categories={categories}
+            filterCategory={filterCategory}
+            onFilterChange={setFilterCategory}
+          />
         )}
 
         {/* ── メモタブ ── */}
@@ -373,7 +383,7 @@ export default function TodoPage() {
         </div>
       </nav>
 
-      {/* ===== FAB（モバイル、タスク/カレンダータブ） ===== */}
+      {/* ===== FAB ===== */}
       {tab === 'tasks' && (
         <button
           onClick={() => setShowForm(true)}
