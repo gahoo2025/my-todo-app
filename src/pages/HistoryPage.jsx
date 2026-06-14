@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useCategories } from '../hooks/useCategories'
 
 const CATEGORY_TINTS = {
   '仕事':  'text-[#007AFF]',
@@ -10,10 +11,14 @@ const CATEGORY_TINTS = {
   'その他': 'text-[#8E8E93]',
 }
 
-export default function HistoryPage({ onBack }) {
+export default function HistoryPage({ onBack, initialCategory }) {
   const { user } = useAuth()
+  const { categories } = useCategories()
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
+  const [filterCategory, setFilterCategory] = useState(initialCategory ?? 'すべて')
+
+  const categoryNames = categories.map(c => c.name)
 
   useEffect(() => {
     if (!user) return
@@ -32,7 +37,11 @@ export default function HistoryPage({ onBack }) {
     if (!error) setTasks(tasks.filter(t => t.id !== id))
   }
 
-  const grouped = tasks.reduce((acc, task) => {
+  const filteredTasks = filterCategory === 'すべて'
+    ? tasks
+    : tasks.filter(t => t.category === filterCategory)
+
+  const grouped = filteredTasks.reduce((acc, task) => {
     const date = new Date(task.created_at).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
     if (!acc[date]) acc[date] = []
     acc[date].push(task)
@@ -41,7 +50,6 @@ export default function HistoryPage({ onBack }) {
 
   return (
     <div className="min-h-screen">
-      {/* ナビゲーションバー */}
       <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-lg md:max-w-2xl mx-auto px-4">
           <div className="flex items-center h-11">
@@ -54,15 +62,31 @@ export default function HistoryPage({ onBack }) {
           </div>
           <div className="pb-3 pt-1">
             <h1 className="text-[28px] font-bold tracking-tight text-[#1C1C1E] leading-tight">完了履歴</h1>
-            <p className="text-[13px] text-[#8E8E93] mt-0.5">{tasks.length}件完了</p>
           </div>
         </div>
       </header>
 
       <main className="max-w-lg md:max-w-2xl mx-auto px-4 py-4 pb-10">
+        {/* カテゴリピル */}
+        <div className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4">
+          {['すべて', ...categoryNames].map(cat => (
+            <button
+              key={cat}
+              onClick={() => setFilterCategory(cat)}
+              className={`flex-shrink-0 px-3.5 h-8 rounded-full text-[13px] font-medium transition-all duration-200 ${
+                filterCategory === cat
+                  ? 'bg-[#1C1C1E] text-white'
+                  : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
           <div className="text-center py-20 text-[#AEAEB2] text-[13px]">読み込み中…</div>
-        ) : tasks.length === 0 ? (
+        ) : filteredTasks.length === 0 ? (
           <div className="text-center py-24">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#767680]/10 flex items-center justify-center text-3xl">🎉</div>
             <p className="text-[15px] font-medium text-[#8E8E93]">完了したタスクがありません</p>

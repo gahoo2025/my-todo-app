@@ -79,6 +79,7 @@ export default function TodoPage() {
       const { data, error } = await supabase
         .from('tasks').select('*').eq('user_id', user.id)
         .is('deleted_at', null)
+        .eq('completed', false)
         .order('position', { ascending: true })
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -135,7 +136,7 @@ export default function TodoPage() {
 
   // サブページ
   if (page === 'history') return (
-    <HistoryPage onBack={() => { setPage(null); setTab('tasks') }} />
+    <HistoryPage onBack={() => { setPage(null); setTab('tasks') }} initialCategory={filterCategory} />
   )
   if (page === 'trash') return (
     <TrashPage onBack={() => setPage(null)} />
@@ -154,8 +155,7 @@ export default function TodoPage() {
   const categoryNames = categories.map(c => c.name)
   const filteredTasks = filterCategory === 'すべて'
     ? tasks : tasks.filter(t => t.category === filterCategory)
-  const pending = tasks.filter(t => !t.completed).length
-  const completedCount = tasks.filter(t => t.completed).length
+  const pending = tasks.length
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -186,15 +186,10 @@ export default function TodoPage() {
               )}
               {tab === 'tasks' && (
                 <>
-                  <button onClick={() => setPage('history')} className="ios-icon-btn text-[#007AFF] relative" title="完了履歴">
+                  <button onClick={() => setPage('history')} className="ios-icon-btn text-[#007AFF]" title="完了履歴">
                     <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    {completedCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center bg-[#FF3B30] text-white text-[10px] font-semibold rounded-full">
-                        {completedCount}
-                      </span>
-                    )}
                   </button>
                   <button onClick={() => setPage('trash')} className="ios-icon-btn text-[#007AFF]" title="ゴミ箱">
                     <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
