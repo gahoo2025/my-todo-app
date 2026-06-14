@@ -44,15 +44,15 @@ function TabIcon({ tab, active }) {
 const TABS = [
   { id: 'tasks',    label: 'タスク' },
   { id: 'calendar', label: 'カレンダー' },
-  { id: 'goals',    label: '目標' },
   { id: 'notes',    label: 'メモ' },
+  { id: 'goals',    label: 'プラン' },
 ]
 
 const TAB_TITLES = {
   tasks:    'タスク',
   calendar: 'カレンダー',
   notes:    'メモ',
-  goals:    '目標',
+  goals:    'プラン',
 }
 
 export default function TodoPage() {
