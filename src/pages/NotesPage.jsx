@@ -268,7 +268,7 @@ function NoteModal({ note, onSave, onDelete, onClose }) {
   )
 }
 
-export default function NotesPage({ onBack }) {
+export default function NotesPage({ onBack, embedded }) {
   const { user } = useAuth()
   const { notes, loading, addNote, updateNote, deleteNote } = useNotes(user?.id)
   const [editing, setEditing] = useState(null)
@@ -302,26 +302,28 @@ export default function NotesPage({ onBack }) {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* ナビゲーションバー */}
-      <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
-        <div className="max-w-lg md:max-w-4xl mx-auto px-4">
-          <div className="flex items-center h-11">
-            <button onClick={onBack} className="flex items-center text-[#007AFF] active:opacity-50 transition-opacity -ml-1">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="text-[16px]">戻る</span>
-            </button>
+    <div className={embedded ? '' : 'min-h-screen'}>
+      {/* ナビゲーションバー（スタンドアロン時のみ） */}
+      {!embedded && (
+        <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
+          <div className="max-w-lg md:max-w-4xl mx-auto px-4">
+            <div className="flex items-center h-11">
+              <button onClick={onBack} className="flex items-center text-[#007AFF] active:opacity-50 transition-opacity -ml-1">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="text-[16px]">戻る</span>
+              </button>
+            </div>
+            <div className="pb-3 pt-1">
+              <h1 className="text-[28px] font-bold tracking-tight text-[#1C1C1E] leading-tight">メモ</h1>
+              <p className="text-[13px] text-[#8E8E93] mt-0.5">{notes.length}件</p>
+            </div>
           </div>
-          <div className="pb-3 pt-1">
-            <h1 className="text-[28px] font-bold tracking-tight text-[#1C1C1E] leading-tight">メモ</h1>
-            <p className="text-[13px] text-[#8E8E93] mt-0.5">{notes.length}件</p>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <main className="max-w-lg md:max-w-4xl mx-auto px-4 py-4 pb-10">
+      <main className={`max-w-lg md:max-w-4xl mx-auto px-4 py-4 ${embedded ? 'pb-28 md:pb-10' : 'pb-10'}`}>
         {/* 新規メモ入力 */}
         <div className="max-w-xl mx-auto mb-6">
           <QuickAdd onAdd={addNote} />
