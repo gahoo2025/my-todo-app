@@ -4,7 +4,6 @@ import { useNotes } from '../hooks/useNotes'
 
 const URL_REGEX = /(https?:\/\/[^\s　-鿿＀-￯]+)/g
 
-// テキストをURL部分とそれ以外に分割してレンダリングする
 function LinkedText({ text, className }) {
   if (!text) return null
   const parts = text.split(URL_REGEX)
@@ -30,7 +29,6 @@ function LinkedText({ text, className }) {
   )
 }
 
-// Google Keep風パステルカラーパレット
 const NOTE_COLORS = [
   { value: '#FFFFFF', label: 'デフォルト' },
   { value: '#FAAFA8', label: 'コーラル' },
@@ -76,19 +74,40 @@ function ColorDots({ selected, onSelect }) {
   )
 }
 
-// 新規メモ入力（Keep の「メモを入力…」バー）
-function QuickAdd({ onAdd }) {
+function CategorySelect({ value, onChange, categories, className = '' }) {
+  return (
+    <select
+      value={value ?? ''}
+      onChange={e => onChange(e.target.value || null)}
+      className={`text-[13px] text-[#8E8E93] bg-transparent focus:outline-none ${className}`}
+      onClick={e => e.stopPropagation()}
+    >
+      <option value="">カテゴリなし</option>
+      {categories.map(cat => (
+        <option key={cat.id} value={cat.name}>{cat.name}</option>
+      ))}
+    </select>
+  )
+}
+
+// 新規メモ入力
+function QuickAdd({ onAdd, categories, defaultCategory }) {
   const [expanded, setExpanded] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [color, setColor] = useState('#FFFFFF')
+  const [category, setCategory] = useState(defaultCategory ?? null)
   const [saving, setSaving] = useState(false)
   const ref = useRef(null)
+
+  useEffect(() => {
+    setCategory(defaultCategory ?? null)
+  }, [defaultCategory])
 
   async function save() {
     if (!title.trim() && !content.trim()) { reset(); return }
     setSaving(true)
-    await onAdd({ title: title.trim() || null, content: content.trim() || null, color, pinned: false })
+    await onAdd({ title: title.trim() || null, content: content.trim() || null, color, pinned: false, category })
     setSaving(false)
     reset()
   }
@@ -98,9 +117,9 @@ function QuickAdd({ onAdd }) {
     setTitle('')
     setContent('')
     setColor('#FFFFFF')
+    setCategory(defaultCategory ?? null)
   }
 
-  // 外側タップで保存して閉じる
   useEffect(() => {
     if (!expanded) return
     function handle(e) {
@@ -146,39 +165,45 @@ function QuickAdd({ onAdd }) {
         rows={4}
         className="w-full px-4 py-1 text-[14px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
       />
-      <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex items-center justify-between px-3 py-2 gap-2">
         <ColorDots selected={color} onSelect={setColor} />
-        <button
-          onClick={save}
-          disabled={saving}
-          className="flex-shrink-0 ml-2 text-[14px] font-semibold text-[#007AFF] px-3 py-1.5 rounded-full active:opacity-50 disabled:opacity-40 transition-opacity"
-        >
-          {saving ? '保存中…' : '閉じる'}
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <CategorySelect value={category} onChange={setCategory} categories={categories} />
+          <button
+            onClick={save}
+            disabled={saving}
+            className="text-[14px] font-semibold text-[#007AFF] px-3 py-1.5 rounded-full active:opacity-50 disabled:opacity-40 transition-opacity"
+          >
+            {saving ? '保存中…' : '閉じる'}
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
 // メモ編集モーダル
-function NoteModal({ note, onSave, onDelete, onClose }) {
+function NoteModal({ note, onSave, onDelete, onClose, categories }) {
   const [title, setTitle] = useState(note.title ?? '')
   const [content, setContent] = useState(note.content ?? '')
   const [color, setColor] = useState(note.color ?? '#FFFFFF')
   const [pinned, setPinned] = useState(note.pinned)
+  const [category, setCategory] = useState(note.category ?? null)
 
   async function handleClose() {
     const changed =
       (title.trim() || null) !== note.title ||
       (content.trim() || null) !== note.content ||
       color !== note.color ||
-      pinned !== note.pinned
+      pinned !== note.pinned ||
+      category !== note.category
     if (changed) {
       await onSave(note.id, {
         title: title.trim() || null,
         content: content.trim() || null,
         color,
         pinned,
+        category,
       })
     }
     onClose()
@@ -230,7 +255,6 @@ function NoteModal({ note, onSave, onDelete, onClose }) {
             rows={10}
             className="w-full py-1 text-[15px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
           />
-          {/* URL リンク一覧 */}
           {content.match(URL_REGEX) && (
             <div className="mt-2 pt-2 border-t border-black/[0.06] space-y-1">
               {[...new Set(content.match(URL_REGEX))].map(url => (
@@ -251,32 +275,55 @@ function NoteModal({ note, onSave, onDelete, onClose }) {
           )}
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3 border-t border-black/[0.06]">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-black/[0.06] gap-2">
           <ColorDots selected={color} onSelect={setColor} />
-          <button
-            onClick={handleDelete}
-            className="flex-shrink-0 ml-2 w-9 h-9 flex items-center justify-center rounded-full text-[#8E8E93] hover:text-[#FF3B30] active:bg-black/5 transition-colors"
-            title="削除"
-          >
-            <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <CategorySelect value={category} onChange={setCategory} categories={categories} />
+            <button
+              onClick={handleDelete}
+              className="w-9 h-9 flex items-center justify-center rounded-full text-[#8E8E93] hover:text-[#FF3B30] active:bg-black/5 transition-colors"
+              title="削除"
+            >
+              <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-export default function NotesPage({ onBack, embedded }) {
+const CATEGORY_TINTS = {
+  '仕事':  'text-[#007AFF]',
+  '個人':  'text-[#AF52DE]',
+  '買い物': 'text-[#34C759]',
+  '健康':  'text-[#FF3B30]',
+  'その他': 'text-[#8E8E93]',
+}
+
+export default function NotesPage({ onBack, embedded, categories = [], filterCategory, onFilterChange }) {
   const { user } = useAuth()
   const { notes, loading, addNote, updateNote, deleteNote } = useNotes(user?.id)
   const [editing, setEditing] = useState(null)
 
-  const pinnedNotes = notes.filter(n => n.pinned)
-  const otherNotes = notes.filter(n => !n.pinned)
+  const activeFilter = filterCategory ?? 'すべて'
+  const categoryNames = categories.map(c => c.name)
+
+  const filteredNotes = activeFilter === 'すべて'
+    ? notes
+    : activeFilter === 'なし'
+      ? notes.filter(n => !n.category)
+      : notes.filter(n => n.category === activeFilter)
+
+  const pinnedNotes = filteredNotes.filter(n => n.pinned)
+  const otherNotes = filteredNotes.filter(n => !n.pinned)
+
+  const defaultCategory = activeFilter !== 'すべて' && activeFilter !== 'なし' ? activeFilter : null
 
   function NoteCard({ note }) {
+    const tint = CATEGORY_TINTS[note.category] ?? 'text-[#8E8E93]'
     return (
       <button
         onClick={() => setEditing(note)}
@@ -297,83 +344,150 @@ export default function NotesPage({ onBack, embedded }) {
         {!note.title && !note.content && (
           <p className="text-[13px] text-[#AEAEB2]">（空のメモ）</p>
         )}
+        {note.category && (
+          <p className={`text-[11px] font-medium mt-2 ${tint}`}>{note.category}</p>
+        )}
       </button>
     )
   }
 
-  return (
-    <div className={embedded ? '' : 'min-h-screen'}>
-      {/* ナビゲーションバー（スタンドアロン時のみ） */}
-      {!embedded && (
-        <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
-          <div className="max-w-lg md:max-w-4xl mx-auto px-4">
-            <div className="flex items-center h-11">
-              <button onClick={onBack} className="flex items-center text-[#007AFF] active:opacity-50 transition-opacity -ml-1">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-                <span className="text-[16px]">戻る</span>
-              </button>
-            </div>
-            <div className="pb-3 pt-1">
-              <h1 className="text-[28px] font-bold tracking-tight text-[#1C1C1E] leading-tight">メモ</h1>
-              <p className="text-[13px] text-[#8E8E93] mt-0.5">{notes.length}件</p>
-            </div>
-          </div>
-        </header>
+  const content = (
+    <>
+      {/* モバイル カテゴリピル（embedded時のみ — PC は TodoPage のサイドバーで対応） */}
+      {embedded && (
+        <div className="md:hidden flex gap-2 overflow-x-auto pb-3 -mx-4 px-4">
+          {['すべて', ...categoryNames, 'なし'].map(cat => (
+            <button
+              key={cat}
+              onClick={() => onFilterChange?.(cat)}
+              className={`flex-shrink-0 px-3.5 h-8 rounded-full text-[13px] font-medium transition-all duration-200 ${
+                activeFilter === cat
+                  ? 'bg-[#1C1C1E] text-white'
+                  : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       )}
 
-      <main className={`max-w-lg md:max-w-4xl mx-auto px-4 py-4 ${embedded ? 'pb-28 md:pb-10' : 'pb-10'}`}>
-        {/* 新規メモ入力 */}
-        <div className="max-w-xl mx-auto mb-6">
-          <QuickAdd onAdd={addNote} />
-        </div>
+      {/* 新規メモ入力 */}
+      <div className="max-w-xl mx-auto mb-6">
+        <QuickAdd onAdd={addNote} categories={categories} defaultCategory={defaultCategory} />
+      </div>
 
-        {loading ? (
-          <div className="text-center py-20 text-[#AEAEB2] text-[13px]">読み込み中…</div>
-        ) : notes.length === 0 ? (
-          <div className="text-center py-24">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#767680]/10 flex items-center justify-center">
-              <svg className="w-7 h-7 text-[#AEAEB2]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </div>
-            <p className="text-[15px] font-medium text-[#8E8E93]">メモがありません</p>
-            <p className="text-[13px] text-[#AEAEB2] mt-1">上の入力欄からメモを作成できます</p>
+      {loading ? (
+        <div className="text-center py-20 text-[#AEAEB2] text-[13px]">読み込み中…</div>
+      ) : filteredNotes.length === 0 ? (
+        <div className="text-center py-24">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#767680]/10 flex items-center justify-center">
+            <svg className="w-7 h-7 text-[#AEAEB2]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
           </div>
-        ) : (
-          <>
-            {/* ピン留め */}
-            {pinnedNotes.length > 0 && (
-              <div className="mb-4">
-                <p className="text-[12px] font-semibold text-[#8E8E93] mb-2 px-1">ピン留め</p>
-                <div className="columns-2 md:columns-3 gap-3">
-                  {pinnedNotes.map(n => <NoteCard key={n.id} note={n} />)}
-                </div>
+          <p className="text-[15px] font-medium text-[#8E8E93]">メモがありません</p>
+          <p className="text-[13px] text-[#AEAEB2] mt-1">上の入力欄からメモを作成できます</p>
+        </div>
+      ) : (
+        <>
+          {pinnedNotes.length > 0 && (
+            <div className="mb-4">
+              <p className="text-[12px] font-semibold text-[#8E8E93] mb-2 px-1">ピン留め</p>
+              <div className="columns-2 md:columns-3 gap-3">
+                {pinnedNotes.map(n => <NoteCard key={n.id} note={n} />)}
               </div>
-            )}
+            </div>
+          )}
+          {otherNotes.length > 0 && (
+            <div>
+              {pinnedNotes.length > 0 && (
+                <p className="text-[12px] font-semibold text-[#8E8E93] mb-2 px-1">その他</p>
+              )}
+              <div className="columns-2 md:columns-3 gap-3">
+                {otherNotes.map(n => <NoteCard key={n.id} note={n} />)}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </>
+  )
 
-            {/* その他 */}
-            {otherNotes.length > 0 && (
-              <div>
-                {pinnedNotes.length > 0 && (
-                  <p className="text-[12px] font-semibold text-[#8E8E93] mb-2 px-1">その他</p>
-                )}
-                <div className="columns-2 md:columns-3 gap-3">
-                  {otherNotes.map(n => <NoteCard key={n.id} note={n} />)}
-                </div>
-              </div>
-            )}
-          </>
+  if (editing) {
+    // NoteModal は embedded/standalone 共通でポータルのように表示
+  }
+
+  if (embedded) {
+    return (
+      <div>
+        <main className="max-w-lg md:max-w-5xl mx-auto px-4 py-4 pb-28 md:pb-10 md:flex md:gap-8 md:items-start">
+          {/* PC サイドバー */}
+          <aside className="hidden md:block w-52 flex-shrink-0 sticky top-[60px]">
+            <p className="text-[13px] font-semibold text-[#8E8E93] mb-2 px-3">カテゴリ</p>
+            <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+              {['すべて', ...categoryNames, 'なし'].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => onFilterChange?.(cat)}
+                  className={`w-full flex items-center justify-between text-left px-4 py-2.5 text-[15px] transition-colors duration-150 ${
+                    activeFilter === cat
+                      ? 'text-[#007AFF] font-semibold bg-[#007AFF]/[0.06]'
+                      : 'text-[#1C1C1E] hover:bg-black/[0.025] active:bg-black/5'
+                  }`}
+                >
+                  {cat}
+                  {activeFilter === cat && (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          </aside>
+          <div className="flex-1 min-w-0">{content}</div>
+        </main>
+        {editing && (
+          <NoteModal
+            note={editing}
+            onSave={updateNote}
+            onDelete={deleteNote}
+            onClose={() => setEditing(null)}
+            categories={categories}
+          />
         )}
-      </main>
+      </div>
+    )
+  }
 
+  // スタンドアロン表示（将来のサブページ利用想定）
+  return (
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
+        <div className="max-w-lg md:max-w-4xl mx-auto px-4">
+          <div className="flex items-center h-11">
+            <button onClick={onBack} className="flex items-center text-[#007AFF] active:opacity-50 transition-opacity -ml-1">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span className="text-[16px]">戻る</span>
+            </button>
+          </div>
+          <div className="pb-3 pt-1">
+            <h1 className="text-[28px] font-bold tracking-tight text-[#1C1C1E] leading-tight">メモ</h1>
+            <p className="text-[13px] text-[#8E8E93] mt-0.5">{notes.length}件</p>
+          </div>
+        </div>
+      </header>
+      <main className="max-w-lg md:max-w-4xl mx-auto px-4 py-4 pb-10">{content}</main>
       {editing && (
         <NoteModal
           note={editing}
           onSave={updateNote}
           onDelete={deleteNote}
           onClose={() => setEditing(null)}
+          categories={categories}
         />
       )}
     </div>
