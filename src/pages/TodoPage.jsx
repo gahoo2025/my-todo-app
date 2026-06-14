@@ -203,7 +203,7 @@ export default function TodoPage() {
 
       <main className="max-w-lg md:max-w-5xl mx-auto px-4 py-4 pb-28 md:pb-10 md:flex md:gap-8 md:items-start">
         {/* カテゴリサイドバー（PC・リストビュー時のみ） */}
-        <aside className={`${view === 'list' ? 'hidden md:block' : 'hidden'} w-52 flex-shrink-0 sticky top-[120px]`}>
+        <aside className={`${view === 'list' ? 'hidden md:block' : 'hidden md:block'} w-52 flex-shrink-0 sticky top-[120px]`}>
           <p className="text-[13px] font-semibold text-[#8E8E93] mb-2 px-3">カテゴリ</p>
           <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
             {['すべて', ...categoryNames].map(cat => (
@@ -234,8 +234,8 @@ export default function TodoPage() {
         </aside>
 
         <div className="flex-1 min-w-0">
-          {/* カテゴリフィルター（モバイル・リストビュー時のみ） */}
-          <div className={`${view === 'list' ? 'md:hidden' : 'hidden'} flex gap-2 overflow-x-auto pb-3 -mx-4 px-4`}>
+          {/* カテゴリフィルター（モバイル） */}
+          <div className={`${view === 'list' || view === 'calendar' ? 'md:hidden' : 'hidden'} flex gap-2 overflow-x-auto pb-3 -mx-4 px-4`}>
             {['すべて', ...categoryNames].map(cat => (
               <button
                 key={cat}
@@ -261,7 +261,7 @@ export default function TodoPage() {
             <div className="text-center py-20 text-[#AEAEB2] text-[13px]">読み込み中...</div>
           ) : view === 'calendar' ? (
             <CalendarView
-              tasks={tasks}
+              tasks={filterCategory === 'すべて' ? tasks : tasks.filter(t => t.category === filterCategory)}
               events={events}
               categories={categories}
               onEdit={setEditingTask}
@@ -328,7 +328,7 @@ export default function TodoPage() {
       {selectedDay && (
         <DayScheduleView
           date={selectedDay}
-          tasks={tasks}
+          tasks={filterCategory === 'すべて' ? tasks : tasks.filter(t => t.category === filterCategory)}
           events={events}
           onEditTask={task => { setSelectedDay(null); setEditingTask(task) }}
           onEditEvent={event => { setSelectedDay(null); setEditingEvent(event) }}
