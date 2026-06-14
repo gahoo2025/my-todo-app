@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useGoals } from '../hooks/useGoals'
+import { useGoalActions } from '../hooks/useGoalActions'
 
 const CATEGORY_TINTS = {
   '仕事':  { text: 'text-[#007AFF]', bg: 'bg-[#007AFF]/10' },
@@ -12,35 +13,187 @@ const CATEGORY_TINTS = {
 
 const STATUS_CONFIG = {
   active:    { label: '進行中', color: 'text-[#007AFF]', bg: 'bg-[#007AFF]/10', dot: 'bg-[#007AFF]' },
-  completed: { label: '達成',   color: 'text-[#34C759]', bg: 'bg-[#34C759]/10', dot: 'bg-[#34C759]' },
-  paused:    { label: '保留中', color: 'text-[#FF9500]', bg: 'bg-[#FF9500]/10', dot: 'bg-[#FF9500]' },
+  completed: { label: '完了',   color: 'text-[#34C759]', bg: 'bg-[#34C759]/10', dot: 'bg-[#34C759]' },
+  paused:    { label: '保留',   color: 'text-[#FF9500]', bg: 'bg-[#FF9500]/10', dot: 'bg-[#FF9500]' },
 }
 
-function GoalModal({ goal, categories, onSave, onDelete, onClose }) {
+// ── アクションパネル（目標詳細モーダル内に組み込む） ──
+function ActionPanel({ goalId, userId }) {
+  const { actions, loading, addAction, updateAction, deleteAction } = useGoalActions(goalId)
+  const [newTitle, setNewTitle] = useState('')
+  const [adding, setAdding] = useState(false)
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!newTitle.trim()) return
+    setAdding(true)
+    await addAction({ title: newTitle.trim(), status: 'active', user_id: userId })
+    setNewTitle('')
+    setAdding(false)
+  }
+
+  return (
+    <div>
+      {loading ? (
+        <p className="text-[13px] text-[#AEAEB2] py-2">読み込み中…</p>
+      ) : (
+        <div className="space-y-1 mb-3">
+          {actions.map(action => (
+            <ActionRow
+              key={action.id}
+              action={action}
+              onUpdate={updates => updateAction(action.id, updates)}
+              onDelete={() => deleteAction(action.id)}
+            />
+          ))}
+          {actions.length === 0 && (
+            <p className="text-[13px] text-[#AEAEB2] py-1">アクションがありません</p>
+          )}
+        </div>
+      )}
+
+      {/* 新規アクション入力 */}
+      <form onSubmit={handleAdd} className="flex gap-2 items-center">
+        <input
+          type="text"
+          value={newTitle}
+          onChange={e => setNewTitle(e.target.value)}
+          placeholder="アクションを追加…"
+          className="flex-1 text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none border-b border-black/10 py-1"
+        />
+        <button
+          type="submit"
+          disabled={adding || !newTitle.trim()}
+          className="flex-shrink-0 text-[13px] font-semibold text-[#007AFF] px-2 py-1 disabled:opacity-30 active:opacity-50 transition-opacity"
+        >
+          追加
+        </button>
+      </form>
+    </div>
+  )
+}
+
+function ActionRow({ action, onUpdate, onDelete }) {
+  const [editing, setEditing] = useState(false)
+  const [title, setTitle] = useState(action.title)
+  const [status, setStatus] = useState(action.status)
+  const [dueDate, setDueDate] = useState(action.due_date ?? '')
+  const [saving, setSaving] = useState(false)
+  const cfg = STATUS_CONFIG[action.status] ?? STATUS_CONFIG.active
+  const isOverdue = action.due_date && action.status !== 'completed'
+    && new Date(action.due_date) < new Date()
+
+  async function handleSave() {
+    setSaving(true)
+    await onUpdate({ title: title.trim() || action.title, status, due_date: dueDate || null })
+    setSaving(false)
+    setEditing(false)
+  }
+
+  async function cycleStatus() {
+    const order = ['active', 'completed', 'paused']
+    const next = order[(order.indexOf(action.status) + 1) % order.length]
+    await onUpdate({ status: next })
+  }
+
+  if (editing) {
+    return (
+      <div className="rounded-[10px] bg-black/[0.03] px-3 py-2.5 space-y-2">
+        <input
+          autoFocus
+          type="text"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          className="w-full text-[14px] text-[#1C1C1E] bg-transparent focus:outline-none border-b border-black/10 pb-1"
+        />
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={status}
+            onChange={e => setStatus(e.target.value)}
+            className="text-[13px] text-[#8E8E93] bg-transparent focus:outline-none"
+          >
+            <option value="active">進行中</option>
+            <option value="completed">完了</option>
+            <option value="paused">保留</option>
+          </select>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={e => setDueDate(e.target.value)}
+            className="text-[13px] text-[#8E8E93] bg-transparent focus:outline-none"
+          />
+        </div>
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => setEditing(false)} className="text-[13px] text-[#8E8E93] active:opacity-50">キャンセル</button>
+          <button
+            onClick={onDelete}
+            className="text-[13px] text-[#FF3B30] active:opacity-50"
+          >削除</button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="text-[13px] font-semibold text-[#007AFF] disabled:opacity-30 active:opacity-50"
+          >{saving ? '保存中…' : '保存'}</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 py-1.5">
+      {/* ステータスドット（タップで切り替え） */}
+      <button
+        onClick={cycleStatus}
+        className={`flex-shrink-0 w-3 h-3 rounded-full ${cfg.dot} active:scale-90 transition-transform`}
+        title="ステータスを切り替え"
+      />
+      <div className="flex-1 min-w-0">
+        <span className={`text-[14px] leading-snug ${
+          action.status === 'completed' ? 'line-through text-[#AEAEB2]' : 'text-[#1C1C1E]'
+        }`}>
+          {action.title}
+        </span>
+        {action.due_date && (
+          <span className={`ml-2 text-[11px] ${isOverdue ? 'text-[#FF3B30] font-medium' : 'text-[#8E8E93]'}`}>
+            {new Date(action.due_date).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}
+            {isOverdue ? ' ⚠' : ''}
+          </span>
+        )}
+      </div>
+      <button
+        onClick={() => setEditing(true)}
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center text-[#C7C7CC] hover:text-[#8E8E93] active:opacity-50 transition-colors"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+// ── 目標の追加・編集モーダル ──
+function GoalModal({ goal, categories, userId, onSave, onDelete, onClose }) {
   const isNew = !goal.id
   const [title, setTitle] = useState(goal.title ?? '')
   const [description, setDescription] = useState(goal.description ?? '')
   const [category, setCategory] = useState(goal.category ?? null)
-  const [status, setStatus] = useState(goal.status ?? 'active')
-  const [dueDate, setDueDate] = useState(goal.due_date ?? '')
-  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   async function handleSave() {
     if (!title.trim()) return
-    setLoading(true)
+    setSaving(true)
     await onSave({
       title: title.trim(),
       description: description.trim() || null,
       category,
-      status,
-      due_date: dueDate || null,
     })
-    setLoading(false)
-    onClose()
+    setSaving(false)
+    if (isNew) onClose()
   }
 
   async function handleDelete() {
-    if (!window.confirm('この目標を削除しますか？')) return
+    if (!window.confirm('この目標を削除しますか？\n関連するアクションもすべて削除されます。')) return
     await onDelete()
     onClose()
   }
@@ -53,14 +206,18 @@ function GoalModal({ goal, categories, onSave, onDelete, onClose }) {
       >
         {/* ヘッダー */}
         <div className="sticky top-0 bg-[#F2F2F7]/90 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b border-black/5 rounded-t-[16px]">
-          <button onClick={onClose} className="ios-toolbar-btn">キャンセル</button>
-          <h2 className="text-[16px] font-semibold text-[#1C1C1E]">{isNew ? '目標を追加' : '目標を編集'}</h2>
+          <button onClick={onClose} className="ios-toolbar-btn">
+            {isNew ? 'キャンセル' : '閉じる'}
+          </button>
+          <h2 className="text-[16px] font-semibold text-[#1C1C1E]">
+            {isNew ? '目標を追加' : '目標を編集'}
+          </h2>
           <button
             onClick={handleSave}
-            disabled={loading || !title.trim()}
+            disabled={saving || !title.trim()}
             className="ios-toolbar-btn font-semibold disabled:opacity-30"
           >
-            {loading ? '保存中…' : '保存'}
+            {saving ? '保存中…' : '保存'}
           </button>
         </div>
 
@@ -70,14 +227,13 @@ function GoalModal({ goal, categories, onSave, onDelete, onClose }) {
             <input
               autoFocus
               type="text"
-              required
               value={title}
               onChange={e => setTitle(e.target.value)}
               className="w-full px-4 py-3 text-[16px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none"
               placeholder="目標タイトル"
             />
             <textarea
-              rows={4}
+              rows={3}
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="詳細・メモ（任意）"
@@ -85,20 +241,8 @@ function GoalModal({ goal, categories, onSave, onDelete, onClose }) {
             />
           </div>
 
-          {/* ステータス・カテゴリ・期限 */}
-          <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[15px] text-[#1C1C1E]">ステータス</span>
-              <select
-                value={status}
-                onChange={e => setStatus(e.target.value)}
-                className="text-[15px] text-[#8E8E93] bg-transparent focus:outline-none text-right"
-              >
-                <option value="active">進行中</option>
-                <option value="completed">達成</option>
-                <option value="paused">保留中</option>
-              </select>
-            </div>
+          {/* カテゴリ */}
+          <div className="ios-card overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5">
               <span className="text-[15px] text-[#1C1C1E]">カテゴリ</span>
               <select
@@ -112,18 +256,17 @@ function GoalModal({ goal, categories, onSave, onDelete, onClose }) {
                 ))}
               </select>
             </div>
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[15px] text-[#1C1C1E]">目標期限</span>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={e => setDueDate(e.target.value)}
-                className="text-[15px] text-[#8E8E93] bg-transparent focus:outline-none text-right"
-              />
-            </div>
           </div>
 
-          {/* 削除ボタン（編集時のみ） */}
+          {/* アクション一覧（編集時のみ） */}
+          {!isNew && (
+            <div className="ios-card px-4 py-3">
+              <p className="text-[13px] font-semibold text-[#8E8E93] mb-3">アクション</p>
+              <ActionPanel goalId={goal.id} userId={userId} />
+            </div>
+          )}
+
+          {/* 削除（編集時のみ） */}
           {!isNew && (
             <button
               onClick={handleDelete}
@@ -138,56 +281,30 @@ function GoalModal({ goal, categories, onSave, onDelete, onClose }) {
   )
 }
 
-function GoalCard({ goal, onEdit }) {
-  const status = STATUS_CONFIG[goal.status] ?? STATUS_CONFIG.active
+// ── 目標カード ──
+function GoalCard({ goal, onOpen }) {
   const tints = CATEGORY_TINTS[goal.category] ?? { text: 'text-[#8E8E93]', bg: 'bg-[#8E8E93]/10' }
-  const isOverdue = goal.due_date && goal.status !== 'completed' && new Date(goal.due_date) < new Date()
-  const dueLabel = goal.due_date
-    ? new Date(goal.due_date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' })
-    : null
 
   return (
     <button
-      onClick={() => onEdit(goal)}
+      onClick={() => onOpen(goal)}
       className="w-full text-left ios-card px-4 py-4 active:scale-[0.99] transition-transform"
     >
       <div className="flex items-start gap-3">
-        {/* ステータスドット */}
-        <div className={`mt-[3px] w-2.5 h-2.5 rounded-full flex-shrink-0 ${status.dot}`} />
-
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <p className={`text-[16px] font-semibold leading-snug ${
-              goal.status === 'completed' ? 'line-through text-[#AEAEB2]' : 'text-[#1C1C1E]'
-            }`}>
-              {goal.title}
-            </p>
-          </div>
-
+          <p className="text-[16px] font-semibold text-[#1C1C1E] leading-snug mb-1">{goal.title}</p>
           {goal.description && (
             <p className="text-[13px] text-[#8E8E93] leading-relaxed line-clamp-2 mb-2">
               {goal.description}
             </p>
           )}
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${status.color} ${status.bg}`}>
-              {status.label}
+          {goal.category && (
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${tints.text} ${tints.bg}`}>
+              {goal.category}
             </span>
-            {goal.category && (
-              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${tints.text} ${tints.bg}`}>
-                {goal.category}
-              </span>
-            )}
-            {dueLabel && (
-              <span className={`text-[11px] ${isOverdue ? 'text-[#FF3B30] font-medium' : 'text-[#8E8E93]'}`}>
-                期限 {dueLabel}{isOverdue ? ' ⚠' : ''}
-              </span>
-            )}
-          </div>
+          )}
         </div>
-
-        <svg className="w-4 h-4 text-[#C7C7CC] flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4 text-[#C7C7CC] flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
       </div>
@@ -195,10 +312,10 @@ function GoalCard({ goal, onEdit }) {
   )
 }
 
-export default function GoalsPage({ embedded, categories = [], filterCategory, onFilterChange, onAddGoal }) {
+export default function GoalsPage({ embedded, categories = [], filterCategory, onFilterChange }) {
   const { user } = useAuth()
   const { goals, loading, addGoal, updateGoal, deleteGoal } = useGoals(user?.id)
-  const [modal, setModal] = useState(null) // null | { goal } — goal={} for new
+  const [modal, setModal] = useState(null)
 
   const activeFilter = filterCategory ?? 'すべて'
   const categoryNames = categories.map(c => c.name)
@@ -207,37 +324,24 @@ export default function GoalsPage({ embedded, categories = [], filterCategory, o
     ? goals
     : goals.filter(g => g.category === activeFilter)
 
-  const activeGoals    = filteredGoals.filter(g => g.status === 'active')
-  const pausedGoals    = filteredGoals.filter(g => g.status === 'paused')
-  const completedGoals = filteredGoals.filter(g => g.status === 'completed')
-
   function openNew() {
     const defaultCategory = activeFilter !== 'すべて' ? activeFilter : null
-    setModal({ goal: { status: 'active', category: defaultCategory } })
+    setModal({ goal: { category: defaultCategory } })
   }
 
   async function handleSave(data) {
     if (modal.goal.id) {
       await updateGoal(modal.goal.id, data)
     } else {
-      await addGoal(data)
+      const created = await addGoal(data)
+      // 新規追加後、すぐアクションを追加できるよう編集モードへ
+      if (created) setModal({ goal: created })
+      return
     }
   }
 
   async function handleDelete() {
     await deleteGoal(modal.goal.id)
-  }
-
-  function Section({ title, items }) {
-    if (items.length === 0) return null
-    return (
-      <div className="mb-5">
-        <p className="text-[12px] font-semibold text-[#8E8E93] mb-2 px-1">{title}</p>
-        <div className="space-y-2">
-          {items.map(g => <GoalCard key={g.id} goal={g} onEdit={g => setModal({ goal: g })} />)}
-        </div>
-      </div>
-    )
   }
 
   const content = (
@@ -267,18 +371,19 @@ export default function GoalsPage({ embedded, categories = [], filterCategory, o
         <div className="text-center py-24">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#767680]/10 flex items-center justify-center">
             <svg className="w-7 h-7 text-[#AEAEB2]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 21l1.9-5.7a8.5 8.5 0 1113.8 0L21 21M12 7v5m0 4h.01" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 21l1.9-5.7a8.5 8.5 0 1113.8 0L21 21" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v4m0 4h.01" />
             </svg>
           </div>
           <p className="text-[15px] font-medium text-[#8E8E93]">目標がありません</p>
           <p className="text-[13px] text-[#AEAEB2] mt-1">＋ボタンから目標を追加できます</p>
         </div>
       ) : (
-        <>
-          <Section title="進行中" items={activeGoals} />
-          <Section title="保留中" items={pausedGoals} />
-          <Section title="達成済み" items={completedGoals} />
-        </>
+        <div className="space-y-2">
+          {filteredGoals.map(g => (
+            <GoalCard key={g.id} goal={g} onOpen={g => setModal({ goal: g })} />
+          ))}
+        </div>
       )}
     </>
   )
@@ -341,6 +446,7 @@ export default function GoalsPage({ embedded, categories = [], filterCategory, o
         <GoalModal
           goal={modal.goal}
           categories={categories}
+          userId={user?.id}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => setModal(null)}
