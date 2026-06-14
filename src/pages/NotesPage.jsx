@@ -2,6 +2,34 @@ import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useNotes } from '../hooks/useNotes'
 
+const URL_REGEX = /(https?:\/\/[^\s　-鿿＀-￯]+)/g
+
+// テキストをURL部分とそれ以外に分割してレンダリングする
+function LinkedText({ text, className }) {
+  if (!text) return null
+  const parts = text.split(URL_REGEX)
+  return (
+    <span className={className}>
+      {parts.map((part, i) =>
+        URL_REGEX.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="text-[#007AFF] underline underline-offset-1 break-all"
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  )
+}
+
 // Google Keep風パステルカラーパレット
 const NOTE_COLORS = [
   { value: '#FFFFFF', label: 'デフォルト' },
@@ -202,6 +230,25 @@ function NoteModal({ note, onSave, onDelete, onClose }) {
             rows={10}
             className="w-full py-1 text-[15px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
           />
+          {/* URL リンク一覧 */}
+          {content.match(URL_REGEX) && (
+            <div className="mt-2 pt-2 border-t border-black/[0.06] space-y-1">
+              {[...new Set(content.match(URL_REGEX))].map(url => (
+                <a
+                  key={url}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-[13px] text-[#007AFF] underline underline-offset-1 break-all active:opacity-50"
+                >
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  {url}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between px-4 py-3 border-t border-black/[0.06]">
@@ -244,7 +291,7 @@ export default function NotesPage({ onBack }) {
         )}
         {note.content && (
           <p className="text-[13px] text-[#3C3C43] leading-relaxed whitespace-pre-wrap break-words line-clamp-[12]">
-            {note.content}
+            <LinkedText text={note.content} />
           </p>
         )}
         {!note.title && !note.content && (
