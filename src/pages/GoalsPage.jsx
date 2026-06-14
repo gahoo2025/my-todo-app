@@ -320,6 +320,16 @@ export default function GoalsPage({ embedded, categories = [], filterCategory, o
             </aside>
             <div className="flex-1 min-w-0">{content}</div>
           </main>
+          {/* モバイル FAB */}
+          <button
+            onClick={openNew}
+            className="md:hidden fixed bottom-20 right-5 w-[54px] h-[54px] bg-[#007AFF] text-white rounded-full shadow-[0_4px_16px_rgba(0,122,255,0.4)] flex items-center justify-center active:scale-90 transition-transform z-30"
+            aria-label="目標を追加"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+              <path strokeLinecap="round" d="M12 5v14m-7-7h14" />
+            </svg>
+          </button>
         </div>
       ) : (
         <div className="min-h-screen">
