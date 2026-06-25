@@ -14,6 +14,7 @@ import TrashPage from './TrashPage'
 import CategoryPage from './CategoryPage'
 import NotesPage from './NotesPage'
 import GoalsPage from './GoalsPage'
+import SparksPage from './SparksPage'
 
 // ボトムタブアイコン
 function TabIcon({ tab, active }) {
@@ -159,6 +160,9 @@ export default function TodoPage() {
       onBack={() => setPage(null)}
     />
   )
+  if (page === 'sparks') return (
+    <SparksPage onBack={() => setPage(null)} />
+  )
 
   const categoryNames = categories.map(c => c.name)
   const filteredTasks = filterCategory === 'すべて'
@@ -201,6 +205,13 @@ export default function TodoPage() {
                     </svg>
                   </button>
                 </>
+              )}
+              {tab === 'notes' && (
+                <button onClick={() => setPage('sparks')} className="ios-icon-btn text-[#007AFF]" title="ひらめきメモ">
+                  <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 18h6m-6 3h6M12 3a6 6 0 00-3.5 10.9c.3.2.5.6.5 1v.1h6v-.1c0-.4.2-.8.5-1A6 6 0 0012 3z" />
+                  </svg>
+                </button>
               )}
               <button onClick={signOut} className="ios-toolbar-btn ml-1 text-[13px]">
                 ログアウト
