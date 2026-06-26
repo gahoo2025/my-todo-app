@@ -107,7 +107,7 @@ function SparkRow({ spark, onToggleResolved, onDelete }) {
   )
 }
 
-export default function SparksPage({ onBack }) {
+export default function SparksPage({ onBack, embedded }) {
   const { user } = useAuth()
   const { sparks, loading, addSpark, updateSpark, deleteSpark } = useSparks(user?.id)
   const [filterKind, setFilterKind] = useState('すべて')
@@ -121,24 +121,26 @@ export default function SparksPage({ onBack }) {
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
-        <div className="max-w-lg md:max-w-2xl mx-auto px-4">
-          <div className="flex items-center h-11">
-            <button onClick={onBack} className="flex items-center text-[#007AFF] active:opacity-50 transition-opacity -ml-1">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="text-[16px]">戻る</span>
-            </button>
+    <div className={embedded ? '' : 'min-h-screen'}>
+      {!embedded && (
+        <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
+          <div className="max-w-lg md:max-w-2xl mx-auto px-4">
+            <div className="flex items-center h-11">
+              <button onClick={onBack} className="flex items-center text-[#007AFF] active:opacity-50 transition-opacity -ml-1">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="text-[16px]">戻る</span>
+              </button>
+            </div>
+            <div className="pb-3 pt-1">
+              <h1 className="text-[28px] font-bold tracking-tight text-[#1C1C1E] leading-tight">ひらめきメモ</h1>
+            </div>
           </div>
-          <div className="pb-3 pt-1">
-            <h1 className="text-[28px] font-bold tracking-tight text-[#1C1C1E] leading-tight">ひらめきメモ</h1>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <main className="max-w-lg md:max-w-2xl mx-auto px-4 py-4 pb-10 space-y-4">
+      <main className={`max-w-lg md:max-w-2xl mx-auto px-4 py-4 space-y-4 ${embedded ? 'pb-28 md:pb-10' : 'pb-10'}`}>
         <QuickAdd onAdd={addSpark} />
 
         {/* 種類フィルター */}

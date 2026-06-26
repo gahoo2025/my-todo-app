@@ -40,12 +40,18 @@ function TabIcon({ tab, active }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v4m0 4h.01" />
     </svg>
   )
+  if (tab === 'sparks') return (
+    <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 18h6m-6 3h6M12 3a6 6 0 00-3.5 10.9c.3.2.5.6.5 1v.1h6v-.1c0-.4.2-.8.5-1A6 6 0 0012 3z" />
+    </svg>
+  )
 }
 
 const TABS = [
   { id: 'tasks',    label: 'タスク' },
   { id: 'calendar', label: 'カレンダー' },
   { id: 'notes',    label: 'メモ' },
+  { id: 'sparks',   label: 'ひらめき' },
   { id: 'goals',    label: 'プラン' },
 ]
 
@@ -53,6 +59,7 @@ const TAB_TITLES = {
   tasks:    'タスク',
   calendar: 'カレンダー',
   notes:    'メモ',
+  sparks:   'ひらめき',
   goals:    'プラン',
 }
 
@@ -160,10 +167,6 @@ export default function TodoPage() {
       onBack={() => setPage(null)}
     />
   )
-  if (page === 'sparks') return (
-    <SparksPage onBack={() => setPage(null)} />
-  )
-
   const categoryNames = categories.map(c => c.name)
   const filteredTasks = filterCategory === 'すべて'
     ? tasks : tasks.filter(t => t.category === filterCategory)
@@ -205,13 +208,6 @@ export default function TodoPage() {
                     </svg>
                   </button>
                 </>
-              )}
-              {tab === 'notes' && (
-                <button onClick={() => setPage('sparks')} className="ios-icon-btn text-[#007AFF]" title="ひらめきメモ">
-                  <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 18h6m-6 3h6M12 3a6 6 0 00-3.5 10.9c.3.2.5.6.5 1v.1h6v-.1c0-.4.2-.8.5-1A6 6 0 0012 3z" />
-                  </svg>
-                </button>
               )}
               <button onClick={signOut} className="ios-toolbar-btn ml-1 text-[13px]">
                 ログアウト
@@ -371,6 +367,11 @@ export default function TodoPage() {
             filterCategory={filterCategory}
             onFilterChange={setFilterCategory}
           />
+        )}
+
+        {/* ── ひらめきタブ ── */}
+        {tab === 'sparks' && (
+          <SparksPage embedded />
         )}
       </div>
 
