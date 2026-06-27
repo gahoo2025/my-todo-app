@@ -7,20 +7,38 @@ const KIND_CONFIG = {
   question: { label: '疑問',   emoji: '❓', color: 'text-[#AF52DE]', bg: 'bg-[#AF52DE]/10' },
 }
 
+function AutoTextarea({ value, onChange, placeholder, taRef, className }) {
+  return (
+    <textarea
+      ref={taRef}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={1}
+      onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+      className={`w-full bg-transparent focus:outline-none resize-none leading-relaxed max-h-40 overflow-y-auto ${className}`}
+    />
+  )
+}
+
 function QuickAdd({ onAdd }) {
+  const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [kind, setKind] = useState('insight')
   const [saving, setSaving] = useState(false)
-  const taRef = useRef(null)
+  const titleRef = useRef(null)
+  const contentRef = useRef(null)
 
   async function handleAdd(e) {
     e.preventDefault()
-    if (!content.trim()) return
+    if (!title.trim() && !content.trim()) return
     setSaving(true)
-    await onAdd({ content: content.trim(), kind, resolved: false })
+    await onAdd({ title: title.trim() || null, content: content.trim() || null, kind, resolved: false })
+    setTitle('')
     setContent('')
     setSaving(false)
-    if (taRef.current) taRef.current.style.height = 'auto'
+    if (titleRef.current) titleRef.current.style.height = 'auto'
+    if (contentRef.current) contentRef.current.style.height = 'auto'
   }
 
   return (
@@ -39,23 +57,30 @@ function QuickAdd({ onAdd }) {
           </button>
         ))}
       </div>
-      <div className="flex items-end gap-2 px-3 pb-2.5 pt-1.5">
-        <textarea
-          ref={taRef}
+      <div className="px-3 pb-2.5 pt-1.5 space-y-1">
+        <AutoTextarea
+          taRef={titleRef}
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="タイトル"
+          className="text-[15px] font-semibold text-[#1C1C1E] placeholder:text-[#AEAEB2] placeholder:font-normal py-1"
+        />
+        <AutoTextarea
+          taRef={contentRef}
           value={content}
           onChange={e => setContent(e.target.value)}
-          placeholder="思いついたことをメモ…"
-          rows={1}
-          onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
-          className="flex-1 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none resize-none leading-relaxed max-h-40 overflow-y-auto py-1"
+          placeholder="補足（任意）"
+          className="text-[14px] text-[#3C3C43] placeholder:text-[#AEAEB2] py-1"
         />
-        <button
-          type="submit"
-          disabled={saving || !content.trim()}
-          className="flex-shrink-0 text-[14px] font-semibold text-[#007AFF] disabled:opacity-30 active:opacity-50 transition-opacity pb-1"
-        >
-          追加
-        </button>
+        <div className="flex justify-end pt-0.5">
+          <button
+            type="submit"
+            disabled={saving || (!title.trim() && !content.trim())}
+            className="text-[14px] font-semibold text-[#007AFF] disabled:opacity-30 active:opacity-50 transition-opacity"
+          >
+            追加
+          </button>
+        </div>
       </div>
     </form>
   )
@@ -86,12 +111,21 @@ function SparkRow({ spark, onToggleResolved, onDelete }) {
       </button>
 
       <div className="flex-1 min-w-0">
-        <p className={`text-[15px] leading-snug whitespace-pre-wrap break-words ${
-          spark.resolved ? 'line-through text-[#AEAEB2]' : 'text-[#1C1C1E]'
-        }`}>
-          {spark.content}
-        </p>
-        <div className="flex items-center gap-2 mt-1">
+        {spark.title && (
+          <p className={`text-[15px] font-semibold leading-snug whitespace-pre-wrap break-words ${
+            spark.resolved ? 'line-through text-[#AEAEB2]' : 'text-[#1C1C1E]'
+          }`}>
+            {spark.title}
+          </p>
+        )}
+        {spark.content && (
+          <p className={`text-[14px] leading-relaxed whitespace-pre-wrap break-words ${
+            spark.title ? 'mt-0.5' : ''
+          } ${spark.resolved ? 'line-through text-[#AEAEB2]' : 'text-[#3C3C43]'}`}>
+            {spark.content}
+          </p>
+        )}
+        <div className="flex items-center gap-2 mt-1.5">
           <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full ${cfg.color} ${cfg.bg}`}>
             {cfg.emoji} {cfg.label}
           </span>
