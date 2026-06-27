@@ -86,7 +86,7 @@ function QuickAdd({ onAdd }) {
   )
 }
 
-function SparkRow({ spark, onToggleResolved, onDelete }) {
+function SparkRow({ spark, onToggleResolved, onEdit }) {
   const cfg = KIND_CONFIG[spark.kind] ?? KIND_CONFIG.insight
   const timeLabel = new Date(spark.created_at).toLocaleString('ja-JP', {
     month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -110,7 +110,7 @@ function SparkRow({ spark, onToggleResolved, onDelete }) {
         )}
       </button>
 
-      <div className="flex-1 min-w-0">
+      <button onClick={() => onEdit(spark)} className="flex-1 min-w-0 text-left">
         {spark.title && (
           <p className={`text-[15px] font-semibold leading-snug whitespace-pre-wrap break-words ${
             spark.resolved ? 'line-through text-[#AEAEB2]' : 'text-[#1C1C1E]'
@@ -131,16 +131,108 @@ function SparkRow({ spark, onToggleResolved, onDelete }) {
           </span>
           <span className="text-[11px] text-[#AEAEB2]">{timeLabel}</span>
         </div>
-      </div>
+      </button>
 
       <button
-        onClick={() => onDelete(spark.id)}
-        className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-[#C7C7CC] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10 active:opacity-60 transition-colors"
+        onClick={() => onEdit(spark)}
+        className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-[#C7C7CC] hover:text-[#8E8E93] active:opacity-60 transition-colors"
+        aria-label="編集"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
       </button>
+    </div>
+  )
+}
+
+function SparkModal({ spark, onSave, onDelete, onClose }) {
+  const [title, setTitle] = useState(spark.title ?? '')
+  const [content, setContent] = useState(spark.content ?? '')
+  const [kind, setKind] = useState(spark.kind ?? 'insight')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    if (!title.trim() && !content.trim()) return
+    setSaving(true)
+    await onSave(spark.id, {
+      title: title.trim() || null,
+      content: content.trim() || null,
+      kind,
+    })
+    setSaving(false)
+    onClose()
+  }
+
+  async function handleDelete() {
+    if (!window.confirm('このメモを削除しますか？')) return
+    await onDelete(spark.id)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] flex items-end md:items-center md:justify-center z-40" onClick={onClose}>
+      <div
+        className="w-full bg-[#F2F2F7] rounded-t-[16px] md:rounded-[16px] max-w-lg mx-auto shadow-2xl max-h-[92vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-[#F2F2F7]/90 backdrop-blur-xl px-4 py-3 flex items-center justify-between border-b border-black/5 rounded-t-[16px]">
+          <button onClick={onClose} className="ios-toolbar-btn">キャンセル</button>
+          <h2 className="text-[16px] font-semibold text-[#1C1C1E]">メモを編集</h2>
+          <button
+            onClick={handleSave}
+            disabled={saving || (!title.trim() && !content.trim())}
+            className="ios-toolbar-btn font-semibold disabled:opacity-30"
+          >
+            {saving ? '保存中…' : '保存'}
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* 種類選択 */}
+          <div className="flex items-center gap-1">
+            {Object.entries(KIND_CONFIG).map(([key, cfg]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setKind(key)}
+                className={`text-[13px] font-medium px-3 py-1.5 rounded-full transition-colors ${
+                  kind === key ? `${cfg.color} ${cfg.bg}` : 'text-[#AEAEB2] bg-black/[0.03]'
+                }`}
+              >
+                {cfg.emoji} {cfg.label}
+              </button>
+            ))}
+          </div>
+
+          {/* タイトル・補足 */}
+          <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+            <textarea
+              autoFocus
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="タイトル"
+              rows={1}
+              onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+              className="w-full px-4 py-3 text-[16px] font-semibold text-[#1C1C1E] placeholder:text-[#AEAEB2] placeholder:font-normal bg-transparent focus:outline-none resize-none leading-relaxed"
+            />
+            <textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              placeholder="補足（任意）"
+              rows={4}
+              className="w-full px-4 py-3 text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none resize-none leading-relaxed"
+            />
+          </div>
+
+          <button
+            onClick={handleDelete}
+            className="w-full py-3 rounded-[12px] text-[#FF3B30] text-[15px] font-medium bg-[#FF3B30]/[0.08] active:opacity-70 transition-opacity"
+          >
+            メモを削除
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -149,6 +241,7 @@ export default function SparksPage({ onBack, embedded }) {
   const { user } = useAuth()
   const { sparks, loading, addSpark, updateSpark, deleteSpark } = useSparks(user?.id)
   const [filterKind, setFilterKind] = useState('すべて')
+  const [editing, setEditing] = useState(null)
 
   const filtered = filterKind === 'すべて' ? sparks : sparks.filter(s => s.kind === filterKind)
   const unresolved = filtered.filter(s => !s.resolved)
@@ -211,7 +304,7 @@ export default function SparksPage({ onBack, embedded }) {
             {unresolved.length > 0 && (
               <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
                 {unresolved.map(s => (
-                  <SparkRow key={s.id} spark={s} onToggleResolved={toggleResolved} onDelete={deleteSpark} />
+                  <SparkRow key={s.id} spark={s} onToggleResolved={toggleResolved} onEdit={setEditing} />
                 ))}
               </div>
             )}
@@ -220,7 +313,7 @@ export default function SparksPage({ onBack, embedded }) {
                 <p className="text-[13px] font-semibold text-[#8E8E93] mb-2 px-3">解決済み</p>
                 <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
                   {resolved.map(s => (
-                    <SparkRow key={s.id} spark={s} onToggleResolved={toggleResolved} onDelete={deleteSpark} />
+                    <SparkRow key={s.id} spark={s} onToggleResolved={toggleResolved} onEdit={setEditing} />
                   ))}
                 </div>
               </div>
@@ -228,6 +321,15 @@ export default function SparksPage({ onBack, embedded }) {
           </>
         )}
       </main>
+
+      {editing && (
+        <SparkModal
+          spark={editing}
+          onSave={updateSpark}
+          onDelete={deleteSpark}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   )
 }
