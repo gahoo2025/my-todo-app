@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useSparks } from '../hooks/useSparks'
 
@@ -11,6 +11,7 @@ function QuickAdd({ onAdd }) {
   const [content, setContent] = useState('')
   const [kind, setKind] = useState('insight')
   const [saving, setSaving] = useState(false)
+  const taRef = useRef(null)
 
   async function handleAdd(e) {
     e.preventDefault()
@@ -19,6 +20,7 @@ function QuickAdd({ onAdd }) {
     await onAdd({ content: content.trim(), kind, resolved: false })
     setContent('')
     setSaving(false)
+    if (taRef.current) taRef.current.style.height = 'auto'
   }
 
   return (
@@ -37,18 +39,20 @@ function QuickAdd({ onAdd }) {
           </button>
         ))}
       </div>
-      <div className="flex items-center gap-2 px-3 pb-2.5 pt-1.5">
-        <input
-          type="text"
+      <div className="flex items-end gap-2 px-3 pb-2.5 pt-1.5">
+        <textarea
+          ref={taRef}
           value={content}
           onChange={e => setContent(e.target.value)}
           placeholder="思いついたことをメモ…"
-          className="flex-1 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none"
+          rows={1}
+          onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+          className="flex-1 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none resize-none leading-relaxed max-h-40 overflow-y-auto py-1"
         />
         <button
           type="submit"
           disabled={saving || !content.trim()}
-          className="flex-shrink-0 text-[14px] font-semibold text-[#007AFF] disabled:opacity-30 active:opacity-50 transition-opacity"
+          className="flex-shrink-0 text-[14px] font-semibold text-[#007AFF] disabled:opacity-30 active:opacity-50 transition-opacity pb-1"
         >
           追加
         </button>
