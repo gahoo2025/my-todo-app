@@ -254,7 +254,7 @@ export default function TodoPage() {
             </aside>
 
             <div className="flex-1 min-w-0">
-              <div className="md:hidden flex gap-2 overflow-x-auto pb-3 -mx-4 px-4">
+              <div className="md:hidden sticky top-[44px] z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
                 {['すべて', ...categoryNames].map(cat => (
                   <button
                     key={cat}
@@ -317,7 +317,7 @@ export default function TodoPage() {
             </aside>
 
             <div className="flex-1 min-w-0">
-              <div className="md:hidden flex gap-2 overflow-x-auto pb-3 -mx-4 px-4">
+              <div className="md:hidden sticky top-[44px] z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
                 {['すべて', ...categoryNames].map(cat => (
                   <button
                     key={cat}
