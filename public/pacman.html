@@ -69,6 +69,21 @@
   .b-down { grid-column: 2; grid-row: 2; }
   .b-right { grid-column: 3; grid-row: 2; }
   .hint { text-align: center; font-size: 9px; color: #666; margin: 6px 0 14px; line-height: 1.7; }
+  #speed { text-align: center; margin: 12px auto 4px; max-width: 360px; }
+  #speed label { display: block; font-size: 10px; color: #aaa; letter-spacing: 1px; margin-bottom: 8px; }
+  #speed label #speedVal { color: var(--accent); font-size: 12px; }
+  #speed input[type="range"] {
+    width: 80%; max-width: 280px; accent-color: var(--accent);
+    height: 22px; cursor: pointer; background: transparent;
+  }
+  #speed .presets { display: flex; gap: 6px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+  #speed .presets button {
+    font-family: inherit; font-size: 9px; letter-spacing: 1px; color: #ccc;
+    background: #18181f; border: 1px solid #2a2aff; border-radius: 8px;
+    padding: 7px 10px; cursor: pointer;
+  }
+  #speed .presets button.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  #speed .presets button:active { background: #2a2aff; color: #fff; }
   @media (hover:hover) and (pointer:fine) { #pad { display: none; } }
 </style>
 </head>
@@ -93,6 +108,16 @@
     <button class="b-left" data-dir="left">◀</button>
     <button class="b-down" data-dir="down">▼</button>
     <button class="b-right" data-dir="right">▶</button>
+  </div>
+  <div id="speed">
+    <label for="speedRange">スピード <span id="speedVal">1.0x</span></label>
+    <input type="range" id="speedRange" min="0.4" max="2.4" step="0.2" value="1" />
+    <div class="presets">
+      <button data-spd="0.6">おそい</button>
+      <button data-spd="1">ふつう</button>
+      <button data-spd="1.6">はやい</button>
+      <button data-spd="2.2">最速</button>
+    </div>
   </div>
   <div class="hint">スコア: ドット10 / パワーエサ50 / ゴースト200〜</div>
 </div>
@@ -667,14 +692,18 @@
   }
 
   // ---- Loop ----
+  // Speed is changed by scaling how often update() runs, NOT the per-step
+  // pixel distance — actors always move ±2px so tile alignment stays intact.
+  let speedMul = 1;
   let last = 0, acc = 0;
   const STEP = 1000 / 60;
   function loop(ts) {
     if (!last) last = ts;
-    acc += ts - last;
+    acc += (ts - last) * speedMul;
     last = ts;
+    if (acc > 200) acc = 200; // avoid huge catch-up after tab was backgrounded
     let guard = 0;
-    while (acc >= STEP && guard < 5) { update(); acc -= STEP; guard++; }
+    while (acc >= STEP && guard < 10) { update(); acc -= STEP; guard++; }
     draw();
     requestAnimationFrame(loop);
   }
@@ -718,6 +747,20 @@
 
   startBtn.addEventListener("click", startGame);
 
+  // speed control
+  const speedRange = document.getElementById("speedRange");
+  const speedVal = document.getElementById("speedVal");
+  const presetBtns = Array.from(document.querySelectorAll("#speed .presets button"));
+  function setSpeed(v) {
+    speedMul = Math.round(v * 10) / 10;
+    speedRange.value = String(speedMul);
+    speedVal.textContent = speedMul.toFixed(1) + "x";
+    presetBtns.forEach(b => b.classList.toggle("active", parseFloat(b.dataset.spd) === speedMul));
+  }
+  speedRange.addEventListener("input", () => { setSpeed(parseFloat(speedRange.value)); speedRange.blur(); });
+  presetBtns.forEach(b => b.addEventListener("click", () => setSpeed(parseFloat(b.dataset.spd))));
+  setSpeed(1);
+
   // boot: build grid for backdrop, start loop
   buildGrid();
   pac = newPac();
@@ -729,8 +772,9 @@
 
   // Lightweight debug accessor (harmless; used by automated smoke tests).
   window.__PACMAN_DEBUG = () => ({
-    state, score, level, lives, dotCount, frightTimer,
+    state, score, level, lives, dotCount, frightTimer, speedMul,
     pac, ghosts,
+    setSpeed,
   });
 })();
 </script>
