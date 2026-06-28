@@ -15,6 +15,7 @@ import CategoryPage from './CategoryPage'
 import NotesPage from './NotesPage'
 import GoalsPage from './GoalsPage'
 import SparksPage from './SparksPage'
+import AssetsPage from './AssetsPage'
 
 // ボトムタブアイコン
 function TabIcon({ tab, active }) {
@@ -45,6 +46,11 @@ function TabIcon({ tab, active }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 18h6m-6 3h6M12 3a6 6 0 00-3.5 10.9c.3.2.5.6.5 1v.1h6v-.1c0-.4.2-.8.5-1A6 6 0 0012 3z" />
     </svg>
   )
+  if (tab === 'assets') return (
+    <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M21 7v4m0-4h-4" />
+    </svg>
+  )
 }
 
 const TABS = [
@@ -53,6 +59,7 @@ const TABS = [
   { id: 'notes',    label: 'メモ' },
   { id: 'sparks',   label: 'ひらめき' },
   { id: 'goals',    label: 'プラン' },
+  { id: 'assets',   label: '資産' },
 ]
 
 const TAB_TITLES = {
@@ -61,6 +68,7 @@ const TAB_TITLES = {
   notes:    'メモ',
   sparks:   'ひらめき',
   goals:    'プラン',
+  assets:   '資産管理',
 }
 
 export default function TodoPage() {
@@ -372,6 +380,11 @@ export default function TodoPage() {
         {/* ── ひらめきタブ ── */}
         {tab === 'sparks' && (
           <SparksPage embedded />
+        )}
+
+        {/* ── 資産タブ ── */}
+        {tab === 'assets' && (
+          <AssetsPage embedded />
         )}
       </div>
 
