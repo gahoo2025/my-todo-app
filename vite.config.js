@@ -4,6 +4,15 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  base: process.env.PAGES_BASE || '/',
+  build: {
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        tetris: 'tetris.html',
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),
