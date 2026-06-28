@@ -382,14 +382,13 @@ export default function TodoPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors duration-150 ${
+              aria-label={t.label}
+              title={t.label}
+              className={`flex-1 flex items-center justify-center py-3 transition-colors duration-150 ${
                 tab === t.id ? 'text-[#007AFF]' : 'text-[#8E8E93]'
               }`}
             >
               <TabIcon tab={t.id} active={tab === t.id} />
-              <span className={`text-[10px] font-medium ${tab === t.id ? 'text-[#007AFF]' : 'text-[#8E8E93]'}`}>
-                {t.label}
-              </span>
             </button>
           ))}
         </div>
