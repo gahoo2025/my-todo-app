@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useNotes } from '../hooks/useNotes'
+import Markdown from '../components/Markdown'
 
 const URL_REGEX = /(https?:\/\/[^\s　-鿿＀-￯]+)/g
 
@@ -189,6 +190,7 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
   const [color, setColor] = useState(note.color ?? '#FFFFFF')
   const [pinned, setPinned] = useState(note.pinned)
   const [category, setCategory] = useState(note.category ?? null)
+  const [preview, setPreview] = useState(false)
 
   async function handleClose() {
     const changed =
@@ -232,12 +234,23 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
           >
             <PinIcon filled={pinned} className="w-5 h-5" />
           </button>
-          <button
-            onClick={handleClose}
-            className="text-[15px] font-semibold text-[#007AFF] px-3 py-1.5 rounded-full active:opacity-50 transition-opacity"
-          >
-            完了
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPreview(p => !p)}
+              className={`text-[13px] font-medium px-3 py-1.5 rounded-full active:opacity-50 transition-colors ${
+                preview ? 'text-[#007AFF] bg-[#007AFF]/10' : 'text-[#8E8E93]'
+              }`}
+              title="Markdownプレビュー"
+            >
+              {preview ? '編集' : 'プレビュー'}
+            </button>
+            <button
+              onClick={handleClose}
+              className="text-[15px] font-semibold text-[#007AFF] px-3 py-1.5 rounded-full active:opacity-50 transition-opacity"
+            >
+              完了
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 pb-2">
@@ -248,30 +261,22 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
             placeholder="タイトル"
             className="w-full py-2 text-[18px] font-semibold text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none"
           />
-          <textarea
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            placeholder="メモを入力…"
-            rows={10}
-            className="w-full py-1 text-[15px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
-          />
-          {content.match(URL_REGEX) && (
-            <div className="mt-2 pt-2 border-t border-black/[0.06] space-y-1">
-              {[...new Set(content.match(URL_REGEX))].map(url => (
-                <a
-                  key={url}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-[13px] text-[#007AFF] underline underline-offset-1 break-all active:opacity-50"
-                >
-                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                  {url}
-                </a>
-              ))}
-            </div>
+          {preview ? (
+            content.trim() ? (
+              <div className="py-1 min-h-[180px]">
+                <Markdown className="!text-[15px]">{content}</Markdown>
+              </div>
+            ) : (
+              <p className="py-3 text-[15px] text-[#8E8E93]/60">プレビューする内容がありません</p>
+            )
+          ) : (
+            <textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              placeholder="メモを入力…（Markdown / 表に対応）"
+              rows={10}
+              className="w-full py-1 text-[15px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
+            />
           )}
         </div>
 
@@ -325,9 +330,9 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
   function NoteCard({ note }) {
     const tint = CATEGORY_TINTS[note.category] ?? 'text-[#8E8E93]'
     return (
-      <button
+      <div
         onClick={() => setEditing(note)}
-        className="w-full text-left rounded-[14px] p-4 mb-3 break-inside-avoid shadow-[0_1px_2px_rgba(0,0,0,0.05),0_2px_8px_rgba(0,0,0,0.04)] border border-black/[0.04] active:scale-[0.98] transition-transform relative"
+        className="w-full text-left rounded-[14px] p-4 mb-3 break-inside-avoid shadow-[0_1px_2px_rgba(0,0,0,0.05),0_2px_8px_rgba(0,0,0,0.04)] border border-black/[0.04] active:scale-[0.98] transition-transform relative cursor-pointer"
         style={{ backgroundColor: note.color ?? '#FFFFFF' }}
       >
         {note.pinned && (
@@ -337,9 +342,9 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
           <p className="text-[15px] font-semibold text-[#1C1C1E] mb-1 pr-5 break-words">{note.title}</p>
         )}
         {note.content && (
-          <p className="text-[13px] text-[#3C3C43] leading-relaxed whitespace-pre-wrap break-words line-clamp-[12]">
-            <LinkedText text={note.content} />
-          </p>
+          <div className="max-h-[360px] overflow-hidden">
+            <Markdown>{note.content}</Markdown>
+          </div>
         )}
         {!note.title && !note.content && (
           <p className="text-[13px] text-[#AEAEB2]">（空のメモ）</p>
@@ -347,7 +352,7 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
         {note.category && (
           <p className={`text-[11px] font-medium mt-2 ${tint}`}>{note.category}</p>
         )}
-      </button>
+      </div>
     )
   }
 
