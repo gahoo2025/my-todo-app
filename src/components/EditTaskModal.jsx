@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ScheduleFields from './ScheduleFields'
 import SubtaskPanel from './SubtaskPanel'
+import Markdown from './Markdown'
 import { buildScheduleUpdates, toLocalDateInput, toLocalDateTimeInput } from '../lib/schedule'
 
 export default function EditTaskModal({ task, categories, userId, onSave, onClose, onSwitchToList }) {
@@ -16,6 +17,7 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
     endTime: toLocalDateTimeInput(task.end_at),
   })
   const [loading, setLoading] = useState(false)
+  const [memoPreview, setMemoPreview] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -110,13 +112,32 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
               className="w-full px-4 py-3 text-[16px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none"
               placeholder="タイトル"
             />
-            <textarea
-              rows={3}
-              value={memo}
-              onChange={e => setMemo(e.target.value)}
-              placeholder="メモ"
-              className="w-full px-4 py-3 text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none resize-none leading-relaxed"
-            />
+            <div className="relative">
+              {memo.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setMemoPreview(p => !p)}
+                  className={`absolute top-2 right-3 z-10 text-[12px] font-medium px-2 py-0.5 rounded-full transition-colors ${
+                    memoPreview ? 'text-[#007AFF] bg-[#007AFF]/10' : 'text-[#8E8E93] bg-black/[0.04]'
+                  }`}
+                >
+                  {memoPreview ? '編集' : 'プレビュー'}
+                </button>
+              )}
+              {memoPreview ? (
+                <div className="px-4 py-3 min-h-[72px]">
+                  <Markdown className="!text-[14px]">{memo}</Markdown>
+                </div>
+              ) : (
+                <textarea
+                  rows={3}
+                  value={memo}
+                  onChange={e => setMemo(e.target.value)}
+                  placeholder="メモ（Markdown / 表に対応）"
+                  className="w-full px-4 py-3 text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none resize-none leading-relaxed"
+                />
+              )}
+            </div>
           </div>
 
           {/* カテゴリ・期限のグループ */}

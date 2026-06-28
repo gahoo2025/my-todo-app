@@ -64,7 +64,7 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
               rows={2}
               value={memo}
               onChange={e => setMemo(e.target.value)}
-              placeholder="メモ"
+              placeholder="メモ（Markdown / 表に対応）"
               className="w-full px-4 py-3 text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none resize-none leading-relaxed"
             />
           </div>

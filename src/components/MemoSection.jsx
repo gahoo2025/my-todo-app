@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import Markdown from './Markdown'
 
 export default function MemoSection({ task }) {
   const [memo, setMemo] = useState(task.memo ?? '')
@@ -43,11 +44,9 @@ export default function MemoSection({ task }) {
           </div>
         </div>
       ) : task.memo ? (
-        <button onClick={() => setEditing(true)} className="text-left w-full group">
-          <p className="text-[13px] text-[#636366] leading-relaxed whitespace-pre-wrap group-hover:text-[#1C1C1E] transition-colors">
-            {task.memo}
-          </p>
-        </button>
+        <div onClick={() => setEditing(true)} className="text-left w-full cursor-pointer">
+          <Markdown>{task.memo}</Markdown>
+        </div>
       ) : (
         <button
           onClick={() => setEditing(true)}
