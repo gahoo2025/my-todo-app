@@ -191,6 +191,7 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
   const [pinned, setPinned] = useState(note.pinned)
   const [category, setCategory] = useState(note.category ?? null)
   const [preview, setPreview] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   async function handleClose() {
     const changed =
@@ -221,7 +222,11 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={handleClose} />
       <div
-        className="relative w-full max-w-lg md:max-w-xl rounded-t-[20px] md:rounded-[20px] shadow-2xl overflow-hidden flex flex-col max-h-[88vh]"
+        className={`relative w-full rounded-t-[20px] md:rounded-[20px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-200 ${
+          expanded
+            ? 'max-w-lg md:max-w-5xl md:h-[94vh]'
+            : 'max-w-lg md:max-w-2xl md:h-[78vh]'
+        }`}
         style={{ backgroundColor: color }}
       >
         <div className="flex items-center justify-between px-3 pt-3">
@@ -235,6 +240,22 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
             <PinIcon filled={pinned} className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-1">
+            {/* 拡大トグル（PCのみ） */}
+            <button
+              onClick={() => setExpanded(e => !e)}
+              className="hidden md:flex w-9 h-9 items-center justify-center rounded-full text-[#8E8E93] hover:text-[#1C1C1E] active:bg-black/5 transition-colors"
+              title={expanded ? '通常サイズ' : '拡大'}
+            >
+              {expanded ? (
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9L4 4m0 0v4m0-4h4m11 5l5 5m0 0v-4m0 4h-4M9 15l-5 5m0 0v-4m0 4h4m11-5l5-5m0 0v4m0-4h-4" />
+                </svg>
+              ) : (
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+              )}
+            </button>
             <button
               onClick={() => setPreview(p => !p)}
               className={`text-[13px] font-medium px-3 py-1.5 rounded-full active:opacity-50 transition-colors ${
@@ -253,17 +274,17 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-2">
+        <div className="flex-1 flex flex-col overflow-hidden px-4 pb-2">
           <input
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="タイトル"
-            className="w-full py-2 text-[18px] font-semibold text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none"
+            className="flex-shrink-0 w-full py-2 text-[18px] font-semibold text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none"
           />
           {preview ? (
             content.trim() ? (
-              <div className="py-1 min-h-[180px]">
+              <div className="flex-1 overflow-y-auto py-1 min-h-[180px]">
                 <Markdown className="!text-[15px]">{content}</Markdown>
               </div>
             ) : (
@@ -274,8 +295,7 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
               value={content}
               onChange={e => setContent(e.target.value)}
               placeholder="メモを入力…（Markdown / 表に対応）"
-              rows={10}
-              className="w-full py-1 text-[15px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
+              className="flex-1 min-h-[200px] w-full py-1 text-[15px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
             />
           )}
         </div>
