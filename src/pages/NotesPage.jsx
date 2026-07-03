@@ -222,7 +222,7 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={handleClose} />
       <div
-        className={`relative w-full rounded-t-[20px] md:rounded-[20px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-all duration-200 ${
+        className={`relative w-full rounded-t-[20px] md:rounded-[20px] shadow-2xl overflow-hidden flex flex-col h-[90vh] max-h-[90vh] transition-all duration-200 ${
           expanded
             ? 'max-w-lg md:max-w-5xl md:h-[94vh]'
             : 'max-w-lg md:max-w-2xl md:h-[78vh]'
