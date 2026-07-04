@@ -49,3 +49,13 @@
     @apply text-[15px] font-normal text-[#007AFF] active:opacity-50 transition-opacity duration-150;
   }
 }
+
+/* iOS対策: モバイルでフォーム部品を16px以上にし、フォーカス時の自動ズームを防ぐ
+   （ズームが残ると position:fixed の下部ナビが固定されなくなるため） */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
