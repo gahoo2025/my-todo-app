@@ -164,7 +164,7 @@ function QuickAdd({ onAdd, categories, defaultCategory }) {
         onChange={e => setContent(e.target.value)}
         placeholder="メモを入力…"
         rows={4}
-        className="w-full px-4 py-1 text-[14px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
+        className="w-full px-4 py-1 text-[16px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
       />
       <div className="flex items-center justify-between px-3 py-2 gap-2">
         <ColorDots selected={color} onSelect={setColor} />
@@ -295,7 +295,7 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
               value={content}
               onChange={e => setContent(e.target.value)}
               placeholder="メモを入力…（Markdown / 表に対応）"
-              className="flex-1 min-h-[200px] w-full py-1 text-[15px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
+              className="flex-1 min-h-[200px] w-full py-1 text-[16px] text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none resize-none leading-relaxed"
             />
           )}
         </div>
