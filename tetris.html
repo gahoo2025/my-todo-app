@@ -31,58 +31,77 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 12px;
-      gap: 12px;
+      padding: 8px;
+      gap: 8px;
       touch-action: none;
     }
     h1 {
-      font-size: 1.2rem;
+      font-size: 1.05rem;
       font-weight: 700;
       letter-spacing: 0.08em;
       background: linear-gradient(90deg, #818cf8, #c084fc);
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
+      flex: 0 0 auto;
     }
     .wrap {
       display: flex;
-      gap: 14px;
+      gap: 10px;
       align-items: flex-start;
+      flex: 0 0 auto;
     }
     .board-shell {
       position: relative;
-      border-radius: 14px;
-      padding: 8px;
+      border-radius: 12px;
+      padding: 6px;
       background: var(--panel);
       box-shadow: 0 18px 40px -18px rgba(0,0,0,.8), inset 0 0 0 1px #ffffff10;
     }
-    canvas { display: block; border-radius: 8px; background: #0c0d1c; }
+    canvas { display: block; border-radius: 6px; background: #0c0d1c; }
     .side {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      width: 116px;
+      gap: 7px;
+      width: clamp(88px, 24vw, 116px);
     }
     .card {
       background: var(--panel);
-      border-radius: 12px;
-      padding: 10px;
+      border-radius: 11px;
+      padding: 8px;
       box-shadow: inset 0 0 0 1px #ffffff0d;
     }
     .card h2 {
-      font-size: .68rem;
+      font-size: .62rem;
       font-weight: 500;
       color: var(--muted);
-      letter-spacing: .14em;
-      margin-bottom: 6px;
+      letter-spacing: .12em;
+      margin-bottom: 4px;
       text-transform: uppercase;
     }
-    .stat { font-size: 1.35rem; font-weight: 700; line-height: 1.1; }
+    .stat { font-size: 1.2rem; font-weight: 700; line-height: 1.1; }
     .mini { display: block; margin: 0 auto; }
+    /* スピード調整 */
+    .speed-row { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+    .speed-val { font-size: 1rem; font-weight: 700; min-width: 42px; text-align: center; }
+    .speed-btn {
+      border: none;
+      cursor: pointer;
+      width: 26px; height: 26px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      background: var(--panel2);
+      box-shadow: inset 0 0 0 1px #ffffff14;
+      flex: 0 0 auto;
+    }
+    .speed-btn:active { background: var(--accent); }
     .overlay {
       position: absolute;
-      inset: 8px;
-      border-radius: 8px;
+      inset: 6px;
+      border-radius: 6px;
       background: #0c0d1ce6;
       display: flex;
       flex-direction: column;
@@ -94,8 +113,8 @@
       backdrop-filter: blur(2px);
     }
     .overlay.hidden { display: none; }
-    .overlay .big { font-size: 1.5rem; font-weight: 700; }
-    .overlay .sub { color: var(--muted); font-size: .85rem; line-height: 1.6; }
+    .overlay .big { font-size: 1.4rem; font-weight: 700; }
+    .overlay .sub { color: var(--muted); font-size: .82rem; line-height: 1.6; }
     button.play {
       border: none;
       cursor: pointer;
@@ -111,45 +130,50 @@
     }
     button.play:active { transform: scale(.96); }
     .hint {
-      font-size: .68rem;
+      font-size: .66rem;
       color: var(--muted);
       line-height: 1.7;
       text-align: center;
+      flex: 0 0 auto;
     }
     kbd {
       background: var(--panel2);
       border-radius: 4px;
       padding: 1px 6px;
       font-family: inherit;
-      font-size: .66rem;
+      font-size: .64rem;
       box-shadow: inset 0 0 0 1px #ffffff14;
     }
     /* touch controls */
     .touch {
       display: none;
-      gap: 10px;
+      gap: 8px;
       width: 100%;
-      max-width: 420px;
+      max-width: 460px;
+      flex: 0 0 auto;
     }
-    .touch .row { display: flex; gap: 10px; flex: 1; }
+    .touch .row { display: flex; gap: 8px; flex: 1; }
     .touch button {
       flex: 1;
       border: none;
       cursor: pointer;
       font-family: inherit;
       color: var(--text);
-      font-size: 1.25rem;
+      font-size: 1.15rem;
       font-weight: 700;
-      padding: 16px 0;
-      border-radius: 12px;
+      padding: 13px 0;
+      border-radius: 11px;
       background: var(--panel);
       box-shadow: inset 0 0 0 1px #ffffff12;
       user-select: none;
     }
     .touch button:active { background: var(--accent); }
-    @media (max-width: 640px) {
+    @media (max-width: 680px) {
       .touch { display: flex; }
       .hint.desktop { display: none; }
+    }
+    @media (min-width: 681px) {
+      .hint.mobile { display: none; }
     }
   </style>
 </head>
@@ -178,6 +202,14 @@
         <div class="stat" id="level">1</div>
       </div>
       <div class="card">
+        <h2>Speed</h2>
+        <div class="speed-row">
+          <button class="speed-btn" id="speedDown" aria-label="スピードを下げる">−</button>
+          <span class="speed-val" id="speed">×1.0</span>
+          <button class="speed-btn" id="speedUp" aria-label="スピードを上げる">＋</button>
+        </div>
+      </div>
+      <div class="card">
         <h2>Next</h2>
         <canvas id="next" class="mini"></canvas>
       </div>
@@ -193,6 +225,7 @@
       <button data-act="left">◀</button>
       <button data-act="rotate">⟳</button>
       <button data-act="right">▶</button>
+      <button data-act="speed">⏩</button>
     </div>
     <div class="row">
       <button data-act="hold">HOLD</button>
@@ -203,14 +236,17 @@
 
   <div class="hint desktop">
     <kbd>←</kbd> <kbd>→</kbd> 移動 ・ <kbd>↑</kbd>/<kbd>X</kbd> 回転 ・ <kbd>↓</kbd> ソフトドロップ ・
-    <kbd>Space</kbd> ハードドロップ ・ <kbd>C</kbd> ホールド ・ <kbd>P</kbd> ポーズ
+    <kbd>Space</kbd> ハードドロップ ・ <kbd>C</kbd> ホールド ・ <kbd>+</kbd>/<kbd>−</kbd> スピード ・ <kbd>P</kbd> ポーズ
+  </div>
+  <div class="hint mobile">
+    下=ソフトドロップ ・ ⤓=一気に落とす ・ ⏩=スピードUP ・ 盤面スワイプ/タップも対応
   </div>
 
   <script>
   (() => {
     const COLS = 10, ROWS = 20;
-    const CELL = 30;            // 盤面セルサイズ
     const HIDDEN = 2;           // 上部の見えない行（スポーン用）
+    let CELL = 30;              // 盤面セルサイズ（画面に合わせて動的に決定）
 
     const COLORS = {
       I: '#22d3ee', O: '#fbbf24', T: '#c084fc', S: '#34d399',
@@ -254,6 +290,10 @@
 
     const TYPES = ['I','O','T','S','Z','J','L'];
 
+    // スピード倍率（大きいほど速い）
+    const SPEED_MIN = 1.0, SPEED_MAX = 5.0, SPEED_STEP = 0.5;
+    let speedMul = 1.0;
+
     const board = document.getElementById('board');
     const bctx = board.getContext('2d');
     const nextCv = document.getElementById('next');
@@ -264,16 +304,37 @@
     // 高解像度対応
     function setupCanvas(cv, ctx, w, h) {
       const dpr = window.devicePixelRatio || 1;
-      cv.width = w * dpr; cv.height = h * dpr;
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
       cv.style.width = w + 'px'; cv.style.height = h + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    setupCanvas(board, bctx, COLS * CELL, ROWS * CELL);
-    setupCanvas(nextCv, nctx, 96, 64);
-    setupCanvas(holdCv, hctx, 96, 64);
+
+    // 画面サイズに合わせてセルサイズを算出（横も縦も必ず収める）
+    function computeCell() {
+      const isMobile = window.innerWidth <= 680;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      // 横方向: サイドパネル・余白・すき間を差し引く
+      const sideW = Math.max(88, Math.min(116, vw * 0.24));
+      const availW = vw - sideW - /*gap*/10 - /*shell pad*/12 - /*body pad*/16;
+      // 縦方向: タイトル・タッチUI・ヒント・余白を差し引く
+      const chromeV = isMobile ? (26 + 8 + 118 + 20 + 12) : (26 + 40 + 12);
+      const availH = vh - chromeV;
+      let cell = Math.floor(Math.min(availW / COLS, availH / ROWS));
+      return Math.max(11, Math.min(cell, isMobile ? 30 : 34));
+    }
+
+    function layout() {
+      CELL = computeCell();
+      setupCanvas(board, bctx, COLS * CELL, ROWS * CELL);
+      const mini = Math.max(52, Math.min(84, (Math.max(88, Math.min(116, window.innerWidth * 0.24))) - 22));
+      setupCanvas(nextCv, nctx, mini, mini * 0.68);
+      setupCanvas(holdCv, hctx, mini, mini * 0.68);
+      draw();
+      drawSide();
+    }
 
     const $ = id => document.getElementById(id);
-    const ui = { score: $('score'), lines: $('lines'), level: $('level') };
+    const ui = { score: $('score'), lines: $('lines'), level: $('level'), speed: $('speed') };
 
     let grid, cur, nextType, holdType, canHold;
     let score, lines, level, dropCounter, dropInterval, lastTime;
@@ -296,6 +357,12 @@
     function nextFromBag() {
       if (bag.length === 0) refillBag();
       return bag.shift();
+    }
+
+    // レベル + スピード倍率から落下間隔を計算
+    function computeDropInterval() {
+      const base = Math.max(80, 1000 - (level - 1) * 80);
+      dropInterval = Math.max(25, base / speedMul);
     }
 
     function spawn(type) {
@@ -338,7 +405,7 @@
         score += pts;
         lines += cleared;
         level = Math.floor(lines / 10) + 1;
-        dropInterval = Math.max(80, 1000 - (level - 1) * 80);
+        computeDropInterval();
         updateStats();
       }
     }
@@ -347,6 +414,7 @@
       ui.score.textContent = score;
       ui.lines.textContent = lines;
       ui.level.textContent = level;
+      ui.speed.textContent = '×' + speedMul.toFixed(1);
     }
 
     function move(dx) {
@@ -392,6 +460,13 @@
       drawSide();
     }
 
+    // スピード変更
+    function changeSpeed(delta) {
+      speedMul = Math.min(SPEED_MAX, Math.max(SPEED_MIN, +(speedMul + delta).toFixed(1)));
+      computeDropInterval();
+      updateStats();
+    }
+
     function ghostY() {
       let p = { ...cur };
       while (!collides({ ...p, y: p.y + 1 })) p.y++;
@@ -412,16 +487,18 @@
     }
 
     function draw() {
-      bctx.clearRect(0, 0, COLS * CELL, ROWS * CELL);
+      const W = COLS * CELL, H = ROWS * CELL;
+      bctx.clearRect(0, 0, W, H);
       // 背景グリッド
       bctx.strokeStyle = '#ffffff08';
       bctx.lineWidth = 1;
       for (let x = 1; x < COLS; x++) {
-        bctx.beginPath(); bctx.moveTo(x * CELL, 0); bctx.lineTo(x * CELL, ROWS * CELL); bctx.stroke();
+        bctx.beginPath(); bctx.moveTo(x * CELL, 0); bctx.lineTo(x * CELL, H); bctx.stroke();
       }
       for (let y = 1; y < ROWS; y++) {
-        bctx.beginPath(); bctx.moveTo(0, y * CELL); bctx.lineTo(COLS * CELL, y * CELL); bctx.stroke();
+        bctx.beginPath(); bctx.moveTo(0, y * CELL); bctx.lineTo(W, y * CELL); bctx.stroke();
       }
+      if (!grid) return;
       // 固定ブロック（HIDDEN行を除いて描画）
       for (let y = HIDDEN; y < grid.length; y++) {
         for (let x = 0; x < COLS; x++) {
@@ -442,11 +519,11 @@
     }
 
     function drawMini(ctx, cv, type) {
-      const w = cv.width / (window.devicePixelRatio || 1);
-      const h = cv.height / (window.devicePixelRatio || 1);
+      const dpr = window.devicePixelRatio || 1;
+      const w = cv.width / dpr, h = cv.height / dpr;
       ctx.clearRect(0, 0, w, h);
       if (!type) return;
-      const sz = 14;
+      const sz = Math.floor(Math.min(w, h) / 4.2);
       const shape = SHAPES[type][0];
       const xs = shape.map(c => c[0]), ys = shape.map(c => c[1]);
       const minX = Math.min(...xs), maxX = Math.max(...xs);
@@ -482,7 +559,7 @@
       grid = newGrid();
       bag = [];
       score = 0; lines = 0; level = 1;
-      dropInterval = 1000; dropCounter = 0; lastTime = performance.now();
+      computeDropInterval(); dropCounter = 0; lastTime = performance.now();
       holdType = null; canHold = true;
       nextType = nextFromBag();
       spawn(nextFromBag());
@@ -528,8 +605,14 @@
       else start();
     });
 
+    // スピードボタン（サイドパネル）
+    $('speedUp').addEventListener('click', () => changeSpeed(SPEED_STEP));
+    $('speedDown').addEventListener('click', () => changeSpeed(-SPEED_STEP));
+
     // ---- 入力 ----
     document.addEventListener('keydown', (e) => {
+      if (e.key === '+' || e.key === '=') { changeSpeed(SPEED_STEP); return; }
+      if (e.key === '-' || e.key === '_') { changeSpeed(-SPEED_STEP); return; }
       if (state === 'idle' || state === 'over') {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); start(); }
         return;
@@ -557,12 +640,16 @@
       rotate: () => rotate(1),
       drop: () => hardDrop(),
       hold: () => hold(),
+      speed: () => changeSpeed(SPEED_STEP),
     };
     document.getElementById('touch').addEventListener('click', (e) => {
       const btn = e.target.closest('button');
-      if (!btn || state !== 'playing') return;
+      if (!btn) return;
       const act = touchActs[btn.dataset.act];
-      if (act) { act(); draw(); }
+      // スピードは常時操作可、それ以外はプレイ中のみ
+      if (btn.dataset.act === 'speed') { act(); return; }
+      if (state !== 'playing' || !act) return;
+      act(); draw();
     });
 
     // スワイプ操作（盤面上）
@@ -577,11 +664,12 @@
       const t = e.touches[0];
       const dx = t.clientX - touchStart.x;
       const dy = t.clientY - touchStart.y;
-      if (Math.abs(dx) > 24 && Math.abs(dx) > Math.abs(dy)) {
+      const th = Math.max(18, CELL * 0.8);
+      if (Math.abs(dx) > th && Math.abs(dx) > Math.abs(dy)) {
         move(dx > 0 ? 1 : -1);
         touchStart.x = t.clientX; touchStart.moved = true;
         draw();
-      } else if (dy > 28 && Math.abs(dy) > Math.abs(dx)) {
+      } else if (dy > th && Math.abs(dy) > Math.abs(dx)) {
         softDrop();
         touchStart.y = t.clientY; touchStart.moved = true;
         draw();
@@ -594,8 +682,17 @@
       touchStart = null;
     });
 
-    draw();
-    drawSide();
+    // 画面リサイズ・回転に追従
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(layout, 80);
+    });
+    window.addEventListener('orientationchange', () => setTimeout(layout, 120));
+
+    grid = newGrid();
+    updateStats();
+    layout();
   })();
   </script>
 </body>
