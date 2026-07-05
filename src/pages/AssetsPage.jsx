@@ -1,12 +1,21 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useStockAnalyses } from '../hooks/useStockAnalyses'
+import { useAssetBalances } from '../hooks/useAssetBalances'
 import Markdown from '../components/Markdown'
 
 // サブ機能の定義（今後ここに追加していく）
 const SUB_FEATURES = [
   { id: 'stocks', label: '個別銘柄' },
 ]
+
+// 資産残高の種類
+const BALANCE_KINDS = [
+  { id: 'stock', label: '株式',    color: 'text-[#007AFF]' },
+  { id: 'fund',  label: '投資信託', color: 'text-[#AF52DE]' },
+]
+
+const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 })
 
 function todayStr() {
   const d = new Date()
@@ -223,11 +232,55 @@ function StockAnalyses() {
   )
 }
 
+// ── 資産額サマリー（株式・投資信託の最新残高） ──
+function AssetSummary() {
+  const { user } = useAuth()
+  const { latestByKind, loading } = useAssetBalances(user?.id)
+
+  const rows = BALANCE_KINDS.map(k => ({ ...k, bal: latestByKind[k.id] }))
+  const total = rows.reduce((sum, r) => sum + (r.bal ? Number(r.bal.amount) : 0), 0)
+  const hasAny = rows.some(r => r.bal)
+
+  return (
+    <div className="ios-card overflow-hidden mb-3">
+      <div className="px-4 pt-3.5 pb-2 border-b border-black/[0.05]">
+        <p className="text-[12px] font-semibold text-[#8E8E93]">現在の資産額</p>
+        <p className="text-[28px] font-bold text-[#1C1C1E] leading-tight mt-0.5 tabular-nums">
+          {loading ? '—' : yen.format(total)}
+        </p>
+      </div>
+      <div className="divide-y divide-black/[0.04]">
+        {rows.map(r => (
+          <div key={r.id} className="flex items-center justify-between px-4 py-2.5">
+            <span className={`text-[15px] font-medium ${r.color}`}>{r.label}</span>
+            <div className="text-right">
+              <p className="text-[15px] font-semibold text-[#1C1C1E] tabular-nums">
+                {r.bal ? yen.format(Number(r.bal.amount)) : '未登録'}
+              </p>
+              {r.bal && (
+                <p className="text-[11px] text-[#AEAEB2]">{formatDate(r.bal.as_of)} 時点</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      {!loading && !hasAny && (
+        <p className="px-4 py-3 text-[12px] text-[#AEAEB2]">
+          残高はAPIから登録できます（株式・投資信託）。
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function AssetsPage({ embedded }) {
   const [sub, setSub] = useState('stocks')
 
   const body = (
     <>
+      {/* 資産額サマリー */}
+      <AssetSummary />
+
       {/* サブ機能セグメント */}
       <div className="sticky top-[44px] z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
         {SUB_FEATURES.map(f => (

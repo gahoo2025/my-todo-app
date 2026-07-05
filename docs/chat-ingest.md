@@ -63,3 +63,32 @@ curl "https://<あなたのドメイン>/api/stock-analysis?limit=5" \
 このリポジトリのセッションで分析内容を伝えると、Claude が上記 POST を実行して登録する。
 そのためには Claude が `INGEST_TOKEN` とドメインを知っている必要があるため、セッション中にトークンを共有するか、
 実行環境のシークレットに `INGEST_TOKEN` を登録しておく。
+
+---
+
+# 資産残高 取り込みAPI（株式・投資信託）
+
+資産タブ上部の「現在の資産額」に表示される残高を登録するAPI。
+環境変数・認証は銘柄分析APIと共通（`INGEST_TOKEN` など）。
+
+## 登録（POST）
+
+```bash
+curl -X POST https://<あなたのドメイン>/api/asset-balance \
+  -H "Authorization: Bearer $INGEST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "kind": "stock", "amount": 1234567, "as_of": "2026-07-05" }'
+```
+
+- `kind` … `stock`（株式）または `fund`（投資信託）
+- `amount` … 資産額（円、数値）
+- `as_of` … いつ時点か（`YYYY-MM-DD`。省略時は当日）
+
+同じ kind を新しい `as_of` で登録すると、その値が「現在の資産額」に反映される（履歴も残る）。
+
+## 確認（GET）
+
+```bash
+curl "https://<あなたのドメイン>/api/asset-balance?latest=1" \
+  -H "Authorization: Bearer $INGEST_TOKEN"
+```
