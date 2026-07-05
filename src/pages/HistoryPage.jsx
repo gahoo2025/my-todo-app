@@ -50,7 +50,7 @@ export default function HistoryPage({ onBack, initialCategory }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
+      <header className="safe-top sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-lg md:max-w-2xl mx-auto px-4">
           <div className="flex items-center h-11">
             <button onClick={onBack} className="flex items-center text-[#007AFF] active:opacity-50 transition-opacity -ml-1">

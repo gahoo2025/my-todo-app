@@ -184,7 +184,7 @@ export default function TodoPage() {
     <div className="min-h-screen flex flex-col">
 
       {/* ===== ナビゲーションバー ===== */}
-      <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
+      <header className="safe-top sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-lg md:max-w-5xl mx-auto px-4">
           <div className="flex items-center justify-between h-11">
             <span className="text-[17px] font-bold text-[#1C1C1E] tracking-tight">
@@ -389,7 +389,7 @@ export default function TodoPage() {
       </div>
 
       {/* ===== ボトムタブバー ===== */}
-      <nav className="fixed bottom-0 left-0 right-0 z-20 bg-[#F2F2F7]/90 backdrop-blur-xl border-t border-black/[0.08] safe-area-bottom">
+      <nav className="fixed bottom-0 left-0 right-0 z-20 bg-[#F2F2F7]/90 backdrop-blur-xl border-t border-black/[0.08] safe-bottom">
         <div className="max-w-lg md:max-w-2xl mx-auto flex">
           {TABS.map(t => (
             <button

@@ -489,7 +489,7 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
   // スタンドアロン表示（将来のサブページ利用想定）
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
+      <header className="safe-top sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-lg md:max-w-4xl mx-auto px-4">
           <div className="flex items-center h-11">
             <button onClick={onBack} className="flex items-center text-[#007AFF] active:opacity-50 transition-opacity -ml-1">

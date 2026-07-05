@@ -95,7 +95,7 @@ export default function DayScheduleView({ date, tasks, events, onEditTask, onEdi
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#F2F2F7]">
       {/* ヘッダー */}
-      <header className="sticky top-0 z-10 bg-[#F2F2F7]/90 backdrop-blur-xl border-b border-black/5">
+      <header className="safe-top sticky top-0 z-10 bg-[#F2F2F7]/90 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-lg mx-auto px-4">
           <div className="flex items-center justify-between h-11">
             <button
