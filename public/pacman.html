@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <meta name="theme-color" content="#000000" />
 <title>パックマン | Pac-Man</title>
+<!-- PWA: ホーム画面に追加して独立アプリとして起動できるようにする -->
+<link rel="manifest" href="/pacman.webmanifest" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<meta name="apple-mobile-web-app-title" content="パックマン" />
+<link rel="apple-touch-icon" href="/icons/pacman-apple-180.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/pacman-192.png" />
 <style>
   :root { --accent: #ffd000; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -777,6 +785,16 @@
     setSpeed,
   });
 })();
+</script>
+<script>
+  // Register a small service worker so the game is installable to the home
+  // screen and playable offline. Only runs over https / localhost.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/pacman-sw.js", { scope: "/pacman.html" })
+        .catch((err) => console.warn("SW registration skipped:", err.message));
+    });
+  }
 </script>
 </body>
 </html>
