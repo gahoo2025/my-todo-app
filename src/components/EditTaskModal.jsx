@@ -2,6 +2,7 @@ import { useState } from 'react'
 import ScheduleFields from './ScheduleFields'
 import SubtaskPanel from './SubtaskPanel'
 import Markdown from './Markdown'
+import ToggleRow from './ToggleRow'
 import { buildScheduleUpdates, toLocalDateInput, toLocalDateTimeInput } from '../lib/schedule'
 
 export default function EditTaskModal({ task, categories, userId, onSave, onClose, onSwitchToList }) {
@@ -9,6 +10,8 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
   const [category, setCategory] = useState(task.category)
   const [dueDate, setDueDate] = useState(task.due_date ?? '')
   const [memo, setMemo] = useState(task.memo ?? '')
+  const [isShopping, setIsShopping] = useState(task.is_shopping ?? false)
+  const [issueRegistered, setIssueRegistered] = useState(task.issue_registered ?? false)
   const [schedule, setSchedule] = useState({
     allDay: task.all_day ?? false,
     startDate: toLocalDateInput(task.start_at),
@@ -28,6 +31,8 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
       category,
       due_date: dueDate || null,
       memo: memo || null,
+      is_shopping: isShopping,
+      issue_registered: category === '仕事' ? issueRegistered : false,
       ...buildScheduleUpdates(schedule),
     })
     setLoading(false)
@@ -41,6 +46,8 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
       category,
       due_date: dueDate || null,
       memo: memo || null,
+      is_shopping: isShopping,
+      issue_registered: category === '仕事' ? issueRegistered : false,
       ...buildScheduleUpdates(schedule),
       completed: nextCompleted,
     })
@@ -161,6 +168,14 @@ export default function EditTaskModal({ task, categories, userId, onSave, onClos
                 className="text-[15px] text-[#8E8E93] bg-transparent focus:outline-none text-right"
               />
             </div>
+          </div>
+
+          {/* フラグ */}
+          <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+            <ToggleRow label="買い物リスト" icon="🛒" checked={isShopping} onChange={setIsShopping} />
+            {category === '仕事' && (
+              <ToggleRow label="課題登録済み" icon="📋" checked={issueRegistered} onChange={setIssueRegistered} />
+            )}
           </div>
 
           <ScheduleFields value={schedule} onChange={setSchedule} />

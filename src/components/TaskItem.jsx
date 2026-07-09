@@ -93,6 +93,16 @@ export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
             {task.title}
           </p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+            {task.is_shopping && (
+              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-[#34C759]/15 text-[#248A3D]">
+                🛒 買い物
+              </span>
+            )}
+            {task.issue_registered && (
+              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-[#007AFF]/12 text-[#007AFF]">
+                📋 登録済
+              </span>
+            )}
             <span className={`text-[12px] font-medium ${tint}`}>{task.category}</span>
             {dueLabel && (
               <span className={`text-[12px] ${isOverdue ? 'text-[#FF3B30] font-medium' : 'text-[#8E8E93]'}`}>

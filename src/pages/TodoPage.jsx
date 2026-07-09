@@ -82,6 +82,7 @@ export default function TodoPage() {
   const [tab, setTab] = useState('tasks')
   const [page, setPage] = useState(null)      // null | 'history' | 'trash' | 'category'
   const [filterCategory, setFilterCategory] = useState('すべて')
+  const [shoppingOnly, setShoppingOnly] = useState(false)
 
   const [showForm, setShowForm] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
@@ -178,6 +179,8 @@ export default function TodoPage() {
   const categoryNames = categories.map(c => c.name)
   const filteredTasks = filterCategory === 'すべて'
     ? tasks : tasks.filter(t => t.category === filterCategory)
+  // タスク一覧用：買い物フラグでさらに絞り込み
+  const listTasks = shoppingOnly ? filteredTasks.filter(t => t.is_shopping) : filteredTasks
   const pending = tasks.length
 
   return (
@@ -254,8 +257,18 @@ export default function TodoPage() {
                 ))}
               </div>
               <button
+                onClick={() => setShoppingOnly(v => !v)}
+                className={`w-full mt-3 py-2.5 rounded-[12px] font-semibold text-[14px] transition-colors ${
+                  shoppingOnly
+                    ? 'bg-[#34C759] text-white shadow-[0_2px_8px_rgba(52,199,89,0.3)]'
+                    : 'bg-white text-[#248A3D] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+                }`}
+              >
+                🛒 買い物リストのみ
+              </button>
+              <button
                 onClick={() => setShowForm(true)}
-                className="w-full mt-4 py-2.5 rounded-[12px] bg-[#007AFF] text-white font-semibold text-[14px] active:opacity-70 transition-opacity shadow-[0_2px_8px_rgba(0,122,255,0.3)]"
+                className="w-full mt-3 py-2.5 rounded-[12px] bg-[#007AFF] text-white font-semibold text-[14px] active:opacity-70 transition-opacity shadow-[0_2px_8px_rgba(0,122,255,0.3)]"
               >
                 ＋ 新規タスク
               </button>
@@ -263,6 +276,17 @@ export default function TodoPage() {
 
             <div className="flex-1 min-w-0">
               <div className="md:hidden sticky top-[44px] z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
+                <button
+                  onClick={() => setShoppingOnly(v => !v)}
+                  className={`flex-shrink-0 px-3.5 h-8 rounded-full text-[13px] font-semibold transition-all duration-200 ${
+                    shoppingOnly
+                      ? 'bg-[#34C759] text-white'
+                      : 'bg-white text-[#248A3D] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+                  }`}
+                >
+                  🛒 買い物
+                </button>
+                <span className="flex-shrink-0 w-px self-center h-5 bg-black/10" />
                 {['すべて', ...categoryNames].map(cat => (
                   <button
                     key={cat}
@@ -285,7 +309,7 @@ export default function TodoPage() {
                 <div className="text-center py-20 text-[#AEAEB2] text-[13px]">読み込み中...</div>
               ) : (
                 <TaskList
-                  tasks={filteredTasks}
+                  tasks={listTasks}
                   userId={user.id}
                   onToggle={toggleTask}
                   onDelete={trashTask}

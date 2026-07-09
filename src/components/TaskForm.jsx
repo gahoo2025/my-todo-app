@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ScheduleFields from './ScheduleFields'
+import ToggleRow from './ToggleRow'
 import { buildScheduleUpdates } from '../lib/schedule'
 
 export default function TaskForm({ categories, defaultCategory, onAdd, onClose }) {
@@ -7,6 +8,8 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
   const [category, setCategory] = useState(defaultCategory ?? categories[0]?.name ?? '')
   const [dueDate, setDueDate] = useState('')
   const [memo, setMemo] = useState('')
+  const [isShopping, setIsShopping] = useState(false)
+  const [issueRegistered, setIssueRegistered] = useState(false)
   const [schedule, setSchedule] = useState({
     allDay: false,
     startDate: '', startTime: '', endDate: '', endTime: '',
@@ -23,6 +26,8 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
       due_date: dueDate || null,
       memo: memo || null,
       completed: false,
+      is_shopping: isShopping,
+      issue_registered: category === '仕事' ? issueRegistered : false,
       ...buildScheduleUpdates(schedule),
     })
     setLoading(false)
@@ -90,6 +95,14 @@ export default function TaskForm({ categories, defaultCategory, onAdd, onClose }
                 className="text-[15px] text-[#8E8E93] bg-transparent focus:outline-none text-right"
               />
             </div>
+          </div>
+
+          {/* フラグ */}
+          <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+            <ToggleRow label="買い物リスト" icon="🛒" checked={isShopping} onChange={setIsShopping} />
+            {category === '仕事' && (
+              <ToggleRow label="課題登録済み" icon="📋" checked={issueRegistered} onChange={setIssueRegistered} />
+            )}
           </div>
 
           <ScheduleFields value={schedule} onChange={setSchedule} />
