@@ -380,7 +380,7 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
     <>
       {/* モバイル カテゴリピル（embedded時のみ — PC は TodoPage のサイドバーで対応） */}
       {embedded && (
-        <div className="md:hidden sticky top-[44px] z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
+        <div className="md:hidden sticky top-below-header z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
           {['すべて', ...categoryNames, 'なし'].map(cat => (
             <button
               key={cat}

@@ -275,7 +275,7 @@ export default function TodoPage() {
             </aside>
 
             <div className="flex-1 min-w-0">
-              <div className="md:hidden sticky top-[44px] z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
+              <div className="md:hidden sticky top-below-header z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
                 <button
                   onClick={() => setShoppingOnly(v => !v)}
                   className={`flex-shrink-0 px-3.5 h-8 rounded-full text-[13px] font-semibold transition-all duration-200 ${
@@ -349,7 +349,7 @@ export default function TodoPage() {
             </aside>
 
             <div className="flex-1 min-w-0">
-              <div className="md:hidden sticky top-[44px] z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
+              <div className="md:hidden sticky top-below-header z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
                 {['すべて', ...categoryNames].map(cat => (
                   <button
                     key={cat}

@@ -63,3 +63,6 @@
 /* iOS standalone(ホーム画面起動)のセーフエリア対応 */
 .safe-top    { padding-top: env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* セーフエリアを考慮してヘッダー直下に固定（カテゴリ選択ピル用） */
+.top-below-header { top: calc(env(safe-area-inset-top) + 44px); }
