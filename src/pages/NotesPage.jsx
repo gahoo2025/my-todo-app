@@ -184,7 +184,7 @@ function QuickAdd({ onAdd, categories, defaultCategory }) {
 }
 
 // メモ編集モーダル
-function NoteModal({ note, onSave, onDelete, onClose, categories }) {
+function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
   const [title, setTitle] = useState(note.title ?? '')
   const [content, setContent] = useState(note.content ?? '')
   const [color, setColor] = useState(note.color ?? '#FFFFFF')
@@ -304,15 +304,17 @@ function NoteModal({ note, onSave, onDelete, onClose, categories }) {
           <ColorDots selected={color} onSelect={setColor} />
           <div className="flex items-center gap-2 flex-shrink-0">
             <CategorySelect value={category} onChange={setCategory} categories={categories} />
-            <button
-              onClick={handleDelete}
-              className="w-9 h-9 flex items-center justify-center rounded-full text-[#8E8E93] hover:text-[#FF3B30] active:bg-black/5 transition-colors"
-              title="削除"
-            >
-              <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+            {!isNew && (
+              <button
+                onClick={handleDelete}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-[#8E8E93] hover:text-[#FF3B30] active:bg-black/5 transition-colors"
+                title="削除"
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -332,6 +334,7 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
   const { user } = useAuth()
   const { notes, loading, addNote, updateNote, deleteNote } = useNotes(user?.id)
   const [editing, setEditing] = useState(null)
+  const [creating, setCreating] = useState(false)
 
   const activeFilter = filterCategory ?? 'すべて'
   const categoryNames = categories.map(c => c.name)
@@ -397,11 +400,6 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
         </div>
       )}
 
-      {/* 新規メモ入力 */}
-      <div className="max-w-xl mx-auto mb-6">
-        <QuickAdd onAdd={addNote} categories={categories} defaultCategory={defaultCategory} />
-      </div>
-
       {loading ? (
         <div className="text-center py-20 text-[#AEAEB2] text-[13px]">読み込み中…</div>
       ) : filteredNotes.length === 0 ? (
@@ -412,7 +410,7 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
             </svg>
           </div>
           <p className="text-[15px] font-medium text-[#8E8E93]">メモがありません</p>
-          <p className="text-[13px] text-[#AEAEB2] mt-1">上の入力欄からメモを作成できます</p>
+          <p className="text-[13px] text-[#AEAEB2] mt-1">＋ボタンからメモを作成できます</p>
         </div>
       ) : (
         <>
@@ -470,15 +468,43 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
                 </button>
               ))}
             </div>
+            <button
+              onClick={() => setCreating(true)}
+              className="w-full mt-4 py-2.5 rounded-[12px] bg-[#007AFF] text-white font-semibold text-[14px] active:opacity-70 transition-opacity shadow-[0_2px_8px_rgba(0,122,255,0.3)]"
+            >
+              ＋ 新規メモ
+            </button>
           </aside>
           <div className="flex-1 min-w-0">{content}</div>
         </main>
+
+        {/* モバイル FAB */}
+        <button
+          onClick={() => setCreating(true)}
+          className="md:hidden fixed bottom-20 right-5 w-[54px] h-[54px] bg-[#007AFF] text-white rounded-full shadow-[0_4px_16px_rgba(0,122,255,0.4)] flex items-center justify-center active:scale-90 transition-transform z-30"
+          aria-label="メモを追加"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+            <path strokeLinecap="round" d="M12 5v14m-7-7h14" />
+          </svg>
+        </button>
+
         {editing && (
           <NoteModal
             note={editing}
             onSave={updateNote}
             onDelete={deleteNote}
             onClose={() => setEditing(null)}
+            categories={categories}
+          />
+        )}
+        {creating && (
+          <NoteModal
+            note={{ title: null, content: null, color: '#FFFFFF', pinned: false, category: defaultCategory }}
+            isNew
+            onSave={(_id, updates) => addNote(updates)}
+            onDelete={() => {}}
+            onClose={() => setCreating(false)}
             categories={categories}
           />
         )}
@@ -506,12 +532,34 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
         </div>
       </header>
       <main className="max-w-lg md:max-w-4xl mx-auto px-4 py-4 pb-10">{content}</main>
+
+      {/* FAB */}
+      <button
+        onClick={() => setCreating(true)}
+        className="fixed bottom-6 right-5 w-[54px] h-[54px] bg-[#007AFF] text-white rounded-full shadow-[0_4px_16px_rgba(0,122,255,0.4)] flex items-center justify-center active:scale-90 transition-transform z-30"
+        aria-label="メモを追加"
+      >
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+          <path strokeLinecap="round" d="M12 5v14m-7-7h14" />
+        </svg>
+      </button>
+
       {editing && (
         <NoteModal
           note={editing}
           onSave={updateNote}
           onDelete={deleteNote}
           onClose={() => setEditing(null)}
+          categories={categories}
+        />
+      )}
+      {creating && (
+        <NoteModal
+          note={{ title: null, content: null, color: '#FFFFFF', pinned: false, category: defaultCategory }}
+          isNew
+          onSave={(_id, updates) => addNote(updates)}
+          onDelete={() => {}}
+          onClose={() => setCreating(false)}
           categories={categories}
         />
       )}
