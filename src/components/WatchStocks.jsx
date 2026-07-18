@@ -14,6 +14,14 @@ function purposeColor(p) {
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 })
 
+function targetPriceLabel(item) {
+  const min = item.target_price_min != null ? Number(item.target_price_min) : null
+  const max = item.target_price_max != null ? Number(item.target_price_max) : null
+  if (min == null && max == null) return null
+  if (min != null && max != null && min !== max) return `${yen.format(min)}〜${yen.format(max)}`
+  return yen.format(min ?? max)
+}
+
 // ── 銘柄検索（過去の入力履歴から候補を出す） ──
 function StockSearchField({ userId, onPick }) {
   const [query, setQuery] = useState('')
@@ -63,7 +71,8 @@ function WatchStockModal({ item, userId, availableTags, onSave, onDelete, onClos
   const [name, setName] = useState(item.name ?? '')
   const [purposes, setPurposes] = useState(item.purposes ?? [])
   const [customPurpose, setCustomPurpose] = useState('')
-  const [targetPrice, setTargetPrice] = useState(item.target_price ?? '')
+  const [targetPriceMin, setTargetPriceMin] = useState(item.target_price_min ?? '')
+  const [targetPriceMax, setTargetPriceMax] = useState(item.target_price_max ?? '')
   const [memo, setMemo] = useState(item.memo ?? '')
   const [saving, setSaving] = useState(false)
 
@@ -85,7 +94,8 @@ function WatchStockModal({ item, userId, availableTags, onSave, onDelete, onClos
       code: code.trim(),
       name: name.trim(),
       purposes,
-      target_price: targetPrice !== '' ? Number(targetPrice) : null,
+      target_price_min: targetPriceMin !== '' ? Number(targetPriceMin) : null,
+      target_price_max: targetPriceMax !== '' ? Number(targetPriceMax) : null,
       memo: memo.trim() || null,
     })
     setSaving(false)
@@ -193,18 +203,27 @@ function WatchStockModal({ item, userId, availableTags, onSave, onDelete, onClos
             </div>
           </div>
 
-          {/* 目標株価・メモ */}
+          {/* 目標株価（範囲入力可）・メモ */}
           <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
             <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[15px] text-[#1C1C1E]">目標株価</span>
-              <div className="flex items-center gap-1">
+              <span className="text-[15px] text-[#1C1C1E] flex-shrink-0">目標株価</span>
+              <div className="flex items-center gap-1.5">
                 <input
                   type="number"
                   inputMode="decimal"
-                  value={targetPrice}
-                  onChange={e => setTargetPrice(e.target.value)}
-                  placeholder="未設定"
-                  className="w-28 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
+                  value={targetPriceMin}
+                  onChange={e => setTargetPriceMin(e.target.value)}
+                  placeholder="下限"
+                  className="w-16 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
+                />
+                <span className="text-[13px] text-[#8E8E93]">〜</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={targetPriceMax}
+                  onChange={e => setTargetPriceMax(e.target.value)}
+                  placeholder="上限"
+                  className="w-16 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
                 />
                 <span className="text-[13px] text-[#8E8E93]">円</span>
               </div>
@@ -257,10 +276,10 @@ function WatchStockCard({ item, onOpen }) {
             </div>
           )}
         </div>
-        {item.target_price != null && (
+        {targetPriceLabel(item) && (
           <div className="text-right flex-shrink-0">
             <p className="text-[11px] text-[#AEAEB2]">目標</p>
-            <p className="text-[14px] font-semibold text-[#1C1C1E] tabular-nums">{yen.format(Number(item.target_price))}</p>
+            <p className="text-[14px] font-semibold text-[#1C1C1E] tabular-nums">{targetPriceLabel(item)}</p>
           </div>
         )}
       </div>
