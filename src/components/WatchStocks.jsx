@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useWatchStocks } from '../hooks/useWatchStocks'
 import { useStockDirectorySearch } from '../hooks/useStockDirectorySearch'
@@ -57,7 +57,7 @@ function StockSearchField({ userId, onPick }) {
 }
 
 // ── 追加・編集モーダル ──
-function WatchStockModal({ item, userId, onSave, onDelete, onClose }) {
+function WatchStockModal({ item, userId, availableTags, onSave, onDelete, onClose }) {
   const isNew = !item.id
   const [code, setCode] = useState(item.code ?? '')
   const [name, setName] = useState(item.name ?? '')
@@ -152,7 +152,7 @@ function WatchStockModal({ item, userId, onSave, onDelete, onClose }) {
           <div className="ios-card overflow-hidden px-4 py-3">
             <p className="text-[12px] font-semibold text-[#8E8E93] mb-2">目的</p>
             <div className="flex flex-wrap gap-1.5">
-              {PURPOSE_PRESETS.map(p => {
+              {Array.from(new Set([...(availableTags ?? PURPOSE_PRESETS), ...purposes])).map(p => {
                 const active = purposes.includes(p)
                 const c = purposeColor(p)
                 return (
@@ -167,17 +167,6 @@ function WatchStockModal({ item, userId, onSave, onDelete, onClose }) {
                   </button>
                 )
               })}
-              {purposes.filter(p => !PURPOSE_PRESETS.includes(p)).map(p => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => togglePurpose(p)}
-                  className="text-[12px] font-medium px-2.5 py-1 rounded-full"
-                  style={{ color: purposeColor(p).text, backgroundColor: purposeColor(p).bg }}
-                >
-                  {p} ✕
-                </button>
-              ))}
             </div>
             <div className="flex items-center gap-2 mt-2.5">
               <input
@@ -278,6 +267,13 @@ export default function WatchStocksSection() {
   const { stocks, loading, addStock, updateStock, deleteStock } = useWatchStocks(user?.id)
   const [modal, setModal] = useState(null)
 
+  // プリセット＋過去に登録した銘柄で実際に使われたカスタムタグを、次回以降も選べるようにする
+  const availableTags = useMemo(() => {
+    const set = new Set(PURPOSE_PRESETS)
+    for (const s of stocks) for (const p of s.purposes ?? []) set.add(p)
+    return Array.from(set)
+  }, [stocks])
+
   async function handleSave(data) {
     if (modal.item.id) await updateStock(modal.item.id, data)
     else await addStock(data)
@@ -329,6 +325,7 @@ export default function WatchStocksSection() {
         <WatchStockModal
           item={modal.item}
           userId={user?.id}
+          availableTags={availableTags}
           onSave={handleSave}
           onDelete={() => deleteStock(modal.item.id)}
           onClose={() => setModal(null)}
