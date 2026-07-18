@@ -319,8 +319,8 @@ const DRINK_PRESETS = [
   { id: 'beer',     label: 'ビール',    sub: '缶350ml',   grams: 14 },
   { id: 'beerL',    label: 'ビール',    sub: '中瓶500ml', grams: 20 },
   { id: 'chuhai',   label: 'チューハイ', sub: '350ml/7%',  grams: 20 },
-  { id: 'sake',     label: '日本酒',    sub: '1合',       grams: 22 },
-  { id: 'wine',     label: 'ワイン',    sub: 'グラス1杯', grams: 12 },
+  { id: 'sake',     label: '日本酒',    sub: 'コップ1杯', grams: 18 },
+  { id: 'wine',     label: 'ワイン',    sub: 'コップ1杯', grams: 14 },
   { id: 'highball', label: 'ハイボール', sub: '1杯',       grams: 10 },
   { id: 'shochu',   label: '焼酎',      sub: '水割り1杯', grams: 16 },
 ]
