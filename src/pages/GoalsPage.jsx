@@ -4,6 +4,7 @@ import { useGoals } from '../hooks/useGoals'
 import { useGoalActions } from '../hooks/useGoalActions'
 import { useDrinkTracker } from '../hooks/useDrinkTracker'
 import { useWeightTracker } from '../hooks/useWeightTracker'
+import ExerciseTracker from '../components/ExerciseTracker'
 
 const CATEGORY_TINTS = {
   '仕事':  { text: 'text-[#007AFF]', bg: 'bg-[#007AFF]/10' },
@@ -751,9 +752,10 @@ function WeightTracker({ userId }) {
 }
 
 const GOAL_SUB_FEATURES = [
-  { id: 'goals',  label: '目標' },
-  { id: 'drinks', label: '🍺 飲酒' },
-  { id: 'weight', label: '⚖️ 体重' },
+  { id: 'goals',    label: '目標' },
+  { id: 'drinks',   label: '🍺 飲酒' },
+  { id: 'weight',   label: '⚖️ 体重' },
+  { id: 'exercise', label: '🏃 運動' },
 ]
 
 export default function GoalsPage({ embedded, categories = [], filterCategory, onFilterChange }) {
@@ -856,6 +858,7 @@ export default function GoalsPage({ embedded, categories = [], filterCategory, o
       {subNav}
       {sub === 'drinks' ? <DrinkTracker userId={user?.id} />
         : sub === 'weight' ? <WeightTracker userId={user?.id} />
+        : sub === 'exercise' ? <ExerciseTracker />
         : goalsContent}
     </>
   )
