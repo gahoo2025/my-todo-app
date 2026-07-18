@@ -463,7 +463,7 @@ function DrinkTracker({ userId }) {
             value={customAmt}
             onChange={e => setCustomAmt(e.target.value)}
             placeholder="純アルコール量(g)を直接入力"
-            className="flex-1 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
+            className="flex-1 min-w-0 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
           />
           <button
             onClick={addCustom}
@@ -677,7 +677,7 @@ function WeightTracker({ userId }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder={todayEntry ? `${Number(todayEntry.weight_kg).toFixed(1)}（今日記録済み）` : '体重(kg)を入力'}
-            className="flex-1 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
+            className="flex-1 min-w-0 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
           />
           <button
             onClick={handleRecord}
@@ -736,7 +736,7 @@ function WeightTracker({ userId }) {
             value={targetInput}
             onChange={e => setTargetInput(e.target.value)}
             placeholder={targetKg != null ? `${targetKg.toFixed(1)} kg` : '目標体重(kg)を入力'}
-            className="flex-1 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
+            className="flex-1 min-w-0 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
           />
           <button
             onClick={handleSetTarget}
