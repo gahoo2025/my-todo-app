@@ -154,16 +154,22 @@ function WatchStockModal({ item, userId, availableTags, onSave, onDelete, onClos
             <div className="flex flex-wrap gap-1.5">
               {Array.from(new Set([...(availableTags ?? PURPOSE_PRESETS), ...purposes])).map(p => {
                 const active = purposes.includes(p)
+                const isPreset = PURPOSE_PRESETS.includes(p)
                 const c = purposeColor(p)
+                // カスタムタグ（プリセット外）は専用の色がないため、選択時と未選択時が
+                // 同じグレーで見分けがつかなかった。選択時ははっきり塗りつぶして区別する。
+                const style = active
+                  ? (isPreset ? { color: c.text, backgroundColor: c.bg } : { color: '#FFFFFF', backgroundColor: '#8E8E93' })
+                  : { color: '#8E8E93', backgroundColor: 'rgba(0,0,0,0.04)' }
                 return (
                   <button
                     key={p}
                     type="button"
                     onClick={() => togglePurpose(p)}
                     className="text-[12px] font-medium px-2.5 py-1 rounded-full transition-colors"
-                    style={active ? { color: c.text, backgroundColor: c.bg } : { color: '#8E8E93', backgroundColor: 'rgba(0,0,0,0.04)' }}
+                    style={style}
                   >
-                    {p}
+                    {active && !isPreset ? '✓ ' : ''}{p}
                   </button>
                 )
               })}
