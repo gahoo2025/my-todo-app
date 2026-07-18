@@ -3,12 +3,12 @@ import { useAuth } from '../hooks/useAuth'
 import { useStockAnalyses } from '../hooks/useStockAnalyses'
 import { useAssetBalances } from '../hooks/useAssetBalances'
 import Markdown from '../components/Markdown'
-import StockLogSection from '../components/StockLog'
+import MarketLogSection from '../components/MarketLog'
 
 // サブ機能の定義（今後ここに追加していく）
 const SUB_FEATURES = [
-  { id: 'stocks',   label: '個別銘柄' },
-  { id: 'stocklog', label: '見通し記録簿' },
+  { id: 'stocks',    label: '個別銘柄' },
+  { id: 'marketlog', label: 'マーケットログ' },
 ]
 
 // 資産残高の種類
@@ -302,7 +302,7 @@ export default function AssetsPage({ embedded }) {
 
       <div className="mt-3">
         {sub === 'stocks' && <StockAnalyses />}
-        {sub === 'stocklog' && <StockLogSection />}
+        {sub === 'marketlog' && <MarketLogSection />}
       </div>
     </>
   )
