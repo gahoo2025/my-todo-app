@@ -54,10 +54,12 @@ export function useExerciseTracker(userId) {
     if (!error) setMenuItems(prev => prev.filter(m => m.id !== id))
   }
 
-  async function addLog({ menuItemId, name, value, unit, logDate, memo }) {
+  async function addLog({ menuItemId, name, mode, value, unit, reps, sets, logDate, memo }) {
     const row = {
       user_id: userId, menu_item_id: menuItemId ?? null,
-      name, value: value ?? null, unit: unit ?? null,
+      name, mode: mode ?? 'simple',
+      value: value ?? null, unit: unit ?? null,
+      reps: reps ?? null, sets: sets ?? null,
       log_date: logDate, memo: memo || null,
     }
     const { data, error } = await supabase.from('exercise_logs').insert([row]).select().single()

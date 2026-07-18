@@ -13,12 +13,26 @@ function formatDateLabel(dateStr) {
   return `${m}/${d}(${wd})`
 }
 
+function targetLabel(item) {
+  if (item.mode === 'reps') {
+    if (item.target_reps != null && item.target_sets != null) return `目標 ${item.target_reps}回×${item.target_sets}セット`
+    if (item.target_reps != null) return `目標 ${item.target_reps}回`
+    if (item.target_sets != null) return `目標 ${item.target_sets}セット`
+    return '目標未設定'
+  }
+  if (item.target_value != null) return `目標 ${item.target_value}${item.unit ?? ''}`
+  return item.unit ?? '目標未設定'
+}
+
 // ── メニュー項目 追加・編集モーダル ──
 function MenuItemModal({ item, onSave, onDelete, onClose }) {
   const isNew = !item.id
   const [name, setName] = useState(item.name ?? '')
+  const [mode, setMode] = useState(item.mode ?? 'reps')
+  const [targetReps, setTargetReps] = useState(item.target_reps ?? '')
+  const [targetSets, setTargetSets] = useState(item.target_sets ?? '')
   const [targetValue, setTargetValue] = useState(item.target_value ?? '')
-  const [unit, setUnit] = useState(item.unit ?? '回')
+  const [unit, setUnit] = useState(item.unit ?? '分')
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
@@ -26,8 +40,11 @@ function MenuItemModal({ item, onSave, onDelete, onClose }) {
     setSaving(true)
     await onSave({
       name: name.trim(),
-      target_value: targetValue !== '' ? Number(targetValue) : null,
-      unit: unit.trim() || null,
+      mode,
+      target_reps: mode === 'reps' && targetReps !== '' ? Number(targetReps) : null,
+      target_sets: mode === 'reps' && targetSets !== '' ? Number(targetSets) : null,
+      target_value: mode === 'simple' && targetValue !== '' ? Number(targetValue) : null,
+      unit: mode === 'simple' ? (unit.trim() || null) : null,
     })
     setSaving(false)
     onClose()
@@ -69,29 +86,84 @@ function MenuItemModal({ item, onSave, onDelete, onClose }) {
             />
           </div>
 
-          <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[15px] text-[#1C1C1E]">目標値</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={targetValue}
-                onChange={e => setTargetValue(e.target.value)}
-                placeholder="未設定"
-                className="w-24 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
-              />
-            </div>
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[15px] text-[#1C1C1E]">単位</span>
-              <input
-                type="text"
-                value={unit}
-                onChange={e => setUnit(e.target.value)}
-                placeholder="回・分・kmなど"
-                className="w-24 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
-              />
-            </div>
+          {/* 記録方式の切り替え */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('reps')}
+              className={`flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors ${
+                mode === 'reps' ? 'bg-[#1C1C1E] text-white' : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+              }`}
+            >
+              回数×セット
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('simple')}
+              className={`flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors ${
+                mode === 'simple' ? 'bg-[#1C1C1E] text-white' : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+              }`}
+            >
+              数値（分・kmなど）
+            </button>
           </div>
+
+          {mode === 'reps' ? (
+            <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-[15px] text-[#1C1C1E]">目標回数（1セットあたり）</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={targetReps}
+                    onChange={e => setTargetReps(e.target.value)}
+                    placeholder="未設定"
+                    className="w-16 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
+                  />
+                  <span className="text-[13px] text-[#8E8E93]">回</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-[15px] text-[#1C1C1E]">目標セット数</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={targetSets}
+                    onChange={e => setTargetSets(e.target.value)}
+                    placeholder="未設定"
+                    className="w-16 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
+                  />
+                  <span className="text-[13px] text-[#8E8E93]">セット</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-[15px] text-[#1C1C1E]">目標値</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={targetValue}
+                  onChange={e => setTargetValue(e.target.value)}
+                  placeholder="未設定"
+                  className="w-24 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
+                />
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-[15px] text-[#1C1C1E]">単位</span>
+                <input
+                  type="text"
+                  value={unit}
+                  onChange={e => setUnit(e.target.value)}
+                  placeholder="分・kmなど"
+                  className="w-24 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
+                />
+              </div>
+            </div>
+          )}
 
           {!isNew && (
             <button
@@ -109,6 +181,9 @@ function MenuItemModal({ item, onSave, onDelete, onClose }) {
 
 // ── 実施記録の入力（メニュー行から開く軽量モーダル） ──
 function LogModal({ menuItem, onSave, onClose }) {
+  const isReps = menuItem.mode === 'reps'
+  const [reps, setReps] = useState(menuItem.target_reps ?? '')
+  const [sets, setSets] = useState(menuItem.target_sets ?? 1)
   const [value, setValue] = useState(menuItem.target_value ?? '')
   const [memo, setMemo] = useState('')
   const [saving, setSaving] = useState(false)
@@ -118,7 +193,10 @@ function LogModal({ menuItem, onSave, onClose }) {
     await onSave({
       menuItemId: menuItem.id,
       name: menuItem.name,
-      value: value !== '' ? Number(value) : null,
+      mode: menuItem.mode,
+      reps: isReps && reps !== '' ? Number(reps) : null,
+      sets: isReps && sets !== '' ? Number(sets) : null,
+      value: !isReps && value !== '' ? Number(value) : null,
       unit: menuItem.unit,
       logDate: todayStr(),
       memo: memo.trim(),
@@ -145,20 +223,52 @@ function LogModal({ menuItem, onSave, onClose }) {
           </button>
         </div>
         <div className="p-4 space-y-3">
-          <div className="ios-card overflow-hidden flex items-center justify-between px-4 py-3">
-            <span className="text-[15px] text-[#1C1C1E]">実施量</span>
-            <div className="flex items-center gap-1.5">
-              <input
-                autoFocus
-                type="number"
-                inputMode="decimal"
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                className="w-24 min-w-0 text-[18px] font-semibold text-[#1C1C1E] bg-transparent focus:outline-none text-right"
-              />
-              <span className="text-[14px] text-[#8E8E93]">{menuItem.unit}</span>
+          {isReps ? (
+            <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-[15px] text-[#1C1C1E]">回数</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    type="number"
+                    inputMode="decimal"
+                    value={reps}
+                    onChange={e => setReps(e.target.value)}
+                    className="w-20 min-w-0 text-[18px] font-semibold text-[#1C1C1E] bg-transparent focus:outline-none text-right"
+                  />
+                  <span className="text-[14px] text-[#8E8E93]">回</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-[15px] text-[#1C1C1E]">セット数</span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={sets}
+                    onChange={e => setSets(e.target.value)}
+                    className="w-20 min-w-0 text-[18px] font-semibold text-[#1C1C1E] bg-transparent focus:outline-none text-right"
+                  />
+                  <span className="text-[14px] text-[#8E8E93]">セット</span>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="ios-card overflow-hidden flex items-center justify-between px-4 py-3">
+              <span className="text-[15px] text-[#1C1C1E]">実施量</span>
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  type="number"
+                  inputMode="decimal"
+                  value={value}
+                  onChange={e => setValue(e.target.value)}
+                  className="w-24 min-w-0 text-[18px] font-semibold text-[#1C1C1E] bg-transparent focus:outline-none text-right"
+                />
+                <span className="text-[14px] text-[#8E8E93]">{menuItem.unit}</span>
+              </div>
+            </div>
+          )}
           <textarea
             value={memo}
             onChange={e => setMemo(e.target.value)}
@@ -172,17 +282,26 @@ function LogModal({ menuItem, onSave, onClose }) {
   )
 }
 
-function MenuRow({ item, todayValue, onLog, onEdit }) {
-  const done = item.target_value != null && todayValue >= Number(item.target_value)
+function MenuRow({ item, todayStats, onLog, onEdit }) {
+  const isReps = item.mode === 'reps'
+  const done = isReps
+    ? item.target_sets != null && todayStats.sets >= Number(item.target_sets)
+    : item.target_value != null && todayStats.value >= Number(item.target_value)
+
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <button onClick={() => onEdit(item)} className="flex-1 min-w-0 text-left">
         <p className="text-[15px] font-medium text-[#1C1C1E]">{item.name}</p>
         <p className="text-[12px] text-[#8E8E93] mt-0.5">
-          {item.target_value != null ? `目標 ${item.target_value}${item.unit ?? ''}` : (item.unit ?? '目標未設定')}
-          {todayValue > 0 && (
+          {targetLabel(item)}
+          {isReps && todayStats.sets > 0 && (
             <span className={`ml-2 font-medium ${done ? 'text-[#34C759]' : 'text-[#007AFF]'}`}>
-              今日 {todayValue}{item.unit ?? ''}{done ? ' ✓' : ''}
+              今日 {todayStats.sets}セット・計{todayStats.reps}回{done ? ' ✓' : ''}
+            </span>
+          )}
+          {!isReps && todayStats.value > 0 && (
+            <span className={`ml-2 font-medium ${done ? 'text-[#34C759]' : 'text-[#007AFF]'}`}>
+              今日 {todayStats.value}{item.unit ?? ''}{done ? ' ✓' : ''}
             </span>
           )}
         </p>
@@ -200,18 +319,36 @@ function MenuRow({ item, todayValue, onLog, onEdit }) {
   )
 }
 
+function logSummary(l) {
+  if (l.mode === 'reps') {
+    const parts = []
+    if (l.reps != null) parts.push(`${l.reps}回`)
+    if (l.sets != null) parts.push(`${l.sets}セット`)
+    return parts.join('×')
+  }
+  return l.value != null ? `${l.value}${l.unit ?? ''}` : ''
+}
+
 export default function ExerciseTracker() {
   const { user } = useAuth()
   const { menuItems, logs, loading, addMenuItem, updateMenuItem, deleteMenuItem, addLog, deleteLog } = useExerciseTracker(user?.id)
   const [menuModal, setMenuModal] = useState(null)
   const [logModalItem, setLogModalItem] = useState(null)
 
-  const todayTotals = useMemo(() => {
+  const todayStatsByItem = useMemo(() => {
     const map = {}
     const today = todayStr()
     for (const l of logs) {
       if (l.log_date !== today || !l.menu_item_id) continue
-      map[l.menu_item_id] = (map[l.menu_item_id] ?? 0) + Number(l.value ?? 0)
+      const cur = map[l.menu_item_id] ?? { sets: 0, reps: 0, value: 0 }
+      if (l.mode === 'reps') {
+        const s = Number(l.sets ?? 0)
+        cur.sets += s
+        cur.reps += Number(l.reps ?? 0) * (s || 1)
+      } else {
+        cur.value += Number(l.value ?? 0)
+      }
+      map[l.menu_item_id] = cur
     }
     return map
   }, [logs])
@@ -256,7 +393,7 @@ export default function ExerciseTracker() {
               <MenuRow
                 key={item.id}
                 item={item}
-                todayValue={todayTotals[item.id] ?? 0}
+                todayStats={todayStatsByItem[item.id] ?? { sets: 0, reps: 0, value: 0 }}
                 onLog={setLogModalItem}
                 onEdit={item => setMenuModal({ item })}
               />
@@ -280,7 +417,7 @@ export default function ExerciseTracker() {
                     <div key={l.id} className="flex items-center justify-between py-1">
                       <span className="text-[13px] text-[#1C1C1E]">
                         {l.name}
-                        {l.value != null && <span className="text-[#8E8E93] ml-1.5">{l.value}{l.unit ?? ''}</span>}
+                        <span className="text-[#8E8E93] ml-1.5">{logSummary(l)}</span>
                         {l.memo && <span className="text-[#AEAEB2] ml-1.5">（{l.memo}）</span>}
                       </span>
                       <button
