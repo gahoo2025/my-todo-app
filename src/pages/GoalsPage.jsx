@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useGoals } from '../hooks/useGoals'
 import { useGoalActions } from '../hooks/useGoalActions'
 import { useDrinkTracker } from '../hooks/useDrinkTracker'
+import { useWeightTracker } from '../hooks/useWeightTracker'
 
 const CATEGORY_TINTS = {
   '仕事':  { text: 'text-[#007AFF]', bg: 'bg-[#007AFF]/10' },
@@ -564,9 +565,181 @@ function DrinkTracker({ userId }) {
   )
 }
 
+// ── 体重トラッカー（プランのサブ機能） ──
+function WeightTracker({ userId }) {
+  const { entries, goal, loading, recordToday, deleteEntry, updateGoal } = useWeightTracker(userId)
+  const [input, setInput] = useState('')
+  const [targetInput, setTargetInput] = useState('')
+
+  const todayKey = dKey(new Date())
+  const todayEntry = entries.find(e => e.entry_date === todayKey)
+  const sorted = useMemo(() => [...entries].sort((a, b) => a.entry_date.localeCompare(b.entry_date)), [entries])
+  const latest = sorted[sorted.length - 1] ?? null
+  const chartEntries = sorted.slice(-30)
+
+  const weekAgoEntry = useMemo(() => {
+    const target = new Date()
+    target.setDate(target.getDate() - 7)
+    const targetKey = dKey(target)
+    // 7日前以前で最も近い記録
+    const candidates = sorted.filter(e => e.entry_date <= targetKey)
+    return candidates[candidates.length - 1] ?? null
+  }, [sorted])
+
+  const weekDiff = latest && weekAgoEntry ? Number(latest.weight_kg) - Number(weekAgoEntry.weight_kg) : null
+  const targetKg = goal.target_kg != null ? Number(goal.target_kg) : null
+  const targetDiff = latest && targetKg != null ? Number(latest.weight_kg) - targetKg : null
+
+  function handleRecord() {
+    const v = parseFloat(input || todayEntry?.weight_kg)
+    if (!v || v <= 0) return
+    recordToday(v)
+    setInput('')
+  }
+
+  function handleSetTarget() {
+    const v = parseFloat(targetInput)
+    if (!v || v <= 0) return
+    updateGoal(v)
+    setTargetInput('')
+  }
+
+  // 折れ線グラフ用の座標計算
+  const chart = useMemo(() => {
+    if (chartEntries.length < 2) return null
+    const values = chartEntries.map(e => Number(e.weight_kg))
+    const min = Math.min(...values, targetKg ?? Infinity)
+    const max = Math.max(...values, targetKg ?? -Infinity)
+    const pad = Math.max(0.5, (max - min) * 0.15)
+    const lo = min - pad
+    const hi = max + pad
+    const w = 100
+    const h = 100
+    const points = chartEntries.map((e, i) => {
+      const x = chartEntries.length === 1 ? 0 : (i / (chartEntries.length - 1)) * w
+      const y = h - ((Number(e.weight_kg) - lo) / (hi - lo)) * h
+      return { x, y, e }
+    })
+    const targetY = targetKg != null ? h - ((targetKg - lo) / (hi - lo)) * h : null
+    return { points, targetY }
+  }, [chartEntries, targetKg])
+
+  if (loading) {
+    return <div className="text-center py-20 text-[#AEAEB2] text-[13px]">読み込み中…</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 記録カード */}
+      <div className="ios-card px-4 py-4">
+        <p className="text-[13px] text-[#8E8E93]">今日の体重</p>
+        <div className="flex items-end gap-2 mt-1">
+          <span className="text-[40px] font-bold text-[#1C1C1E] leading-none tabular-nums">
+            {latest ? Number(latest.weight_kg).toFixed(1) : '—'}
+          </span>
+          <span className="text-[14px] text-[#8E8E93] pb-1">kg{latest && latest.entry_date !== todayKey ? `（${latest.entry_date.slice(5).replace('-', '/')}時点）` : ''}</span>
+        </div>
+
+        {(weekDiff != null || targetDiff != null) && (
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            {weekDiff != null && (
+              <span className={`text-[12px] font-medium ${weekDiff > 0 ? 'text-[#FF3B30]' : weekDiff < 0 ? 'text-[#34C759]' : 'text-[#8E8E93]'}`}>
+                7日前比 {weekDiff > 0 ? '+' : ''}{weekDiff.toFixed(1)}kg
+              </span>
+            )}
+            {targetDiff != null && (
+              <span className={`text-[12px] font-medium ${targetDiff > 0 ? 'text-[#FF3B30]' : 'text-[#34C759]'}`}>
+                目標まで {targetDiff > 0 ? `+${targetDiff.toFixed(1)}kg` : `達成 (${Math.abs(targetDiff).toFixed(1)}kg 超過達成)`}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 mt-4">
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder={todayEntry ? `${Number(todayEntry.weight_kg).toFixed(1)}（今日記録済み）` : '体重(kg)を入力'}
+            className="flex-1 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
+          />
+          <button
+            onClick={handleRecord}
+            className="flex-shrink-0 px-4 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[14px] font-semibold active:opacity-70 transition-opacity"
+          >
+            {todayEntry ? '更新' : '記録'}
+          </button>
+        </div>
+      </div>
+
+      {/* 推移グラフ */}
+      <div className="ios-card px-4 py-4">
+        <p className="text-[12px] font-semibold text-[#8E8E93] mb-3">
+          推移（直近{chartEntries.length}件）
+        </p>
+        {!chart ? (
+          <p className="text-[13px] text-[#AEAEB2] py-6 text-center">記録が2件以上になるとグラフが表示されます</p>
+        ) : (
+          <div className="relative h-[140px]">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+              {chart.targetY != null && (
+                <line x1="0" y1={chart.targetY} x2="100" y2={chart.targetY}
+                  stroke="#C7C7CC" strokeWidth="0.6" strokeDasharray="2,2" vectorEffect="non-scaling-stroke" />
+              )}
+              <polyline
+                fill="none"
+                stroke="#007AFF"
+                strokeWidth="1.6"
+                vectorEffect="non-scaling-stroke"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={chart.points.map(p => `${p.x},${p.y}`).join(' ')}
+              />
+              {chart.points.map((p, i) => (
+                <circle key={i} cx={p.x} cy={p.y} r="1.4" fill="#007AFF" vectorEffect="non-scaling-stroke" />
+              ))}
+            </svg>
+          </div>
+        )}
+        {chartEntries.length > 0 && (
+          <div className="flex items-center justify-between mt-2 text-[10px] text-[#AEAEB2]">
+            <span>{chartEntries[0].entry_date.slice(5).replace('-', '/')}</span>
+            <span>{chartEntries[chartEntries.length - 1].entry_date.slice(5).replace('-', '/')}</span>
+          </div>
+        )}
+      </div>
+
+      {/* 目標体重設定 */}
+      <div className="ios-card px-4 py-4">
+        <p className="text-[12px] font-semibold text-[#8E8E93] mb-3">目標体重</p>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            value={targetInput}
+            onChange={e => setTargetInput(e.target.value)}
+            placeholder={targetKg != null ? `${targetKg.toFixed(1)} kg` : '目標体重(kg)を入力'}
+            className="flex-1 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
+          />
+          <button
+            onClick={handleSetTarget}
+            className="flex-shrink-0 px-4 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[14px] font-semibold active:opacity-70 transition-opacity"
+          >
+            設定
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const GOAL_SUB_FEATURES = [
   { id: 'goals',  label: '目標' },
   { id: 'drinks', label: '🍺 飲酒' },
+  { id: 'weight', label: '⚖️ 体重' },
 ]
 
 export default function GoalsPage({ embedded, categories = [], filterCategory, onFilterChange }) {
@@ -667,7 +840,9 @@ export default function GoalsPage({ embedded, categories = [], filterCategory, o
   const content = (
     <>
       {subNav}
-      {sub === 'drinks' ? <DrinkTracker userId={user?.id} /> : goalsContent}
+      {sub === 'drinks' ? <DrinkTracker userId={user?.id} />
+        : sub === 'weight' ? <WeightTracker userId={user?.id} />
+        : goalsContent}
     </>
   )
 
