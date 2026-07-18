@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useGoals } from '../hooks/useGoals'
 import { useGoalActions } from '../hooks/useGoalActions'
+import { useDrinkTracker } from '../hooks/useDrinkTracker'
 
 const CATEGORY_TINTS = {
   '仕事':  { text: 'text-[#007AFF]', bg: 'bg-[#007AFF]/10' },
@@ -312,10 +313,267 @@ function GoalCard({ goal, onOpen }) {
   )
 }
 
+// ── 飲酒量トラッカー（プランのサブ機能） ──
+const DRINK_PRESETS = [
+  { id: 'beer',     label: 'ビール',    sub: '缶350ml',   grams: 14 },
+  { id: 'beerL',    label: 'ビール',    sub: '中瓶500ml', grams: 20 },
+  { id: 'chuhai',   label: 'チューハイ', sub: '350ml/7%',  grams: 20 },
+  { id: 'sake',     label: '日本酒',    sub: '1合',       grams: 22 },
+  { id: 'wine',     label: 'ワイン',    sub: 'グラス1杯', grams: 12 },
+  { id: 'highball', label: 'ハイボール', sub: '1杯',       grams: 10 },
+  { id: 'shochu',   label: '焼酎',      sub: '水割り1杯', grams: 16 },
+]
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+const isWeekendDate = d => [0, 6].includes(d.getDay())
+function dKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function lastNDays(n) {
+  const out = []
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  for (let i = n - 1; i >= 0; i--) out.push(new Date(now.getTime() - i * DAY_MS))
+  return out
+}
+
+function DrinkTracker({ userId }) {
+  const { entries, goal, loading, addDrink, removeLastToday, markSober, updateGoals } = useDrinkTracker(userId)
+  const [customAmt, setCustomAmt] = useState('')
+
+  const todayKey = dKey(new Date())
+  const todayIsWeekend = isWeekendDate(new Date())
+  const todayGoal = todayIsWeekend ? Number(goal.weekend_grams) : Number(goal.weekday_grams)
+
+  const totalsByDate = useMemo(() => {
+    const map = {}
+    for (const e of entries) {
+      map[e.entry_date] = (map[e.entry_date] ?? 0) + Number(e.grams)
+    }
+    return map
+  }, [entries])
+
+  const todayTotal = totalsByDate[todayKey] ?? 0
+  const todayCount = entries.filter(e => e.entry_date === todayKey).length
+
+  const week = useMemo(() => lastNDays(7), [])
+  const weekTotals = useMemo(() => week.map(d => {
+    const key = dKey(d)
+    return { date: d, key, total: totalsByDate[key] ?? 0, weekend: isWeekendDate(d) }
+  }), [week, totalsByDate])
+
+  const soberStreak = useMemo(() => {
+    let streak = 0
+    for (let i = 0; i < 60; i++) {
+      const d = new Date()
+      d.setHours(0, 0, 0, 0)
+      d.setDate(d.getDate() - i)
+      const key = dKey(d)
+      if ((totalsByDate[key] ?? 0) === 0) streak++
+      else break
+    }
+    return streak
+  }, [totalsByDate])
+
+  const weekdayAvg = useMemo(() => {
+    const wd = weekTotals.filter(d => !d.weekend)
+    if (!wd.length) return 0
+    return wd.reduce((s, d) => s + d.total, 0) / wd.length
+  }, [weekTotals])
+
+  const weekendAvg = useMemo(() => {
+    const we = weekTotals.filter(d => d.weekend)
+    if (!we.length) return 0
+    return we.reduce((s, d) => s + d.total, 0) / we.length
+  }, [weekTotals])
+
+  const maxTotal = Math.max(1, ...weekTotals.map(d => d.total), Number(goal.weekday_grams), Number(goal.weekend_grams))
+
+  function addCustom() {
+    const v = parseFloat(customAmt)
+    if (!v || v <= 0) return
+    addDrink({ grams: v, label: '手入力' })
+    setCustomAmt('')
+  }
+
+  if (loading) {
+    return <div className="text-center py-20 text-[#AEAEB2] text-[13px]">読み込み中…</div>
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* 今日のカード */}
+      <div className="ios-card px-4 py-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[13px] text-[#8E8E93]">
+            今日・{WEEKDAY_LABELS[new Date().getDay()]}曜日（{todayIsWeekend ? '休日' : '平日'}）
+          </p>
+          <p className={`text-[13px] font-medium ${todayTotal > todayGoal ? 'text-[#FF3B30]' : 'text-[#8E8E93]'}`}>
+            目安 {todayGoal}g
+          </p>
+        </div>
+
+        <div className="flex items-end gap-2 mt-1">
+          <span className="text-[40px] font-bold text-[#1C1C1E] leading-none tabular-nums">{todayTotal}</span>
+          <span className="text-[14px] text-[#8E8E93] pb-1">g 純アルコール</span>
+        </div>
+
+        <div className="mt-3 h-2 rounded-full bg-[#767680]/15 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${todayTotal > todayGoal ? 'bg-[#FF3B30]' : 'bg-[#34C759]'}`}
+            style={{ width: `${Math.min(100, (todayTotal / todayGoal) * 100)}%` }}
+          />
+        </div>
+
+        {/* プリセットボタン */}
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          {DRINK_PRESETS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => addDrink({ grams: p.grams, label: `${p.label}(${p.sub})` })}
+              className="text-left px-3 py-2.5 rounded-[10px] bg-black/[0.03] active:bg-black/[0.06] transition-colors"
+            >
+              <p className="text-[14px] font-semibold text-[#1C1C1E]">{p.label}</p>
+              <p className="text-[11px] text-[#8E8E93] mt-0.5">{p.sub} ・ {p.grams}g</p>
+            </button>
+          ))}
+        </div>
+
+        {/* 手入力 */}
+        <div className="flex items-center gap-2 mt-3">
+          <input
+            type="number"
+            inputMode="decimal"
+            value={customAmt}
+            onChange={e => setCustomAmt(e.target.value)}
+            placeholder="純アルコール量(g)を直接入力"
+            className="flex-1 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
+          />
+          <button
+            onClick={addCustom}
+            className="flex-shrink-0 px-4 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[14px] font-semibold active:opacity-70 transition-opacity"
+          >
+            追加
+          </button>
+        </div>
+
+        {/* 取り消し・休肝日 */}
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            onClick={removeLastToday}
+            disabled={todayCount === 0}
+            className="flex-1 py-2 rounded-[10px] text-[13px] text-[#1C1C1E] bg-black/[0.03] disabled:text-[#C7C7CC] active:opacity-70 transition-opacity"
+          >
+            直前の記録を取り消す
+          </button>
+          <button
+            onClick={markSober}
+            className="flex-1 py-2 rounded-[10px] text-[13px] font-medium text-[#34C759] bg-[#34C759]/10 active:opacity-70 transition-opacity"
+          >
+            休肝日にする
+          </button>
+        </div>
+      </div>
+
+      {soberStreak > 0 && (
+        <p className="text-center text-[13px] text-[#34C759] font-medium">
+          🎉 休肝日が {soberStreak} 日続いています
+        </p>
+      )}
+
+      {/* 週チャート */}
+      <div className="ios-card px-4 py-4">
+        <p className="text-[12px] font-semibold text-[#8E8E93] mb-3">直近7日間</p>
+        <div className="flex items-end gap-2 h-[110px]">
+          {weekTotals.map(d => {
+            const g = d.weekend ? Number(goal.weekend_grams) : Number(goal.weekday_grams)
+            const h = Math.max(3, (d.total / maxTotal) * 96)
+            const barColor = d.total === 0
+              ? 'bg-[#E5E5EA]'
+              : d.total > g
+                ? 'bg-[#FF3B30]'
+                : d.weekend
+                  ? 'bg-[#FF9500]'
+                  : 'bg-[#007AFF]'
+            return (
+              <div key={d.key} className="flex-1 flex flex-col items-center gap-1">
+                <span className="text-[10px] text-[#AEAEB2] tabular-nums">{d.total || ''}</span>
+                <div className="w-full h-24 flex items-end relative">
+                  <div
+                    className="absolute w-full border-t border-dashed border-[#C7C7CC]"
+                    style={{ bottom: `${Math.min(100, (g / maxTotal) * 100)}%` }}
+                  />
+                  <div className={`w-full rounded-[3px] ${barColor}`} style={{ height: `${h}px` }} />
+                </div>
+                <span className={`text-[10px] ${d.weekend ? 'text-[#FF9500] font-medium' : 'text-[#8E8E93]'}`}>
+                  {WEEKDAY_LABELS[d.date.getDay()]}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex items-center gap-3 mt-3 text-[10px] text-[#8E8E93] flex-wrap">
+          <span><span className="text-[#007AFF]">■</span> 平日</span>
+          <span><span className="text-[#FF9500]">■</span> 休日</span>
+          <span><span className="text-[#FF3B30]">■</span> 目安超過</span>
+          <span>- - - 目安ライン</span>
+        </div>
+      </div>
+
+      {/* 平均 */}
+      <div className="flex gap-3">
+        <div className="flex-1 ios-card px-4 py-3">
+          <p className="text-[12px] text-[#8E8E93]">平日 平均</p>
+          <p className="text-[22px] font-bold text-[#1C1C1E] mt-0.5 tabular-nums">{weekdayAvg.toFixed(0)}g</p>
+        </div>
+        <div className="flex-1 ios-card px-4 py-3">
+          <p className="text-[12px] text-[#8E8E93]">休日 平均</p>
+          <p className="text-[22px] font-bold text-[#1C1C1E] mt-0.5 tabular-nums">{weekendAvg.toFixed(0)}g</p>
+        </div>
+      </div>
+
+      {/* 目安量設定 */}
+      <div className="ios-card px-4 py-4">
+        <p className="text-[12px] font-semibold text-[#8E8E93] mb-3">1日あたりの目安量</p>
+        <div className="flex gap-3">
+          <label className="flex-1 text-[12px] text-[#8E8E93]">
+            平日 (g)
+            <input
+              type="number"
+              value={goal.weekday_grams}
+              onChange={e => updateGoals({ weekday_grams: Number(e.target.value) || 0 })}
+              className="block w-full mt-1.5 px-3 py-2 rounded-[8px] bg-black/[0.03] text-[14px] text-[#1C1C1E] focus:outline-none"
+            />
+          </label>
+          <label className="flex-1 text-[12px] text-[#8E8E93]">
+            休日 (g)
+            <input
+              type="number"
+              value={goal.weekend_grams}
+              onChange={e => updateGoals({ weekend_grams: Number(e.target.value) || 0 })}
+              className="block w-full mt-1.5 px-3 py-2 rounded-[8px] bg-black/[0.03] text-[14px] text-[#1C1C1E] focus:outline-none"
+            />
+          </label>
+        </div>
+        <p className="text-[11px] text-[#AEAEB2] mt-3 leading-relaxed">
+          参考: 厚生労働省の指針では、生活習慣病のリスクを高める飲酒量は男性で1日あたり純アルコール40g以上とされています。まずは無理のない目安から始めるのがおすすめです。
+        </p>
+      </div>
+    </div>
+  )
+}
+
+const GOAL_SUB_FEATURES = [
+  { id: 'goals',  label: '目標' },
+  { id: 'drinks', label: '🍺 飲酒' },
+]
+
 export default function GoalsPage({ embedded, categories = [], filterCategory, onFilterChange }) {
   const { user } = useAuth()
   const { goals, loading, addGoal, updateGoal, deleteGoal } = useGoals(user?.id)
   const [modal, setModal] = useState(null)
+  const [sub, setSub] = useState('goals')
 
   const activeFilter = filterCategory ?? 'すべて'
   const categoryNames = categories.map(c => c.name)
@@ -344,7 +602,25 @@ export default function GoalsPage({ embedded, categories = [], filterCategory, o
     await deleteGoal(modal.goal.id)
   }
 
-  const content = (
+  const subNav = (
+    <div className="flex gap-2 mb-3">
+      {GOAL_SUB_FEATURES.map(f => (
+        <button
+          key={f.id}
+          onClick={() => setSub(f.id)}
+          className={`flex-1 py-2 rounded-[10px] text-[13px] font-semibold transition-colors duration-150 ${
+            sub === f.id
+              ? 'bg-[#1C1C1E] text-white'
+              : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+          }`}
+        >
+          {f.label}
+        </button>
+      ))}
+    </div>
+  )
+
+  const goalsContent = (
     <>
       {/* モバイル カテゴリピル */}
       {embedded && (
@@ -388,44 +664,54 @@ export default function GoalsPage({ embedded, categories = [], filterCategory, o
     </>
   )
 
+  const content = (
+    <>
+      {subNav}
+      {sub === 'drinks' ? <DrinkTracker userId={user?.id} /> : goalsContent}
+    </>
+  )
+
   return (
     <>
       {embedded ? (
         <div>
           <main className="max-w-lg md:max-w-5xl mx-auto px-4 py-4 pb-28 md:pb-10 md:flex md:gap-8 md:items-start">
             {/* PC サイドバー */}
-            <aside className="hidden md:block w-52 flex-shrink-0 sticky top-[60px]">
-              <p className="text-[13px] font-semibold text-[#8E8E93] mb-2 px-3">カテゴリ</p>
-              <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
-                {['すべて', ...categoryNames].map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => onFilterChange?.(cat)}
-                    className={`w-full flex items-center justify-between text-left px-4 py-2.5 text-[15px] transition-colors duration-150 ${
-                      activeFilter === cat
-                        ? 'text-[#007AFF] font-semibold bg-[#007AFF]/[0.06]'
-                        : 'text-[#1C1C1E] hover:bg-black/[0.025] active:bg-black/5'
-                    }`}
-                  >
-                    {cat}
-                    {activeFilter === cat && (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={openNew}
-                className="w-full mt-4 py-2.5 rounded-[12px] bg-[#007AFF] text-white font-semibold text-[14px] active:opacity-70 transition-opacity shadow-[0_2px_8px_rgba(0,122,255,0.3)]"
-              >
-                ＋ 新規目標
-              </button>
-            </aside>
+            {sub === 'goals' && (
+              <aside className="hidden md:block w-52 flex-shrink-0 sticky top-[60px]">
+                <p className="text-[13px] font-semibold text-[#8E8E93] mb-2 px-3">カテゴリ</p>
+                <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
+                  {['すべて', ...categoryNames].map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => onFilterChange?.(cat)}
+                      className={`w-full flex items-center justify-between text-left px-4 py-2.5 text-[15px] transition-colors duration-150 ${
+                        activeFilter === cat
+                          ? 'text-[#007AFF] font-semibold bg-[#007AFF]/[0.06]'
+                          : 'text-[#1C1C1E] hover:bg-black/[0.025] active:bg-black/5'
+                      }`}
+                    >
+                      {cat}
+                      {activeFilter === cat && (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={openNew}
+                  className="w-full mt-4 py-2.5 rounded-[12px] bg-[#007AFF] text-white font-semibold text-[14px] active:opacity-70 transition-opacity shadow-[0_2px_8px_rgba(0,122,255,0.3)]"
+                >
+                  ＋ 新規目標
+                </button>
+              </aside>
+            )}
             <div className="flex-1 min-w-0">{content}</div>
           </main>
           {/* モバイル FAB */}
+          {sub === 'goals' && (
           <button
             onClick={openNew}
             className="md:hidden fixed bottom-20 right-5 w-[54px] h-[54px] bg-[#007AFF] text-white rounded-full shadow-[0_4px_16px_rgba(0,122,255,0.4)] flex items-center justify-center active:scale-90 transition-transform z-30"
@@ -435,6 +721,7 @@ export default function GoalsPage({ embedded, categories = [], filterCategory, o
               <path strokeLinecap="round" d="M12 5v14m-7-7h14" />
             </svg>
           </button>
+          )}
         </div>
       ) : (
         <div className="min-h-screen">
