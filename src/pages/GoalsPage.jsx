@@ -364,30 +364,44 @@ function DrinkTracker({ userId }) {
     return { date: d, key, total: totalsByDate[key] ?? 0, weekend: isWeekendDate(d) }
   }), [week, totalsByDate])
 
+  // 記録を開始する前の日は「飲んでいない日」ではなく「未計測」なので、
+  // 平均や休肝日カウントの対象から除外する
+  const earliestDate = useMemo(() => {
+    if (!entries.length) return null
+    return entries.reduce((min, e) => e.entry_date < min ? e.entry_date : min, entries[0].entry_date)
+  }, [entries])
+
   const soberStreak = useMemo(() => {
+    if (!earliestDate) return 0
     let streak = 0
     for (let i = 0; i < 60; i++) {
       const d = new Date()
       d.setHours(0, 0, 0, 0)
       d.setDate(d.getDate() - i)
       const key = dKey(d)
+      if (key < earliestDate) break
       if ((totalsByDate[key] ?? 0) === 0) streak++
       else break
     }
     return streak
-  }, [totalsByDate])
+  }, [totalsByDate, earliestDate])
+
+  const trackedWeekTotals = useMemo(
+    () => earliestDate ? weekTotals.filter(d => d.key >= earliestDate) : [],
+    [weekTotals, earliestDate]
+  )
 
   const weekdayAvg = useMemo(() => {
-    const wd = weekTotals.filter(d => !d.weekend)
+    const wd = trackedWeekTotals.filter(d => !d.weekend)
     if (!wd.length) return 0
     return wd.reduce((s, d) => s + d.total, 0) / wd.length
-  }, [weekTotals])
+  }, [trackedWeekTotals])
 
   const weekendAvg = useMemo(() => {
-    const we = weekTotals.filter(d => d.weekend)
+    const we = trackedWeekTotals.filter(d => d.weekend)
     if (!we.length) return 0
     return we.reduce((s, d) => s + d.total, 0) / we.length
-  }, [weekTotals])
+  }, [trackedWeekTotals])
 
   const maxTotal = Math.max(1, ...weekTotals.map(d => d.total), Number(goal.weekday_grams), Number(goal.weekend_grams))
 
