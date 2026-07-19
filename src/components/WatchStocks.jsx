@@ -22,6 +22,14 @@ function targetPriceLabel(item) {
   return yen.format(min ?? max)
 }
 
+// 配当利回り(%) = 配当金(1株あたり) ÷ 株価 × 100
+function calcDividendYield(dividendPerShare, price) {
+  const d = Number(dividendPerShare)
+  const p = Number(price)
+  if (!d || !p) return null
+  return (d / p) * 100
+}
+
 // ── 銘柄検索（過去の入力履歴から候補を出す） ──
 function StockSearchField({ userId, onPick }) {
   const [query, setQuery] = useState('')
@@ -73,8 +81,13 @@ function WatchStockModal({ item, userId, availableTags, onSave, onDelete, onClos
   const [customPurpose, setCustomPurpose] = useState('')
   const [targetPriceMin, setTargetPriceMin] = useState(item.target_price_min ?? '')
   const [targetPriceMax, setTargetPriceMax] = useState(item.target_price_max ?? '')
+  const [dividendPerShare, setDividendPerShare] = useState(item.dividend_per_share ?? '')
+  const [currentPrice, setCurrentPrice] = useState(item.current_price ?? '')
+  const [shareholderBenefit, setShareholderBenefit] = useState(item.shareholder_benefit ?? '')
   const [memo, setMemo] = useState(item.memo ?? '')
   const [saving, setSaving] = useState(false)
+
+  const previewYield = calcDividendYield(dividendPerShare, currentPrice)
 
   function togglePurpose(p) {
     setPurposes(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
@@ -96,6 +109,9 @@ function WatchStockModal({ item, userId, availableTags, onSave, onDelete, onClos
       purposes,
       target_price_min: targetPriceMin !== '' ? Number(targetPriceMin) : null,
       target_price_max: targetPriceMax !== '' ? Number(targetPriceMax) : null,
+      dividend_per_share: dividendPerShare !== '' ? Number(dividendPerShare) : null,
+      current_price: currentPrice !== '' ? Number(currentPrice) : null,
+      shareholder_benefit: shareholderBenefit.trim() || null,
       memo: memo.trim() || null,
     })
     setSaving(false)
@@ -228,6 +244,47 @@ function WatchStockModal({ item, userId, availableTags, onSave, onDelete, onClos
                 <span className="text-[13px] text-[#8E8E93]">円</span>
               </div>
             </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-[15px] text-[#1C1C1E] flex-shrink-0">現在株価</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={currentPrice}
+                  onChange={e => setCurrentPrice(e.target.value)}
+                  placeholder="未設定"
+                  className="w-24 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
+                />
+                <span className="text-[13px] text-[#8E8E93]">円</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-[15px] text-[#1C1C1E] flex-shrink-0">配当金（1株）</span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={dividendPerShare}
+                  onChange={e => setDividendPerShare(e.target.value)}
+                  placeholder="未設定"
+                  className="w-24 min-w-0 text-[15px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none text-right"
+                />
+                <span className="text-[13px] text-[#8E8E93]">円</span>
+              </div>
+            </div>
+            {previewYield != null && (
+              <div className="flex items-center justify-between px-4 py-2">
+                <span className="text-[13px] text-[#8E8E93]">配当利回り</span>
+                <span className="text-[14px] font-semibold text-[#34C759]">{previewYield.toFixed(2)}%</span>
+              </div>
+            )}
+            <textarea
+              rows={2}
+              value={shareholderBenefit}
+              onChange={e => setShareholderBenefit(e.target.value)}
+              placeholder="優待内容（任意）"
+              className="w-full px-4 py-3 text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] bg-transparent focus:outline-none resize-none leading-relaxed"
+            />
             <textarea
               rows={2}
               value={memo}
@@ -252,6 +309,7 @@ function WatchStockModal({ item, userId, availableTags, onSave, onDelete, onClos
 }
 
 function WatchStockCard({ item, onOpen }) {
+  const dividendYield = calcDividendYield(item.dividend_per_share, item.current_price)
   return (
     <div
       onClick={() => onOpen(item)}
@@ -273,6 +331,18 @@ function WatchStockCard({ item, onOpen }) {
                   </span>
                 )
               })}
+            </div>
+          )}
+          {(dividendYield != null || item.shareholder_benefit) && (
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              {dividendYield != null && (
+                <span className="text-[11px] font-medium text-[#34C759]">
+                  配当利回り {dividendYield.toFixed(2)}%
+                </span>
+              )}
+              {item.shareholder_benefit && (
+                <span className="text-[11px] text-[#8E8E93] truncate">🎁 {item.shareholder_benefit}</span>
+              )}
             </div>
           )}
         </div>
