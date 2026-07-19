@@ -323,6 +323,7 @@ const DRINK_PRESETS = [
   { id: 'sake',     label: '日本酒',    sub: 'コップ1杯', grams: 18 },
   { id: 'wine',     label: 'ワイン',    sub: 'コップ1杯', grams: 14 },
   { id: 'highball', label: 'ハイボール', sub: '1杯',       grams: 10 },
+  { id: 'mizuwari', label: '水割り',    sub: 'ウイスキー1杯', grams: 10 },
   { id: 'shochu',   label: '焼酎',      sub: '水割り1杯', grams: 16 },
 ]
 
