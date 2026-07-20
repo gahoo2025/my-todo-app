@@ -39,27 +39,27 @@ export function useDrinkTracker(userId) {
     setLoading(false)
   }
 
-  async function addDrink({ grams, label }) {
-    const row = { user_id: userId, entry_date: todayStr(), grams, label }
+  async function addDrink({ grams, label, entryDate }) {
+    const row = { user_id: userId, entry_date: entryDate || todayStr(), grams, label }
     const { data, error } = await supabase.from('drink_entries').insert([row]).select().single()
     if (error) { alert('記録の保存に失敗しました: ' + error.message); return }
-    setEntries(prev => [...prev, data])
+    setEntries(prev => [...prev, data].sort((a, b) => a.entry_date.localeCompare(b.entry_date) || new Date(a.created_at) - new Date(b.created_at)))
   }
 
-  async function removeLastToday() {
-    const today = todayStr()
-    const todays = entries.filter(e => e.entry_date === today)
-    if (todays.length === 0) return
-    const last = todays[todays.length - 1]
+  async function removeLastForDate(entryDate) {
+    const date = entryDate || todayStr()
+    const dayEntries = entries.filter(e => e.entry_date === date)
+    if (dayEntries.length === 0) return
+    const last = dayEntries[dayEntries.length - 1]
     const { error } = await supabase.from('drink_entries').delete().eq('id', last.id)
     if (!error) setEntries(prev => prev.filter(e => e.id !== last.id))
   }
 
-  async function markSober() {
-    const today = todayStr()
+  async function markSober(entryDate) {
+    const date = entryDate || todayStr()
     const { error } = await supabase.from('drink_entries').delete()
-      .eq('user_id', userId).eq('entry_date', today)
-    if (!error) setEntries(prev => prev.filter(e => e.entry_date !== today))
+      .eq('user_id', userId).eq('entry_date', date)
+    if (!error) setEntries(prev => prev.filter(e => e.entry_date !== date))
   }
 
   async function updateGoals(updates) {
@@ -69,5 +69,5 @@ export function useDrinkTracker(userId) {
     if (error) alert('目安量の保存に失敗しました: ' + error.message)
   }
 
-  return { entries, goal, loading, addDrink, removeLastToday, markSober, updateGoals }
+  return { entries, goal, loading, addDrink, removeLastForDate, markSober, updateGoals }
 }

@@ -342,12 +342,17 @@ function lastNDays(n) {
 }
 
 function DrinkTracker({ userId }) {
-  const { entries, goal, loading, addDrink, removeLastToday, markSober, updateGoals } = useDrinkTracker(userId)
+  const { entries, goal, loading, addDrink, removeLastForDate, markSober, updateGoals } = useDrinkTracker(userId)
   const [customAmt, setCustomAmt] = useState('')
 
   const todayKey = dKey(new Date())
-  const todayIsWeekend = isWeekendDate(new Date())
-  const todayGoal = todayIsWeekend ? Number(goal.weekend_grams) : Number(goal.weekday_grams)
+  const [logDateKey, setLogDateKey] = useState(todayKey)
+  const logDate = useMemo(() => {
+    const [y, m, d] = logDateKey.split('-').map(Number)
+    return new Date(y, m - 1, d)
+  }, [logDateKey])
+  const logIsWeekend = isWeekendDate(logDate)
+  const logGoal = logIsWeekend ? Number(goal.weekend_grams) : Number(goal.weekday_grams)
 
   const totalsByDate = useMemo(() => {
     const map = {}
@@ -357,8 +362,8 @@ function DrinkTracker({ userId }) {
     return map
   }, [entries])
 
-  const todayTotal = totalsByDate[todayKey] ?? 0
-  const todayCount = entries.filter(e => e.entry_date === todayKey).length
+  const logTotal = totalsByDate[logDateKey] ?? 0
+  const logCount = entries.filter(e => e.entry_date === logDateKey).length
 
   const week = useMemo(() => lastNDays(7), [])
   const weekTotals = useMemo(() => week.map(d => {
@@ -410,7 +415,7 @@ function DrinkTracker({ userId }) {
   function addCustom() {
     const v = parseFloat(customAmt)
     if (!v || v <= 0) return
-    addDrink({ grams: v, label: '手入力' })
+    addDrink({ grams: v, label: '手入力', entryDate: logDateKey })
     setCustomAmt('')
   }
 
@@ -420,26 +425,36 @@ function DrinkTracker({ userId }) {
 
   return (
     <div className="space-y-4">
-      {/* 今日のカード */}
+      {/* 記録日のカード */}
       <div className="ios-card px-4 py-4">
-        <div className="flex items-center justify-between">
-          <p className="text-[13px] text-[#8E8E93]">
-            今日・{WEEKDAY_LABELS[new Date().getDay()]}曜日（{todayIsWeekend ? '休日' : '平日'}）
-          </p>
-          <p className={`text-[13px] font-medium ${todayTotal > todayGoal ? 'text-[#FF3B30]' : 'text-[#8E8E93]'}`}>
-            目安 {todayGoal}g
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <input
+              type="date"
+              value={logDateKey}
+              max={todayKey}
+              onChange={e => setLogDateKey(e.target.value || todayKey)}
+              className="text-[13px] text-[#1C1C1E] font-medium bg-transparent focus:outline-none"
+            />
+            <span className="text-[13px] text-[#8E8E93] flex-shrink-0">
+              {WEEKDAY_LABELS[logDate.getDay()]}曜日（{logIsWeekend ? '休日' : '平日'}）
+              {logDateKey === todayKey && '・今日'}
+            </span>
+          </div>
+          <p className={`text-[13px] font-medium flex-shrink-0 ${logTotal > logGoal ? 'text-[#FF3B30]' : 'text-[#8E8E93]'}`}>
+            目安 {logGoal}g
           </p>
         </div>
 
         <div className="flex items-end gap-2 mt-1">
-          <span className="text-[40px] font-bold text-[#1C1C1E] leading-none tabular-nums">{todayTotal}</span>
+          <span className="text-[40px] font-bold text-[#1C1C1E] leading-none tabular-nums">{logTotal}</span>
           <span className="text-[14px] text-[#8E8E93] pb-1">g 純アルコール</span>
         </div>
 
         <div className="mt-3 h-2 rounded-full bg-[#767680]/15 overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-300 ${todayTotal > todayGoal ? 'bg-[#FF3B30]' : 'bg-[#34C759]'}`}
-            style={{ width: `${Math.min(100, (todayTotal / todayGoal) * 100)}%` }}
+            className={`h-full rounded-full transition-all duration-300 ${logTotal > logGoal ? 'bg-[#FF3B30]' : 'bg-[#34C759]'}`}
+            style={{ width: `${Math.min(100, (logTotal / logGoal) * 100)}%` }}
           />
         </div>
 
@@ -448,7 +463,7 @@ function DrinkTracker({ userId }) {
           {DRINK_PRESETS.map(p => (
             <button
               key={p.id}
-              onClick={() => addDrink({ grams: p.grams, label: `${p.label}(${p.sub})` })}
+              onClick={() => addDrink({ grams: p.grams, label: `${p.label}(${p.sub})`, entryDate: logDateKey })}
               className="text-left px-3 py-2.5 rounded-[10px] bg-black/[0.03] active:bg-black/[0.06] transition-colors"
             >
               <p className="text-[14px] font-semibold text-[#1C1C1E]">{p.label}</p>
@@ -478,14 +493,14 @@ function DrinkTracker({ userId }) {
         {/* 取り消し・休肝日 */}
         <div className="flex items-center gap-2 mt-3">
           <button
-            onClick={removeLastToday}
-            disabled={todayCount === 0}
+            onClick={() => removeLastForDate(logDateKey)}
+            disabled={logCount === 0}
             className="flex-1 py-2 rounded-[10px] text-[13px] text-[#1C1C1E] bg-black/[0.03] disabled:text-[#C7C7CC] active:opacity-70 transition-opacity"
           >
             直前の記録を取り消す
           </button>
           <button
-            onClick={markSober}
+            onClick={() => markSober(logDateKey)}
             className="flex-1 py-2 rounded-[10px] text-[13px] font-medium text-[#34C759] bg-[#34C759]/10 active:opacity-70 transition-opacity"
           >
             休肝日にする
@@ -583,12 +598,13 @@ function DrinkTracker({ userId }) {
 
 // ── 体重トラッカー（プランのサブ機能） ──
 function WeightTracker({ userId }) {
-  const { entries, goal, loading, recordToday, deleteEntry, updateGoal } = useWeightTracker(userId)
+  const { entries, goal, loading, recordEntry, deleteEntry, updateGoal } = useWeightTracker(userId)
   const [input, setInput] = useState('')
   const [targetInput, setTargetInput] = useState('')
 
   const todayKey = dKey(new Date())
-  const todayEntry = entries.find(e => e.entry_date === todayKey)
+  const [logDateKey, setLogDateKey] = useState(todayKey)
+  const logDateEntry = entries.find(e => e.entry_date === logDateKey)
   const sorted = useMemo(() => [...entries].sort((a, b) => a.entry_date.localeCompare(b.entry_date)), [entries])
   const latest = sorted[sorted.length - 1] ?? null
   const chartEntries = sorted.slice(-30)
@@ -607,9 +623,9 @@ function WeightTracker({ userId }) {
   const targetDiff = latest && targetKg != null ? Number(latest.weight_kg) - targetKg : null
 
   function handleRecord() {
-    const v = parseFloat(input || todayEntry?.weight_kg)
+    const v = parseFloat(input || logDateEntry?.weight_kg)
     if (!v || v <= 0) return
-    recordToday(v)
+    recordEntry(v, logDateKey)
     setInput('')
   }
 
@@ -648,7 +664,16 @@ function WeightTracker({ userId }) {
     <div className="space-y-4">
       {/* 記録カード */}
       <div className="ios-card px-4 py-4">
-        <p className="text-[13px] text-[#8E8E93]">今日の体重</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[13px] text-[#8E8E93]">最新の体重</p>
+          <input
+            type="date"
+            value={logDateKey}
+            max={todayKey}
+            onChange={e => setLogDateKey(e.target.value || todayKey)}
+            className="text-[13px] text-[#1C1C1E] font-medium bg-transparent focus:outline-none"
+          />
+        </div>
         <div className="flex items-end gap-2 mt-1">
           <span className="text-[40px] font-bold text-[#1C1C1E] leading-none tabular-nums">
             {latest ? Number(latest.weight_kg).toFixed(1) : '—'}
@@ -678,14 +703,14 @@ function WeightTracker({ userId }) {
             step="0.1"
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder={todayEntry ? `${Number(todayEntry.weight_kg).toFixed(1)}（今日記録済み）` : '体重(kg)を入力'}
+            placeholder={logDateEntry ? `${Number(logDateEntry.weight_kg).toFixed(1)}（この日は記録済み）` : `${logDateKey === todayKey ? '今日' : logDateKey.slice(5).replace('-', '/')}の体重(kg)を入力`}
             className="flex-1 min-w-0 px-3 py-2.5 rounded-[10px] bg-black/[0.03] text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
           />
           <button
             onClick={handleRecord}
             className="flex-shrink-0 px-4 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[14px] font-semibold active:opacity-70 transition-opacity"
           >
-            {todayEntry ? '更新' : '記録'}
+            {logDateEntry ? '更新' : '記録'}
           </button>
         </div>
       </div>

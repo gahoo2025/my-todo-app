@@ -185,6 +185,7 @@ function LogModal({ menuItem, onSave, onClose }) {
   const [reps, setReps] = useState(menuItem.target_reps ?? '')
   const [sets, setSets] = useState(menuItem.target_sets ?? 1)
   const [value, setValue] = useState(menuItem.target_value ?? '')
+  const [logDate, setLogDate] = useState(todayStr())
   const [memo, setMemo] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -198,7 +199,7 @@ function LogModal({ menuItem, onSave, onClose }) {
       sets: isReps && sets !== '' ? Number(sets) : null,
       value: !isReps && value !== '' ? Number(value) : null,
       unit: menuItem.unit,
-      logDate: todayStr(),
+      logDate: logDate || todayStr(),
       memo: memo.trim(),
     })
     setSaving(false)
@@ -223,6 +224,16 @@ function LogModal({ menuItem, onSave, onClose }) {
           </button>
         </div>
         <div className="p-4 space-y-3">
+          <div className="ios-card overflow-hidden flex items-center justify-between px-4 py-2.5">
+            <span className="text-[15px] text-[#1C1C1E]">記録日</span>
+            <input
+              type="date"
+              value={logDate}
+              max={todayStr()}
+              onChange={e => setLogDate(e.target.value || todayStr())}
+              className="text-[15px] text-[#1C1C1E] bg-transparent focus:outline-none text-right"
+            />
+          </div>
           {isReps ? (
             <div className="ios-card overflow-hidden divide-y divide-black/[0.04]">
               <div className="flex items-center justify-between px-4 py-3">

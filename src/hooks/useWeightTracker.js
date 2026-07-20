@@ -38,9 +38,9 @@ export function useWeightTracker(userId) {
     setLoading(false)
   }
 
-  // 今日の体重を記録（同日なら上書き）
-  async function recordToday(weightKg) {
-    const row = { user_id: userId, entry_date: todayStr(), weight_kg: weightKg }
+  // 指定日の体重を記録（同日なら上書き、日付省略時は今日）
+  async function recordEntry(weightKg, entryDate) {
+    const row = { user_id: userId, entry_date: entryDate || todayStr(), weight_kg: weightKg }
     const { data, error } = await supabase
       .from('weight_entries')
       .upsert(row, { onConflict: 'user_id,entry_date' })
@@ -64,5 +64,5 @@ export function useWeightTracker(userId) {
     if (error) alert('目標体重の保存に失敗しました: ' + error.message)
   }
 
-  return { entries, goal, loading, recordToday, deleteEntry, updateGoal }
+  return { entries, goal, loading, recordEntry, deleteEntry, updateGoal }
 }
