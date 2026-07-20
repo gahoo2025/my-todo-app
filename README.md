@@ -46,6 +46,27 @@
    npm run dev
    ```
 
+## おまけ: 家族の資産集計連携
+
+ローカルで動く別アプリ「資産管理アプリ」から、純資産合計・家族毎の内訳のみを連携して「資産」タブに表示できます（保有銘柄などの詳細は連携しません）。利用するにはSupabaseで以下のテーブルを作成してください。
+
+```sql
+create table asset_summary (
+  user_id uuid primary key references auth.users,
+  total numeric not null,
+  by_person jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table asset_summary enable row level security;
+
+create policy "Users can view their own asset summary"
+  on asset_summary for select
+  using (auth.uid() = user_id);
+```
+
+このテーブルへの書き込みは資産管理アプリ側（`service_role`キーを使ったサーバーサイド連携）で行うため、このアプリ側にはINSERT/UPDATE用のポリシーは不要です。
+
 ## おまけ: テトリス 🎮
 
 ログイン不要で遊べるテトリスを同梱しています。依存ライブラリゼロの自己完結型 HTML（Canvas + 純粋 JS）です。
