@@ -47,15 +47,30 @@ function FamilyAssetSummary() {
       </div>
       {entries.length > 0 ? (
         <div className="divide-y divide-black/[0.04]">
-          {entries.map(([name, amount]) => (
-            <div key={name} className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-[15px] font-medium text-[#1C1C1E]">{name}</span>
-              <div className="text-right">
-                <p className="text-[15px] font-semibold text-[#1C1C1E] tabular-nums">{yen.format(Number(amount))}</p>
-                <p className="text-[11px] text-[#AEAEB2]">{total > 0 ? ((Number(amount) / total) * 100).toFixed(0) : 0}%</p>
+          {entries.map(([name, amount]) => {
+            const breakdown = Object.entries(summary.by_person_asset?.[name] ?? {}).filter(([, v]) => Number(v) > 0)
+            return (
+              <div key={name} className="px-4 py-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] font-medium text-[#1C1C1E]">{name}</span>
+                  <div className="text-right">
+                    <p className="text-[15px] font-semibold text-[#1C1C1E] tabular-nums">{yen.format(Number(amount))}</p>
+                    <p className="text-[11px] text-[#AEAEB2]">{total > 0 ? ((Number(amount) / total) * 100).toFixed(0) : 0}%</p>
+                  </div>
+                </div>
+                {breakdown.length > 1 && (
+                  <div className="mt-1.5 space-y-1 border-l-2 border-black/[0.06] pl-3">
+                    {breakdown.map(([assetName, assetAmount]) => (
+                      <div key={assetName} className="flex items-center justify-between">
+                        <span className="text-[12px] text-[#8E8E93]">{assetName}</span>
+                        <span className="text-[12px] text-[#8E8E93] tabular-nums">{yen.format(Number(assetAmount))}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ) : (
         <p className="px-4 py-3 text-[12px] text-[#AEAEB2]">
