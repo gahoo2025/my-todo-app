@@ -17,6 +17,8 @@ export function useMarketIndices(userId) {
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState(null)
+  const [historyBySymbol, setHistoryBySymbol] = useState({})
+  const [historyLoading, setHistoryLoading] = useState({})
 
   useEffect(() => {
     if (!userId) return
@@ -79,5 +81,20 @@ export function useMarketIndices(userId) {
     }
   }
 
-  return { latestBySymbol, counts, loading, importing, importResult, importFromSheet }
+  async function fetchHistory(symbol) {
+    if (historyBySymbol[symbol]) return
+    setHistoryLoading(prev => ({ ...prev, [symbol]: true }))
+    const { data } = await supabase
+      .from('market_index_history').select('trade_date, value')
+      .eq('user_id', userId).eq('symbol', symbol)
+      .order('trade_date', { ascending: true })
+      .limit(20000)
+    setHistoryBySymbol(prev => ({ ...prev, [symbol]: data ?? [] }))
+    setHistoryLoading(prev => ({ ...prev, [symbol]: false }))
+  }
+
+  return {
+    latestBySymbol, counts, loading, importing, importResult, importFromSheet,
+    historyBySymbol, historyLoading, fetchHistory,
+  }
 }
