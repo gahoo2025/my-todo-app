@@ -3,11 +3,15 @@ import { useFamilyAssetSummary } from '../hooks/useFamilyAssetSummary'
 import { useState } from 'react'
 import MarketLogSection from '../components/MarketLog'
 import WatchStocksSection from '../components/WatchStocks'
+import MarketIndexData from '../components/MarketIndexData'
 
 // サブ機能の定義（今後ここに追加していく）
+// 資産管理（資産情報・家計情報）と投資管理（投資情報・監視銘柄・指標データ蓄積）の
+// うち、投資管理のサブ機能をここに並べる
 const SUB_FEATURES = [
   { id: 'marketlog', label: 'マーケットログ' },
   { id: 'watch',     label: '監視銘柄' },
+  { id: 'indices',   label: '指標データ' },
 ]
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 })
@@ -94,6 +98,7 @@ export default function AssetsPage({ embedded }) {
       <div className="mt-3">
         {sub === 'marketlog' && <MarketLogSection />}
         {sub === 'watch' && <WatchStocksSection />}
+        {sub === 'indices' && <MarketIndexData />}
       </div>
     </>
   )
