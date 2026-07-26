@@ -68,6 +68,17 @@ export default function MarketIndexData() {
                     {latest ? (
                       <>
                         <p className="text-[15px] font-semibold text-[#1C1C1E] tabular-nums">{numFmt.format(Number(latest.value))}</p>
+                        {latest.prevValue != null && (() => {
+                          const diff = Number(latest.value) - latest.prevValue
+                          const pct = latest.prevValue !== 0 ? (diff / latest.prevValue) * 100 : 0
+                          const color = diff > 0 ? 'text-[#FF3B30]' : diff < 0 ? 'text-[#34C759]' : 'text-[#8E8E93]'
+                          const sign = diff > 0 ? '+' : ''
+                          return (
+                            <p className={`text-[11px] font-medium tabular-nums ${color}`}>
+                              前日比 {sign}{numFmt.format(diff)} ({sign}{pct.toFixed(2)}%)
+                            </p>
+                          )
+                        })()}
                         <p className="text-[11px] text-[#AEAEB2]">{formatDate(latest.trade_date)}</p>
                       </>
                     ) : (

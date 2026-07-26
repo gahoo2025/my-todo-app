@@ -30,14 +30,17 @@ export function useMarketIndices(userId) {
         supabase
           .from('market_index_history').select('trade_date, value', { count: 'exact' })
           .eq('user_id', userId).eq('symbol', id)
-          .order('trade_date', { ascending: false }).limit(1)
+          .order('trade_date', { ascending: false }).limit(2)
       )
     )
     const latest = {}
     const cnt = {}
     results.forEach((res, i) => {
       const symbol = INDEX_SYMBOLS[i].id
-      latest[symbol] = res.data?.[0] ?? null
+      const [current, previous] = res.data ?? []
+      latest[symbol] = current
+        ? { ...current, prevValue: previous ? Number(previous.value) : null, prevDate: previous?.trade_date ?? null }
+        : null
       cnt[symbol] = res.count ?? 0
     })
     setLatestBySymbol(latest)
