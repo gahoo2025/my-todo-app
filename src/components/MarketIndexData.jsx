@@ -1,10 +1,13 @@
 import { useAuth } from '../hooks/useAuth'
 import { useMarketIndices, INDEX_SYMBOLS } from '../hooks/useMarketIndices'
 
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
+
 function formatDate(s) {
   if (!s) return ''
-  const [y, m, d] = s.split('-')
-  return `${y}/${Number(m)}/${Number(d)}`
+  const [y, m, d] = s.split('-').map(Number)
+  const wd = WEEKDAY_LABELS[new Date(y, m - 1, d).getDay()]
+  return `${y}/${m}/${d}(${wd})`
 }
 
 const numFmt = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 2 })
@@ -71,7 +74,7 @@ export default function MarketIndexData() {
                         {latest.prevValue != null && (() => {
                           const diff = Number(latest.value) - latest.prevValue
                           const pct = latest.prevValue !== 0 ? (diff / latest.prevValue) * 100 : 0
-                          const color = diff > 0 ? 'text-[#FF3B30]' : diff < 0 ? 'text-[#34C759]' : 'text-[#8E8E93]'
+                          const color = diff < 0 ? 'text-[#FF3B30]' : diff > 0 ? 'text-[#34C759]' : 'text-[#8E8E93]'
                           const sign = diff > 0 ? '+' : ''
                           return (
                             <p className={`text-[11px] font-medium tabular-nums ${color}`}>
