@@ -1,5 +1,9 @@
 // 指標データ（日経平均・TOPIX・ドル円・VT・S&P500・NYダウ・ナスダック）を
-// 公開Googleスプレッドシート(pubhtml)から取り込み、Supabaseに保存する。
+// 公開Googleスプレッドシートから取り込み、Supabaseに保存する。
+//
+// 取得方式: pubhtml は現在のGoogle SheetsではJSで描画されるシェルHTMLしか
+// 返さない（<table>を含まない）ため、代わりに「Publish to web」のCSV出力
+// エンドポイント（/pub?...&output=csv）を使う。これは静的CSVで、JS実行不要。
 //
 // 認証: フロントエンドはログイン中ユーザーの Supabase access_token を
 //       Authorization: Bearer <token> で送る（画面の「取り込み」ボタンから呼ばれる想定）。
@@ -7,10 +11,11 @@
 // 必要な環境変数（他のAPIと共通）:
 //   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
-const SHEET_URLS = [
-  'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUrBziBSn0T7rytbJw-KxksxkK727SitmnOOF40UN1bFcu6pPLt7PUYyW1kslmC0lRDeX8I1rJ_zWD/pubhtml?gid=37935226&single=true',
-  'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUrBziBSn0T7rytbJw-KxksxkK727SitmnOOF40UN1bFcu6pPLt7PUYyW1kslmC0lRDeX8I1rJ_zWD/pubhtml?gid=1456450243&single=true',
-]
+const DOC_ID = '2PACX-1vSUrBziBSn0T7rytbJw-KxksxkK727SitmnOOF40UN1bFcu6pPLt7PUYyW1kslmC0lRDeX8I1rJ_zWD'
+const GIDS = ['37935226', '1456450243']
+const SHEET_CSV_URLS = GIDS.map(gid =>
+  `https://docs.google.com/spreadsheets/d/e/${DOC_ID}/pub?gid=${gid}&single=true&output=csv`
+)
 
 // 見出しテキスト → symbol のマッピング（部分一致・大文字小文字は無視）
 const SYMBOL_KEYWORDS = [
@@ -48,35 +53,34 @@ async function verifyUser(url, anonKey, accessToken) {
   return data?.id ? data : null
 }
 
-// HTMLの<table>から行(<tr>)ごとの<td>テキスト配列を抽出する（<th>の行番号列は自然に無視される）
-function extractRows(html) {
-  const tableMatch = html.match(/<table[\s\S]*?<\/table>/i)
-  if (!tableMatch) return []
-  const table = tableMatch[0]
-  const rows = []
-  for (const trMatch of table.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
-    const tr = trMatch[1]
-    const cells = []
-    for (const tdMatch of tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)) {
-      const text = tdMatch[1]
-        .replace(/<[^>]+>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&#39;/g, "'")
-        .replace(/&quot;/g, '"')
-        .trim()
-      cells.push(text)
+// 1行分のCSVをセル配列にパースする（ダブルクォート内のカンマ・エスケープに対応）
+function parseCsvLine(line) {
+  const result = []
+  let cur = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++ } else { inQuotes = false }
+      } else {
+        cur += c
+      }
+    } else if (c === '"') {
+      inQuotes = true
+    } else if (c === ',') {
+      result.push(cur)
+      cur = ''
+    } else {
+      cur += c
     }
-    if (cells.length) rows.push(cells)
   }
-  return rows
+  result.push(cur)
+  return result.map(s => s.trim())
 }
 
-// 「A, B, C...」のような列アルファベット行（Publish設定で行・列見出し表示がONの場合）を検出
-function looksLikeColumnLetters(row) {
-  return row.length > 1 && row.every((c, i) => c === '' || c === String.fromCharCode(65 + i))
+function parseCsv(text) {
+  return text.split(/\r?\n/).filter(l => l.length > 0).map(parseCsvLine)
 }
 
 function parseDate(text) {
@@ -109,24 +113,17 @@ function matchSymbol(header) {
   return null
 }
 
-// 1シート分のHTMLを解析し、{symbol: [{trade_date, value}]} を返す。
+// 1シート分のCSVを解析し、{symbol: [{trade_date, value}]} を返す。
 // debug には「何が見えていたか」を積む（検出失敗時に原因を特定するため）
-function parseSheet(html, debug) {
-  const rows = extractRows(html)
+function parseSheet(csvText, debug) {
+  const rows = parseCsv(csvText)
   debug.rowCount = rows.length
   debug.firstRows = rows.slice(0, 5)
   if (!rows.length) return {}
 
-  let headerRow = null
-  let dataRows = []
-  for (let i = 0; i < rows.length; i++) {
-    if (looksLikeColumnLetters(rows[i])) continue
-    headerRow = rows[i]
-    dataRows = rows.slice(i + 1)
-    break
-  }
+  const headerRow = rows[0]
+  const dataRows = rows.slice(1)
   debug.headerRow = headerRow
-  if (!headerRow) return {}
 
   let dateColIndex = headerRow.findIndex(h => DATE_HEADER_RE.test(h))
   if (dateColIndex === -1) dateColIndex = 0
@@ -178,18 +175,17 @@ export default async function handler(req, res) {
     const merged = {}
     const warnings = []
     const debugSheets = []
-    for (const sheetUrl of SHEET_URLS) {
+    for (const sheetUrl of SHEET_CSV_URLS) {
       const debug = { url: sheetUrl }
       debugSheets.push(debug)
       const r = await fetch(sheetUrl)
       debug.httpStatus = r.status
+      debug.contentType = r.headers.get('content-type')
       if (!r.ok) { warnings.push(`シート取得失敗 (${r.status}): ${sheetUrl}`); continue }
-      const html = await r.text()
-      debug.htmlLength = html.length
-      debug.hasTable = /<table/i.test(html)
-      debug.htmlSnippet = html.slice(0, 1200)
-      debug.htmlTailSnippet = html.slice(-600)
-      const parsed = parseSheet(html, debug)
+      const csvText = await r.text()
+      debug.textLength = csvText.length
+      debug.textSnippet = csvText.slice(0, 800)
+      const parsed = parseSheet(csvText, debug)
       for (const [symbol, points] of Object.entries(parsed)) {
         (merged[symbol] ??= []).push(...points)
       }
