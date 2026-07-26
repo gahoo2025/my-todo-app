@@ -109,9 +109,12 @@ function matchSymbol(header) {
   return null
 }
 
-// 1シート分のHTMLを解析し、{symbol: [{trade_date, value}]} を返す
-function parseSheet(html) {
+// 1シート分のHTMLを解析し、{symbol: [{trade_date, value}]} を返す。
+// debug には「何が見えていたか」を積む（検出失敗時に原因を特定するため）
+function parseSheet(html, debug) {
   const rows = extractRows(html)
+  debug.rowCount = rows.length
+  debug.firstRows = rows.slice(0, 5)
   if (!rows.length) return {}
 
   let headerRow = null
@@ -122,10 +125,12 @@ function parseSheet(html) {
     dataRows = rows.slice(i + 1)
     break
   }
+  debug.headerRow = headerRow
   if (!headerRow) return {}
 
   let dateColIndex = headerRow.findIndex(h => DATE_HEADER_RE.test(h))
   if (dateColIndex === -1) dateColIndex = 0
+  debug.dateColIndex = dateColIndex
 
   const symbolColumns = {}
   headerRow.forEach((h, i) => {
@@ -133,6 +138,8 @@ function parseSheet(html) {
     const symbol = matchSymbol(h)
     if (symbol) symbolColumns[symbol] = i
   })
+  debug.symbolColumns = symbolColumns
+  debug.sampleDataRow = dataRows[0] ?? null
 
   const result = {}
   for (const row of dataRows) {
@@ -170,11 +177,17 @@ export default async function handler(req, res) {
   try {
     const merged = {}
     const warnings = []
+    const debugSheets = []
     for (const sheetUrl of SHEET_URLS) {
+      const debug = { url: sheetUrl }
+      debugSheets.push(debug)
       const r = await fetch(sheetUrl)
+      debug.httpStatus = r.status
       if (!r.ok) { warnings.push(`シート取得失敗 (${r.status}): ${sheetUrl}`); continue }
       const html = await r.text()
-      const parsed = parseSheet(html)
+      debug.htmlLength = html.length
+      debug.hasTable = /<table/i.test(html)
+      const parsed = parseSheet(html, debug)
       for (const [symbol, points] of Object.entries(parsed)) {
         (merged[symbol] ??= []).push(...points)
       }
@@ -182,7 +195,7 @@ export default async function handler(req, res) {
 
     const symbols = Object.keys(merged)
     if (symbols.length === 0) {
-      return res.status(422).json({ error: 'シートから指標データを検出できませんでした', warnings })
+      return res.status(422).json({ error: 'シートから指標データを検出できませんでした', warnings, debugSheets })
     }
 
     const rows = []

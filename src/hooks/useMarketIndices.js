@@ -61,7 +61,10 @@ export function useMarketIndices(userId) {
       })
       const body = await r.json()
       if (!r.ok) {
-        setImportResult({ error: body?.error?.message || body?.error || '取り込みに失敗しました' })
+        setImportResult({
+          error: body?.error?.message || body?.error || '取り込みに失敗しました',
+          debugSheets: body?.debugSheets,
+        })
         return
       }
       setImportResult({ success: true, counts: body.counts, inserted: body.inserted })

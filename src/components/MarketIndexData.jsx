@@ -31,7 +31,14 @@ export default function MarketIndexData() {
         </div>
 
         {importResult?.error && (
-          <p className="mt-3 text-[12px] text-[#FF3B30]">⚠ {importResult.error}</p>
+          <div className="mt-3">
+            <p className="text-[12px] text-[#FF3B30]">⚠ {importResult.error}</p>
+            {importResult.debugSheets && (
+              <pre className="mt-2 p-2 rounded-[8px] bg-black/[0.04] text-[10px] text-[#636366] overflow-x-auto whitespace-pre-wrap break-all">
+                {JSON.stringify(importResult.debugSheets, null, 2)}
+              </pre>
+            )}
+          </div>
         )}
         {importResult?.success && (
           <p className="mt-3 text-[12px] text-[#34C759]">
