@@ -55,6 +55,7 @@ create table asset_summary (
   user_id uuid primary key references auth.users,
   total numeric not null,
   by_person jsonb not null,
+  by_person_asset jsonb,
   updated_at timestamptz not null default now()
 );
 
@@ -66,6 +67,12 @@ create policy "Users can view their own asset summary"
 ```
 
 このテーブルへの書き込みは資産管理アプリ側（`service_role`キーを使ったサーバーサイド連携）で行うため、このアプリ側にはINSERT/UPDATE用のポリシーは不要です。
+
+`by_person_asset` は後から追加した列です。すでに `asset_summary` テーブルを作成済みの場合は、以下を実行してください。
+
+```sql
+alter table asset_summary add column by_person_asset jsonb;
+```
 
 ## おまけ: テトリス 🎮
 
