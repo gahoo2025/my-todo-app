@@ -187,6 +187,8 @@ export default async function handler(req, res) {
       const html = await r.text()
       debug.htmlLength = html.length
       debug.hasTable = /<table/i.test(html)
+      debug.htmlSnippet = html.slice(0, 1200)
+      debug.htmlTailSnippet = html.slice(-600)
       const parsed = parseSheet(html, debug)
       for (const [symbol, points] of Object.entries(parsed)) {
         (merged[symbol] ??= []).push(...points)
