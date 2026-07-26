@@ -113,38 +113,69 @@ function matchSymbol(header) {
   return null
 }
 
-// 1シート分のCSVを解析し、{symbol: [{trade_date, value}]} を返す。
-// debug には「何が見えていたか」を積む（検出失敗時に原因を特定するため）
+// 空セルを直前の非空値で埋める（結合セル風の見出し行を展開する）
+function forwardFill(row) {
+  const filled = []
+  let last = ''
+  for (const cell of row) {
+    if (cell !== '') last = cell
+    filled.push(last)
+  }
+  return filled
+}
+
+// このシートは「銘柄名（1行目, 結合セル）」→「直近過去1年 / 過去ALL（2行目, 結合セル）」→
+// 「Date/Close/Open/High/Low/Volume（3行目, 実列名）」という3段見出しで、
+// 銘柄ごとに複数ブロックが横に並ぶ構造。各ブロックは独立した行範囲を持つため、
+// 銘柄ごとに「過去ALL」ブロックのDate列・Close列を優先して選び、行はブロック間で
+// 揃っていない前提でそれぞれ独立にパースする。
 function parseSheet(csvText, debug) {
   const rows = parseCsv(csvText)
   debug.rowCount = rows.length
   debug.firstRows = rows.slice(0, 5)
-  if (!rows.length) return {}
+  if (rows.length < 4) return {}
 
-  const headerRow = rows[0]
-  const dataRows = rows.slice(1)
-  debug.headerRow = headerRow
+  const titleRow = forwardFill(rows[0])
+  const periodRow = forwardFill(rows[1])
+  const colNameRow = rows[2]
+  const dataRows = rows.slice(3)
+  debug.titleRow = titleRow
+  debug.periodRow = periodRow
+  debug.colNameRow = colNameRow
+  debug.sampleDataRow = dataRows[0] ?? null
 
-  let dateColIndex = headerRow.findIndex(h => DATE_HEADER_RE.test(h))
-  if (dateColIndex === -1) dateColIndex = 0
-  debug.dateColIndex = dateColIndex
+  // symbol -> { all: {date, close}, recent: {date, close} }
+  const candidatesBySymbol = {}
+  colNameRow.forEach((colName, i) => {
+    const symbol = matchSymbol(titleRow[i] || '')
+    if (!symbol) return
+    const period = /all/i.test(periodRow[i] || '') ? 'all' : 'recent'
+    let key = null
+    if (DATE_HEADER_RE.test(colName)) key = 'date'
+    else if (/close/i.test(colName) || /終値/.test(colName)) key = 'close'
+    if (!key) return
+    candidatesBySymbol[symbol] ??= {}
+    candidatesBySymbol[symbol][period] ??= {}
+    candidatesBySymbol[symbol][period][key] = i
+  })
+  debug.candidatesBySymbol = candidatesBySymbol
 
   const symbolColumns = {}
-  headerRow.forEach((h, i) => {
-    if (i === dateColIndex) return
-    const symbol = matchSymbol(h)
-    if (symbol) symbolColumns[symbol] = i
-  })
+  for (const [symbol, periods] of Object.entries(candidatesBySymbol)) {
+    const chosen =
+      (periods.all?.date != null && periods.all?.close != null) ? periods.all
+      : (periods.recent?.date != null && periods.recent?.close != null) ? periods.recent
+      : null
+    if (chosen) symbolColumns[symbol] = chosen
+  }
   debug.symbolColumns = symbolColumns
-  debug.sampleDataRow = dataRows[0] ?? null
 
   const result = {}
   for (const row of dataRows) {
-    const tradeDate = parseDate(row[dateColIndex])
-    if (!tradeDate) continue
-    for (const [symbol, colIndex] of Object.entries(symbolColumns)) {
-      const value = parseNumber(row[colIndex])
-      if (value == null) continue
+    for (const [symbol, cols] of Object.entries(symbolColumns)) {
+      const tradeDate = parseDate(row[cols.date])
+      const value = parseNumber(row[cols.close])
+      if (!tradeDate || value == null) continue
       ;(result[symbol] ??= []).push({ trade_date: tradeDate, value })
     }
   }
