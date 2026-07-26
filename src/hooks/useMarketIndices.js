@@ -81,15 +81,26 @@ export function useMarketIndices(userId) {
     }
   }
 
+  // SupabaseはPostgRESTのmax-rows設定（既定1000件）により1回のリクエストで
+  // 返せる件数に上限があるため、.range() でページングして全件取得する
   async function fetchHistory(symbol) {
     if (historyBySymbol[symbol]) return
     setHistoryLoading(prev => ({ ...prev, [symbol]: true }))
-    const { data } = await supabase
-      .from('market_index_history').select('trade_date, value')
-      .eq('user_id', userId).eq('symbol', symbol)
-      .order('trade_date', { ascending: true })
-      .limit(20000)
-    setHistoryBySymbol(prev => ({ ...prev, [symbol]: data ?? [] }))
+    const pageSize = 1000
+    const all = []
+    let from = 0
+    while (true) {
+      const { data, error } = await supabase
+        .from('market_index_history').select('trade_date, value')
+        .eq('user_id', userId).eq('symbol', symbol)
+        .order('trade_date', { ascending: true })
+        .range(from, from + pageSize - 1)
+      if (error || !data) break
+      all.push(...data)
+      if (data.length < pageSize) break
+      from += pageSize
+    }
+    setHistoryBySymbol(prev => ({ ...prev, [symbol]: all }))
     setHistoryLoading(prev => ({ ...prev, [symbol]: false }))
   }
 
