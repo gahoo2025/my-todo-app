@@ -13,11 +13,49 @@ function formatDate(s) {
 
 const numFmt = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 2 })
 
-// ── 全期間の折れ線グラフ ──
+const PERIODS = [
+  { id: '1m',  label: '直近1か月', days: 30,   maWindow: 5 },
+  { id: 'all', label: '全期間',    days: null, maWindow: 25 },
+]
+
+function filterLastNDays(points, days) {
+  if (!points.length || days == null) return points
+  const lastDate = new Date(points[points.length - 1].trade_date)
+  const cutoff = new Date(lastDate)
+  cutoff.setDate(cutoff.getDate() - days)
+  return points.filter(p => new Date(p.trade_date) >= cutoff)
+}
+
+// 単純移動平均（window未満の先頭区間はnull＝未描画）
+function movingAverage(points, window) {
+  return points.map((_, i) => {
+    if (i < window - 1) return null
+    let sum = 0
+    for (let j = i - window + 1; j <= i; j++) sum += Number(points[j].value)
+    return sum / window
+  })
+}
+
+// ── 折れ線グラフ（期間切り替え＋移動平均） ──
 function IndexChart({ points }) {
+  const [periodId, setPeriodId] = useState('1m')
+  const period = PERIODS.find(p => p.id === periodId)
+
+  // 表示期間で絞る前の全期間データで移動平均を計算し、表示範囲の先頭でも
+  // 直前の実績を使ったMAが途切れないようにする
+  const fullMa = useMemo(() => movingAverage(points, period.maWindow), [points, period.maWindow])
+  const cutoffIndex = useMemo(() => {
+    if (period.days == null) return 0
+    const filtered = filterLastNDays(points, period.days)
+    return points.length - filtered.length
+  }, [points, period.days])
+  const filtered = useMemo(() => points.slice(cutoffIndex), [points, cutoffIndex])
+  const ma = useMemo(() => fullMa.slice(cutoffIndex), [fullMa, cutoffIndex])
+
   const chart = useMemo(() => {
-    if (points.length < 2) return null
-    const values = points.map(p => Number(p.value))
+    if (filtered.length < 2) return null
+    const maValues = ma.filter(v => v != null)
+    const values = [...filtered.map(p => Number(p.value)), ...maValues]
     const min = Math.min(...values)
     const max = Math.max(...values)
     const pad = Math.max((max - min) * 0.08, 0.01)
@@ -25,23 +63,30 @@ function IndexChart({ points }) {
     const hi = max + pad
     const w = 100
     const h = 100
-    const step = w / (points.length - 1)
-    const coords = points.map((p, i) => ({
-      x: i * step,
-      y: h - ((Number(p.value) - lo) / (hi - lo)) * h,
-    }))
-    return { coords }
-  }, [points])
+    const step = w / (filtered.length - 1)
+    const toY = v => h - ((v - lo) / (hi - lo)) * h
+    const linePoints = filtered.map((p, i) => ({ x: i * step, y: toY(Number(p.value)) }))
+    const maPoints = ma
+      .map((v, i) => (v == null ? null : { x: i * step, y: toY(v) }))
+      .filter(Boolean)
+    return { linePoints, maPoints }
+  }, [filtered, ma])
 
-  if (!chart) {
-    return <p className="text-[13px] text-[#AEAEB2] py-6 text-center">グラフを表示するにはデータが2件以上必要です</p>
+  if (filtered.length < 2) {
+    return (
+      <div>
+        <PeriodTabs periodId={periodId} onChange={setPeriodId} />
+        <p className="text-[13px] text-[#AEAEB2] py-6 text-center">この期間はデータが2件以上ありません</p>
+      </div>
+    )
   }
 
-  const first = points[0]
-  const last = points[points.length - 1]
+  const first = filtered[0]
+  const last = filtered[filtered.length - 1]
 
   return (
     <div>
+      <PeriodTabs periodId={periodId} onChange={setPeriodId} />
       <div className="relative h-[160px]">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
           <polyline
@@ -51,15 +96,49 @@ function IndexChart({ points }) {
             vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
             strokeLinejoin="round"
-            points={chart.coords.map(c => `${c.x},${c.y}`).join(' ')}
+            points={chart.linePoints.map(c => `${c.x},${c.y}`).join(' ')}
           />
+          {chart.maPoints.length > 1 && (
+            <polyline
+              fill="none"
+              stroke="#FF9500"
+              strokeWidth="1.2"
+              strokeDasharray="3,2"
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              points={chart.maPoints.map(c => `${c.x},${c.y}`).join(' ')}
+            />
+          )}
         </svg>
+      </div>
+      <div className="flex items-center gap-3 mt-1 text-[10px] text-[#8E8E93]">
+        <span><span className="text-[#007AFF]">■</span> 実績</span>
+        <span><span className="text-[#FF9500]">┄</span> {period.maWindow}日移動平均</span>
       </div>
       <div className="flex items-center justify-between mt-2 text-[11px] text-[#AEAEB2]">
         <span>{formatDate(first.trade_date)}・{numFmt.format(Number(first.value))}</span>
         <span>{formatDate(last.trade_date)}・{numFmt.format(Number(last.value))}</span>
       </div>
-      <p className="text-center text-[11px] text-[#AEAEB2] mt-1">{points.length}件</p>
+      <p className="text-center text-[11px] text-[#AEAEB2] mt-1">{filtered.length}件</p>
+    </div>
+  )
+}
+
+function PeriodTabs({ periodId, onChange }) {
+  return (
+    <div className="flex gap-1.5 mb-2">
+      {PERIODS.map(p => (
+        <button
+          key={p.id}
+          onClick={() => onChange(p.id)}
+          className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
+            periodId === p.id ? 'bg-[#1C1C1E] text-white' : 'bg-black/[0.04] text-[#8E8E93]'
+          }`}
+        >
+          {p.label}
+        </button>
+      ))}
     </div>
   )
 }
