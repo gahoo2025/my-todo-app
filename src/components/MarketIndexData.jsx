@@ -14,8 +14,14 @@ function formatDate(s) {
 const numFmt = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 2 })
 
 const PERIODS = [
-  { id: '1m',  label: '直近1か月', days: 30,   maWindow: 5 },
-  { id: 'all', label: '全期間',    days: null, maWindow: 25 },
+  { id: '1m',  label: '直近1か月', days: 30 },
+  { id: 'all', label: '全期間',    days: null },
+]
+
+const MA_LINES = [
+  { window: 5,  color: '#FF9500', label: '5日' },
+  { window: 25, color: '#AF52DE', label: '25日' },
+  { window: 75, color: '#34C759', label: '75日' },
 ]
 
 function filterLastNDays(points, days) {
@@ -43,18 +49,21 @@ function IndexChart({ points }) {
 
   // 表示期間で絞る前の全期間データで移動平均を計算し、表示範囲の先頭でも
   // 直前の実績を使ったMAが途切れないようにする
-  const fullMa = useMemo(() => movingAverage(points, period.maWindow), [points, period.maWindow])
+  const fullMas = useMemo(
+    () => MA_LINES.map(m => movingAverage(points, m.window)),
+    [points]
+  )
   const cutoffIndex = useMemo(() => {
     if (period.days == null) return 0
     const filtered = filterLastNDays(points, period.days)
     return points.length - filtered.length
   }, [points, period.days])
   const filtered = useMemo(() => points.slice(cutoffIndex), [points, cutoffIndex])
-  const ma = useMemo(() => fullMa.slice(cutoffIndex), [fullMa, cutoffIndex])
+  const mas = useMemo(() => fullMas.map(ma => ma.slice(cutoffIndex)), [fullMas, cutoffIndex])
 
   const chart = useMemo(() => {
     if (filtered.length < 2) return null
-    const maValues = ma.filter(v => v != null)
+    const maValues = mas.flat().filter(v => v != null)
     const values = [...filtered.map(p => Number(p.value)), ...maValues]
     const min = Math.min(...values)
     const max = Math.max(...values)
@@ -66,11 +75,11 @@ function IndexChart({ points }) {
     const step = w / (filtered.length - 1)
     const toY = v => h - ((v - lo) / (hi - lo)) * h
     const linePoints = filtered.map((p, i) => ({ x: i * step, y: toY(Number(p.value)) }))
-    const maPoints = ma
-      .map((v, i) => (v == null ? null : { x: i * step, y: toY(v) }))
-      .filter(Boolean)
-    return { linePoints, maPoints }
-  }, [filtered, ma])
+    const maLinePoints = mas.map(ma =>
+      ma.map((v, i) => (v == null ? null : { x: i * step, y: toY(v) })).filter(Boolean)
+    )
+    return { linePoints, maLinePoints }
+  }, [filtered, mas])
 
   if (filtered.length < 2) {
     return (
@@ -98,23 +107,30 @@ function IndexChart({ points }) {
             strokeLinejoin="round"
             points={chart.linePoints.map(c => `${c.x},${c.y}`).join(' ')}
           />
-          {chart.maPoints.length > 1 && (
-            <polyline
-              fill="none"
-              stroke="#FF9500"
-              strokeWidth="1.2"
-              strokeDasharray="3,2"
-              vectorEffect="non-scaling-stroke"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              points={chart.maPoints.map(c => `${c.x},${c.y}`).join(' ')}
-            />
-          )}
+          {MA_LINES.map((m, i) => {
+            const pts = chart.maLinePoints[i]
+            if (pts.length < 2) return null
+            return (
+              <polyline
+                key={m.window}
+                fill="none"
+                stroke={m.color}
+                strokeWidth="1.2"
+                strokeDasharray="3,2"
+                vectorEffect="non-scaling-stroke"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={pts.map(c => `${c.x},${c.y}`).join(' ')}
+              />
+            )
+          })}
         </svg>
       </div>
-      <div className="flex items-center gap-3 mt-1 text-[10px] text-[#8E8E93]">
+      <div className="flex items-center gap-3 mt-1 text-[10px] text-[#8E8E93] flex-wrap">
         <span><span className="text-[#007AFF]">■</span> 実績</span>
-        <span><span className="text-[#FF9500]">┄</span> {period.maWindow}日移動平均</span>
+        {MA_LINES.map(m => (
+          <span key={m.window}><span style={{ color: m.color }}>┄</span> {m.label}移動平均</span>
+        ))}
       </div>
       <div className="flex items-center justify-between mt-2 text-[11px] text-[#AEAEB2]">
         <span>{formatDate(first.trade_date)}・{numFmt.format(Number(first.value))}</span>
