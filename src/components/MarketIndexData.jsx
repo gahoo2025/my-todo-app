@@ -14,8 +14,11 @@ function formatDate(s) {
 const numFmt = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 2 })
 
 const PERIODS = [
-  { id: '1m',  label: '直近1か月', days: 30 },
-  { id: 'all', label: '全期間',    days: null },
+  { id: '1m',  label: '1か月',  days: 30 },
+  { id: '3m',  label: '3か月',  days: 90 },
+  { id: '6m',  label: '6か月',  days: 180 },
+  { id: '1y',  label: '1年',    days: 365 },
+  { id: 'all', label: '全期間', days: null },
 ]
 
 const MA_LINES = [
