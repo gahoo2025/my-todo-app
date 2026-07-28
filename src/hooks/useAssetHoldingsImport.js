@@ -49,9 +49,9 @@ function decodeText(buf) {
 
 // ファイル名の先頭パターンで種別を判定する（資産管理アプリの手動ダウンロード手順で固定）
 function detectTypeFromFilename(filename) {
-  if (/^assetbalanceall_/i.test(filename)) return 'assetbalanceall'
-  if (/^assetbalanceinvst_/i.test(filename)) return 'assetbalanceinvst'
-  if (/^balancesummary_/i.test(filename)) return 'balancesummary'
+  if (/^assetbalance\(all\)_/i.test(filename)) return 'assetbalanceall'
+  if (/^assetbalance\(invst\)_/i.test(filename)) return 'assetbalanceinvst'
+  if (/^balance-summary_/i.test(filename)) return 'balancesummary'
   if (/^stockposition/i.test(filename)) return 'stockposition'
   return null
 }

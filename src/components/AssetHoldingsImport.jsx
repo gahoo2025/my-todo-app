@@ -8,7 +8,7 @@ const TYPE_LABELS = {
   stockposition: '個別株ポジション',
 }
 
-const REQUIRED_LABELS = 'assetbalanceall×2・assetbalanceINVST×3・balancesummary×1・stockposition×1（計7）'
+const REQUIRED_LABELS = 'assetbalance(all)×2・assetbalance(INVST)×3・balance-summary×1・stockposition×1（計7）'
 
 function formatDate(yyyymmdd) {
   return `${yyyymmdd.slice(0, 4)}/${yyyymmdd.slice(4, 6)}/${yyyymmdd.slice(6, 8)}`
@@ -89,7 +89,7 @@ export default function AssetHoldingsImport() {
               </div>
               {!g.ok && (
                 <p className="text-[11px] text-[#8E8E93] mt-1">
-                  assetbalanceall:{g.counts.assetbalanceall}/2　assetbalanceINVST:{g.counts.assetbalanceinvst}/3　balancesummary:{g.counts.balancesummary}/1　stockposition:{g.counts.stockposition}/1
+                  assetbalance(all):{g.counts.assetbalanceall}/2　assetbalance(INVST):{g.counts.assetbalanceinvst}/3　balance-summary:{g.counts.balancesummary}/1　stockposition:{g.counts.stockposition}/1
                 </p>
               )}
               {g.ok && (
