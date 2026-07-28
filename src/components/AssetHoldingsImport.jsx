@@ -14,11 +14,11 @@ function formatDate(yyyymmdd) {
   return `${yyyymmdd.slice(0, 4)}/${yyyymmdd.slice(4, 6)}/${yyyymmdd.slice(6, 8)}`
 }
 
-export default function AssetHoldingsImport() {
+export default function AssetHoldingsImport({ onImported }) {
   const {
     folderName, groups, unmatchedFiles, scannedFiles, scanning, importing, importResult,
-    restoreFolder, pickFolder, scanFolder, runImport,
-  } = useAssetHoldingsImport()
+    restoreFolder, pickFolder, scanAndImport,
+  } = useAssetHoldingsImport(onImported)
 
   useEffect(() => { restoreFolder() }, [restoreFolder])
 
@@ -32,8 +32,6 @@ export default function AssetHoldingsImport() {
       </div>
     )
   }
-
-  const readyCount = groups.filter(g => g.ok).length
 
   return (
     <div className="ios-card px-4 py-4 mb-3">
@@ -54,11 +52,11 @@ export default function AssetHoldingsImport() {
 
       {folderName && (
         <button
-          onClick={scanFolder}
-          disabled={scanning}
+          onClick={scanAndImport}
+          disabled={scanning || importing}
           className="mt-3 w-full px-4 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[14px] font-semibold disabled:opacity-40 active:opacity-70 transition-opacity"
         >
-          {scanning ? '読み込み中…' : 'フォルダを確認'}
+          {scanning ? '読み込み中…' : importing ? '取り込み中…' : 'フォルダを確認して取り込む'}
         </button>
       )}
 
@@ -108,13 +106,6 @@ export default function AssetHoldingsImport() {
               判別できないファイル {unmatchedFiles.length}件は無視されます
             </p>
           )}
-          <button
-            onClick={runImport}
-            disabled={importing || readyCount === 0}
-            className="w-full px-4 py-2.5 rounded-[10px] bg-[#34C759] text-white text-[14px] font-semibold disabled:opacity-40 active:opacity-70 transition-opacity"
-          >
-            {importing ? '取り込み中…' : `${readyCount}日分を取り込む`}
-          </button>
         </div>
       )}
 

@@ -96,7 +96,7 @@ function buildGroups(files) {
   return groups.sort((a, b) => a.date.localeCompare(b.date))
 }
 
-export function useAssetHoldingsImport() {
+export function useAssetHoldingsImport(onImported) {
   const [folderName, setFolderName] = useState(null)
   const [groups, setGroups] = useState([])
   const [unmatchedFiles, setUnmatchedFiles] = useState([])
@@ -125,48 +125,8 @@ export function useAssetHoldingsImport() {
     setImportResult(null)
   }
 
-  async function scanFolder() {
-    setScanning(true)
-    setImportResult(null)
-    try {
-      let handle = await loadHandle()
-      if (!handle) { setScanning(false); return }
-      const perm = await handle.queryPermission({ mode: 'read' })
-      if (perm !== 'granted') {
-        const req = await handle.requestPermission({ mode: 'read' })
-        if (req !== 'granted') { setScanning(false); return }
-      }
-      setFolderName(handle.name)
-
-      const files = []
-      for await (const entry of handle.values()) {
-        if (entry.kind !== 'file' || !entry.name.toLowerCase().endsWith('.csv')) continue
-        const file = await entry.getFile()
-        const buf = await file.arrayBuffer()
-        const text = decodeText(buf)
-        const type = detectTypeFromFilename(entry.name)
-        files.push({ filename: entry.name, text, type })
-      }
-      setUnmatchedFiles(files.filter(f => !f.type).map(f => f.filename))
-      setGroups(buildGroups(files.filter(f => f.type)))
-      setScannedFiles(files.map(f => ({
-        filename: f.filename,
-        type: f.type,
-        stamp: f.type ? parseFilenameStamp(f.filename) : null,
-      })))
-    } finally {
-      setScanning(false)
-    }
-  }
-
-  async function runImport() {
-    const readyFiles = groups.filter(g => g.ok).flatMap(g => g.files)
-    if (readyFiles.length === 0) {
-      setImportResult({ error: '取り込める日付分がありません（7ファイルが揃っている日付がありません）' })
-      return
-    }
+  async function doImport(readyFiles) {
     setImporting(true)
-    setImportResult(null)
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData?.session?.access_token
@@ -192,7 +152,7 @@ export function useAssetHoldingsImport() {
         return
       }
       setImportResult({ success: true, ...body })
-      setGroups([])
+      onImported?.()
     } catch (err) {
       setImportResult({ error: `${err?.name ?? 'Error'}: ${err?.message ?? String(err)}` })
     } finally {
@@ -200,8 +160,52 @@ export function useAssetHoldingsImport() {
     }
   }
 
+  // フォルダ確認→対象日付の判定→取り込みまでを1回の操作で行う
+  async function scanAndImport() {
+    setScanning(true)
+    setImportResult(null)
+    try {
+      let handle = await loadHandle()
+      if (!handle) { setScanning(false); return }
+      const perm = await handle.queryPermission({ mode: 'read' })
+      if (perm !== 'granted') {
+        const req = await handle.requestPermission({ mode: 'read' })
+        if (req !== 'granted') { setScanning(false); return }
+      }
+      setFolderName(handle.name)
+
+      const files = []
+      for await (const entry of handle.values()) {
+        if (entry.kind !== 'file' || !entry.name.toLowerCase().endsWith('.csv')) continue
+        const file = await entry.getFile()
+        const buf = await file.arrayBuffer()
+        const text = decodeText(buf)
+        const type = detectTypeFromFilename(entry.name)
+        files.push({ filename: entry.name, text, type })
+      }
+      setUnmatchedFiles(files.filter(f => !f.type).map(f => f.filename))
+      const builtGroups = buildGroups(files.filter(f => f.type))
+      setGroups(builtGroups)
+      setScannedFiles(files.map(f => ({
+        filename: f.filename,
+        type: f.type,
+        stamp: f.type ? parseFilenameStamp(f.filename) : null,
+      })))
+
+      const readyFiles = builtGroups.filter(g => g.ok).flatMap(g => g.files)
+      setScanning(false)
+      if (readyFiles.length === 0) {
+        setImportResult({ error: '取り込める日付分がありません（7ファイルが揃っている日付がありません）' })
+        return
+      }
+      await doImport(readyFiles)
+    } finally {
+      setScanning(false)
+    }
+  }
+
   return {
     folderName, groups, unmatchedFiles, scannedFiles, scanning, importing, importResult,
-    restoreFolder, pickFolder, scanFolder, runImport,
+    restoreFolder, pickFolder, scanAndImport,
   }
 }

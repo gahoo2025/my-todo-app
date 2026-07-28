@@ -141,14 +141,15 @@ function FamilyAssetSummary() {
 
 export default function AssetsPage({ embedded }) {
   const [sub, setSub] = useState('marketlog')
+  const [assetRefreshKey, setAssetRefreshKey] = useState(0)
 
   const body = (
     <>
       {/* 家族の資産集計（資産管理アプリからの連携） */}
-      <FamilyAssetSummary />
+      <FamilyAssetSummary key={assetRefreshKey} />
 
       {/* 資産管理アプリのCSVファイル取り込み */}
-      <AssetHoldingsImport />
+      <AssetHoldingsImport onImported={() => setAssetRefreshKey(k => k + 1)} />
 
       {/* サブ機能セグメント */}
       <div className="sticky top-below-header z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
