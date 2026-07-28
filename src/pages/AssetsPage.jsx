@@ -11,8 +11,8 @@ import AssetHoldingsImport from '../components/AssetHoldingsImport'
 // 資産管理（資産情報・家計情報）と投資管理（投資情報・監視銘柄・指標データ蓄積）の
 // うち、投資管理のサブ機能をここに並べる
 const SUB_FEATURES = [
-  { id: 'family',    label: '家族の資産' },
   { id: 'indices',   label: '指標データ' },
+  { id: 'family',    label: '家族の資産' },
   { id: 'marketlog', label: 'マーケットログ' },
   { id: 'watch',     label: '監視銘柄' },
 ]
@@ -141,7 +141,7 @@ function FamilyAssetSummary() {
 }
 
 export default function AssetsPage({ embedded }) {
-  const [sub, setSub] = useState('family')
+  const [sub, setSub] = useState('indices')
   const [assetRefreshKey, setAssetRefreshKey] = useState(0)
 
   const body = (
