@@ -11,6 +11,10 @@
 // 必要な環境変数（他のAPIと共通）:
 //   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
+// Vercelのサーバー関数の実行時間上限を延ばす（Hobbyプランで指定可能な最大値）。
+// シート側が数式(GOOGLEFINANCE等)を再計算中だと公開CSVの更新に時間がかかることがあるため。
+export const config = { maxDuration: 60 }
+
 const DOC_ID = '2PACX-1vSUrBziBSn0T7rytbJw-KxksxkK727SitmnOOF40UN1bFcu6pPLt7PUYyW1kslmC0lRDeX8I1rJ_zWD'
 const GIDS = ['37935226', '1456450243']
 const SHEET_CSV_URLS = GIDS.map(gid =>
@@ -215,7 +219,7 @@ export default async function handler(req, res) {
       // 検出したら少し待って数回リトライする
       let csvText = ''
       let attempts = 0
-      const maxAttempts = 4
+      const maxAttempts = 6
       while (attempts < maxAttempts) {
         attempts++
         const r = await fetch(sheetUrl)
@@ -224,7 +228,7 @@ export default async function handler(req, res) {
         if (!r.ok) { warnings.push(`シート取得失敗 (${r.status}): ${sheetUrl}`); csvText = ''; break }
         csvText = await r.text()
         if (!csvText.includes('読み込んでいます') && !csvText.includes('Loading')) break
-        if (attempts < maxAttempts) await new Promise(res => setTimeout(res, 2000))
+        if (attempts < maxAttempts) await new Promise(res => setTimeout(res, 4000))
       }
       debug.attempts = attempts
       debug.textLength = csvText.length
