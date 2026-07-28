@@ -100,6 +100,7 @@ export function useAssetHoldingsImport() {
   const [folderName, setFolderName] = useState(null)
   const [groups, setGroups] = useState([])
   const [unmatchedFiles, setUnmatchedFiles] = useState([])
+  const [scannedFiles, setScannedFiles] = useState([])
   const [scanning, setScanning] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState(null)
@@ -148,6 +149,11 @@ export function useAssetHoldingsImport() {
       }
       setUnmatchedFiles(files.filter(f => !f.type).map(f => f.filename))
       setGroups(buildGroups(files.filter(f => f.type)))
+      setScannedFiles(files.map(f => ({
+        filename: f.filename,
+        type: f.type,
+        stamp: f.type ? parseFilenameStamp(f.filename) : null,
+      })))
     } finally {
       setScanning(false)
     }
@@ -195,7 +201,7 @@ export function useAssetHoldingsImport() {
   }
 
   return {
-    folderName, groups, unmatchedFiles, scanning, importing, importResult,
+    folderName, groups, unmatchedFiles, scannedFiles, scanning, importing, importResult,
     restoreFolder, pickFolder, scanFolder, runImport,
   }
 }

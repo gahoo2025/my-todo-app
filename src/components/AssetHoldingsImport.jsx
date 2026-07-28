@@ -16,7 +16,7 @@ function formatDate(yyyymmdd) {
 
 export default function AssetHoldingsImport() {
   const {
-    folderName, groups, unmatchedFiles, scanning, importing, importResult,
+    folderName, groups, unmatchedFiles, scannedFiles, scanning, importing, importResult,
     restoreFolder, pickFolder, scanFolder, runImport,
   } = useAssetHoldingsImport()
 
@@ -60,6 +60,20 @@ export default function AssetHoldingsImport() {
         >
           {scanning ? '読み込み中…' : 'フォルダを確認'}
         </button>
+      )}
+
+      {scannedFiles.length > 0 && (
+        <details className="mt-3">
+          <summary className="text-[11px] text-[#007AFF]">検出したファイル一覧（{scannedFiles.length}件）</summary>
+          <div className="mt-1.5 space-y-0.5">
+            {scannedFiles.map(f => (
+              <p key={f.filename} className="text-[10px] text-[#8E8E93] break-all">
+                {f.filename} — {f.type ?? '判別不可'}
+                {f.stamp && `（日付:${f.stamp.date} 時刻:${f.stamp.time || 'なし'}）`}
+              </p>
+            ))}
+          </div>
+        </details>
       )}
 
       {groups.length > 0 && (
