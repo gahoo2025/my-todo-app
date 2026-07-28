@@ -99,7 +99,15 @@ function parseBalanceSummary(text, filename) {
       recorded_at: recordedAt,
     })
   }
-  return { holdings, totals: [] }
+  return { holdings, totals: sumTotal(holdings) }
+}
+
+function sumTotal(holdings) {
+  if (holdings.length === 0) return []
+  const recordedAt = holdings[0].recorded_at
+  if (!recordedAt) return []
+  const total = holdings.reduce((s, h) => s + Number(h.market_value ?? 0), 0)
+  return [{ total_value: total, recorded_at: recordedAt }]
 }
 
 function parseInvst(text, filename) {
@@ -122,7 +130,7 @@ function parseInvst(text, filename) {
       recorded_at: recordedAt,
     })
   }
-  return { holdings, totals: [] }
+  return { holdings, totals: sumTotal(holdings) }
 }
 
 function parseStockPosition(text) {
@@ -145,7 +153,7 @@ function parseStockPosition(text) {
       recorded_at: recordedAt,
     })
   }
-  return { holdings, totals: [] }
+  return { holdings, totals: sumTotal(holdings) }
 }
 
 function parseAssetBalanceAll(text, filename) {
