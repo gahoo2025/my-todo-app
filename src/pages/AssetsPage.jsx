@@ -1,5 +1,6 @@
 import { useAuth } from '../hooks/useAuth'
 import { useAssetTotalsSummary } from '../hooks/useAssetTotalsSummary'
+import { useAssetHoldingsLatest } from '../hooks/useAssetHoldingsLatest'
 import { useState } from 'react'
 import MarketLogSection from '../components/MarketLog'
 import WatchStocksSection from '../components/WatchStocks'
@@ -27,6 +28,8 @@ function formatDate(s) {
 function FamilyAssetSummary() {
   const { user } = useAuth()
   const { byPersonBroker, total, latestDate, loading, refetch } = useAssetTotalsSummary(user?.id)
+  const { byPerson: holdingsByPerson, loading: holdingsLoading } = useAssetHoldingsLatest(user?.id)
+  const [expanded, setExpanded] = useState(null)
 
   if (loading) return null
 
@@ -64,23 +67,63 @@ function FamilyAssetSummary() {
         <div className="divide-y divide-black/[0.04]">
           {entries.map(([name, amount, brokers]) => {
             const breakdown = Object.entries(brokers).filter(([, v]) => v > 0)
+            const holdings = holdingsByPerson[name] ?? []
+            const isOpen = expanded === name
             return (
-              <div key={name} className="px-4 py-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[15px] font-medium text-[#1C1C1E]">{name}</span>
-                  <div className="text-right">
-                    <p className="text-[15px] font-semibold text-[#1C1C1E] tabular-nums">{yen.format(amount)}</p>
-                    <p className="text-[11px] text-[#AEAEB2]">{total > 0 ? ((amount / total) * 100).toFixed(0) : 0}%</p>
+              <div key={name}>
+                <button
+                  onClick={() => setExpanded(isOpen ? null : name)}
+                  className="w-full px-4 py-2.5 text-left active:bg-black/[0.02] transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[15px] font-medium text-[#1C1C1E]">{name}</span>
+                    <div className="text-right">
+                      <p className="text-[15px] font-semibold text-[#1C1C1E] tabular-nums">{yen.format(amount)}</p>
+                      <p className="text-[11px] text-[#AEAEB2]">{total > 0 ? ((amount / total) * 100).toFixed(0) : 0}%</p>
+                    </div>
                   </div>
-                </div>
-                {breakdown.length > 1 && (
-                  <div className="mt-1.5 space-y-1 border-l-2 border-black/[0.06] pl-3">
-                    {breakdown.map(([broker, brokerAmount]) => (
-                      <div key={broker} className="flex items-center justify-between">
-                        <span className="text-[12px] text-[#8E8E93]">{broker}証券</span>
-                        <span className="text-[12px] text-[#8E8E93] tabular-nums">{yen.format(brokerAmount)}</span>
+                  {breakdown.length > 1 && (
+                    <div className="mt-1.5 space-y-1 border-l-2 border-black/[0.06] pl-3">
+                      {breakdown.map(([broker, brokerAmount]) => (
+                        <div key={broker} className="flex items-center justify-between">
+                          <span className="text-[12px] text-[#8E8E93]">{broker}証券</span>
+                          <span className="text-[12px] text-[#8E8E93] tabular-nums">{yen.format(brokerAmount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-3">
+                    {holdingsLoading ? (
+                      <p className="text-[12px] text-[#AEAEB2] py-3 text-center">読み込み中…</p>
+                    ) : holdings.length === 0 ? (
+                      <p className="text-[12px] text-[#AEAEB2] py-3 text-center">個別銘柄の情報がありません</p>
+                    ) : (
+                      <div className="space-y-1.5 bg-black/[0.02] rounded-[10px] p-2.5">
+                        {holdings.map(h => {
+                          const pl = Number(h.unrealized_pl ?? 0)
+                          const plColor = pl < 0 ? 'text-[#FF3B30]' : pl > 0 ? 'text-[#34C759]' : 'text-[#8E8E93]'
+                          const sign = pl > 0 ? '+' : ''
+                          return (
+                            <div key={`${h.broker}_${h.holding_type}_${h.symbol_code}_${h.symbol_name}_${h.account_type}`} className="flex items-center justify-between">
+                              <div className="min-w-0">
+                                <p className="text-[12px] text-[#1C1C1E] truncate">{h.symbol_name}</p>
+                                <p className="text-[10px] text-[#AEAEB2]">{h.broker}証券・{h.account_type || '—'}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0 ml-2">
+                                <p className="text-[12px] text-[#1C1C1E] tabular-nums">{yen.format(Number(h.market_value ?? 0))}</p>
+                                {h.unrealized_pl != null && (
+                                  <p className={`text-[10px] tabular-nums ${plColor}`}>
+                                    {sign}{yen.format(pl)}{h.unrealized_pl_pct != null && ` (${sign}${Number(h.unrealized_pl_pct).toFixed(1)}%)`}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
