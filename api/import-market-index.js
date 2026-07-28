@@ -209,13 +209,31 @@ export default async function handler(req, res) {
     for (const sheetUrl of SHEET_CSV_URLS) {
       const debug = { url: sheetUrl }
       debugSheets.push(debug)
-      const r = await fetch(sheetUrl)
-      debug.httpStatus = r.status
-      debug.contentType = r.headers.get('content-type')
-      if (!r.ok) { warnings.push(`シート取得失敗 (${r.status}): ${sheetUrl}`); continue }
-      const csvText = await r.text()
+
+      // シートが数式（GOOGLEFINANCE等）を計算中だと、公開CSVが一時的に
+      // "読み込んでいます..." のプレースホルダーのまま返ることがあるため、
+      // 検出したら少し待って数回リトライする
+      let csvText = ''
+      let attempts = 0
+      const maxAttempts = 4
+      while (attempts < maxAttempts) {
+        attempts++
+        const r = await fetch(sheetUrl)
+        debug.httpStatus = r.status
+        debug.contentType = r.headers.get('content-type')
+        if (!r.ok) { warnings.push(`シート取得失敗 (${r.status}): ${sheetUrl}`); csvText = ''; break }
+        csvText = await r.text()
+        if (!csvText.includes('読み込んでいます') && !csvText.includes('Loading')) break
+        if (attempts < maxAttempts) await new Promise(res => setTimeout(res, 2000))
+      }
+      debug.attempts = attempts
       debug.textLength = csvText.length
       debug.textSnippet = csvText.slice(0, 800)
+      if (!csvText) continue
+      if (csvText.includes('読み込んでいます') || csvText.includes('Loading')) {
+        warnings.push(`シートが計算中のため取得できませんでした（${attempts}回試行）: ${sheetUrl}`)
+        continue
+      }
       const parsed = parseSheet(csvText, debug)
       for (const [symbol, points] of Object.entries(parsed)) {
         (merged[symbol] ??= []).push(...points)
