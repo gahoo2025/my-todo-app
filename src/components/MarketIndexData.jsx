@@ -21,13 +21,16 @@ const PERIODS = [
   { id: 'all', label: '全期間', days: null },
 ]
 
+// 実績は黒。移動平均は同系色(青)で統一し、日数が長いほど「太く・濃く・破線が大きく」なる
+// ことで直感的に短期/長期を判別できるようにする
+const MA_COLOR = '0, 122, 255'
 const MA_LINES = [
-  { window: 5,   color: '#FF9500', label: '5日' },
-  { window: 25,  color: '#AF52DE', label: '25日' },
-  { window: 50,  color: '#FFCC00', label: '50日' },
-  { window: 75,  color: '#34C759', label: '75日' },
-  { window: 100, color: '#5AC8FA', label: '100日' },
-  { window: 200, color: '#FF3B30', label: '200日' },
+  { window: 5,   label: '5日',   strokeWidth: 0.8, dash: '1.5,1.5', opacity: 0.35 },
+  { window: 25,  label: '25日',  strokeWidth: 1.1, dash: '2.5,2',   opacity: 0.5 },
+  { window: 50,  label: '50日',  strokeWidth: 1.4, dash: '3.5,2',   opacity: 0.65 },
+  { window: 75,  label: '75日',  strokeWidth: 1.7, dash: '5,2.5',   opacity: 0.8 },
+  { window: 100, label: '100日', strokeWidth: 2.0, dash: '6.5,3',   opacity: 0.9 },
+  { window: 200, label: '200日', strokeWidth: 2.4, dash: '8,3.5',   opacity: 1 },
 ]
 
 function filterLastNDays(points, days) {
@@ -130,8 +133,8 @@ function IndexChart({ points }) {
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
           <polyline
             fill="none"
-            stroke="#007AFF"
-            strokeWidth="1.2"
+            stroke="#000000"
+            strokeWidth="1.3"
             vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -144,9 +147,9 @@ function IndexChart({ points }) {
               <polyline
                 key={m.window}
                 fill="none"
-                stroke={m.color}
-                strokeWidth="1.2"
-                strokeDasharray="3,2"
+                stroke={`rgba(${MA_COLOR}, ${m.opacity})`}
+                strokeWidth={m.strokeWidth}
+                strokeDasharray={m.dash}
                 vectorEffect="non-scaling-stroke"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -156,17 +159,36 @@ function IndexChart({ points }) {
           })}
         </svg>
       </div>
-      <div className="flex items-center gap-3 mt-1 text-[10px] text-[#8E8E93] flex-wrap">
-        <span><span className="text-[#007AFF]">■</span> 実績</span>
-        {MA_LINES.map(m => (
-          <span key={m.window}><span style={{ color: m.color }}>┄</span> {m.label}移動平均</span>
-        ))}
-      </div>
       <div className="flex items-center justify-between mt-2 text-[11px] text-[#AEAEB2]">
         <span>{formatDate(first.trade_date)}・{numFmt.format(Number(first.value))}</span>
         <span>{formatDate(last.trade_date)}・{numFmt.format(Number(last.value))}</span>
       </div>
       <p className="text-center text-[11px] text-[#AEAEB2] mt-1">{filtered.length}件</p>
+    </div>
+  )
+}
+
+// 実績・移動平均の凡例（各指標のグラフではなく画面上部に共通で1つだけ表示）
+function ChartLegend() {
+  return (
+    <div className="flex items-center gap-3 flex-wrap text-[10px] text-[#8E8E93]">
+      <span className="flex items-center gap-1">
+        <svg width="16" height="6"><line x1="0" y1="3" x2="16" y2="3" stroke="#000000" strokeWidth="1.3" /></svg>
+        実績
+      </span>
+      {MA_LINES.map(m => (
+        <span key={m.window} className="flex items-center gap-1">
+          <svg width="16" height="6">
+            <line
+              x1="0" y1="3" x2="16" y2="3"
+              stroke={`rgba(${MA_COLOR}, ${m.opacity})`}
+              strokeWidth={m.strokeWidth}
+              strokeDasharray={m.dash}
+            />
+          </svg>
+          {m.label}
+        </span>
+      ))}
     </div>
   )
 }
@@ -241,8 +263,9 @@ export default function MarketIndexData() {
       </div>
 
       <div className="ios-card overflow-hidden">
-        <div className="px-4 pt-3 pb-1">
+        <div className="px-4 pt-3 pb-2 space-y-1.5">
           <p className="text-[12px] font-semibold text-[#8E8E93]">最新値（タップでグラフ表示）</p>
+          <ChartLegend />
         </div>
         {loading ? (
           <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">読み込み中…</p>
