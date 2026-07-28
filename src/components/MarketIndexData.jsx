@@ -63,15 +63,39 @@ function IndexChart({ points }) {
     const filtered = filterLastNDays(points, period.days)
     return points.length - filtered.length
   }, [points, period.days])
-  const filtered = useMemo(() => points.slice(cutoffIndex), [points, cutoffIndex])
-  const mas = useMemo(() => fullMas.map(ma => ma.slice(cutoffIndex)), [fullMas, cutoffIndex])
+  const fullFiltered = useMemo(() => points.slice(cutoffIndex), [points, cutoffIndex])
+  const fullMasSliced = useMemo(() => fullMas.map(ma => ma.slice(cutoffIndex)), [fullMas, cutoffIndex])
+
+  // 件数が多いとスマホのSVG描画が重くなる/失敗するため間引く（先頭・末尾は必ず残す）
+  const MAX_POINTS = 1500
+  const { filtered, mas } = useMemo(() => {
+    if (fullFiltered.length <= MAX_POINTS) return { filtered: fullFiltered, mas: fullMasSliced }
+    const step = Math.ceil(fullFiltered.length / MAX_POINTS)
+    const idx = []
+    for (let i = 0; i < fullFiltered.length; i += step) idx.push(i)
+    if (idx[idx.length - 1] !== fullFiltered.length - 1) idx.push(fullFiltered.length - 1)
+    return {
+      filtered: idx.map(i => fullFiltered[i]),
+      mas: fullMasSliced.map(ma => idx.map(i => ma[i])),
+    }
+  }, [fullFiltered, fullMasSliced])
 
   const chart = useMemo(() => {
     if (filtered.length < 2) return null
-    const maValues = mas.flat().filter(v => v != null)
-    const values = [...filtered.map(p => Number(p.value)), ...maValues]
-    const min = Math.min(...values)
-    const max = Math.max(...values)
+    let min = Infinity
+    let max = -Infinity
+    for (const p of filtered) {
+      const v = Number(p.value)
+      if (v < min) min = v
+      if (v > max) max = v
+    }
+    for (const ma of mas) {
+      for (const v of ma) {
+        if (v == null) continue
+        if (v < min) min = v
+        if (v > max) max = v
+      }
+    }
     const pad = Math.max((max - min) * 0.08, 0.01)
     const lo = min - pad
     const hi = max + pad
