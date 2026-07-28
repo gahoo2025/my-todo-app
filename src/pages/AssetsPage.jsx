@@ -1,11 +1,13 @@
 import { useAuth } from '../hooks/useAuth'
 import { useAssetTotalsSummary } from '../hooks/useAssetTotalsSummary'
 import { useAssetHoldingsLatest } from '../hooks/useAssetHoldingsLatest'
+import { useAssetTotalsHistory } from '../hooks/useAssetTotalsHistory'
 import { useState } from 'react'
 import MarketLogSection from '../components/MarketLog'
 import WatchStocksSection from '../components/WatchStocks'
 import MarketIndexData from '../components/MarketIndexData'
 import AssetHoldingsImport from '../components/AssetHoldingsImport'
+import AssetHistoryChart from '../components/AssetHistoryChart'
 
 // サブ機能の定義（今後ここに追加していく）
 // 資産管理（資産情報・家計情報）と投資管理（投資情報・監視銘柄・指標データ蓄積）の
@@ -30,7 +32,9 @@ function FamilyAssetSummary() {
   const { user } = useAuth()
   const { byPersonBroker, total, latestDate, loading, refetch } = useAssetTotalsSummary(user?.id)
   const { byPerson: holdingsByPerson, loading: holdingsLoading } = useAssetHoldingsLatest(user?.id)
+  const { familySeries, byPersonSeries, loading: historyLoading } = useAssetTotalsHistory(user?.id)
   const [expanded, setExpanded] = useState(null)
+  const [showFamilyChart, setShowFamilyChart] = useState(false)
 
   if (loading) return null
 
@@ -57,13 +61,32 @@ function FamilyAssetSummary() {
           </p>
           {latestDate && <p className="text-[11px] text-[#AEAEB2] mt-1">{formatDate(latestDate)} 時点</p>}
         </div>
-        <button
-          onClick={refetch}
-          className="text-[12px] font-medium text-[#007AFF] px-2 py-1 -mr-2 active:opacity-50"
-        >
-          更新
-        </button>
+        <div className="flex flex-col items-end gap-1 -mr-2">
+          <button
+            onClick={refetch}
+            className="text-[12px] font-medium text-[#007AFF] px-2 py-1 active:opacity-50"
+          >
+            更新
+          </button>
+          {entries.length > 0 && (
+            <button
+              onClick={() => setShowFamilyChart(v => !v)}
+              className="text-[12px] font-medium text-[#007AFF] px-2 py-1 active:opacity-50"
+            >
+              {showFamilyChart ? 'グラフを閉じる' : '推移をグラフ表示'}
+            </button>
+          )}
+        </div>
       </div>
+      {showFamilyChart && (
+        <div className="px-4 py-3 border-b border-black/[0.05]">
+          {historyLoading ? (
+            <p className="text-[12px] text-[#AEAEB2] py-6 text-center">読み込み中…</p>
+          ) : (
+            <AssetHistoryChart points={familySeries} />
+          )}
+        </div>
+      )}
       {entries.length > 0 ? (
         <div className="divide-y divide-black/[0.04]">
           {entries.map(([name, amount, brokers]) => {
@@ -96,6 +119,13 @@ function FamilyAssetSummary() {
                 </button>
                 {isOpen && (
                   <div className="px-4 pb-3">
+                    {historyLoading ? (
+                      <p className="text-[12px] text-[#AEAEB2] py-3 text-center">読み込み中…</p>
+                    ) : (byPersonSeries[name]?.length ?? 0) >= 2 ? (
+                      <div className="mb-3">
+                        <AssetHistoryChart points={byPersonSeries[name]} />
+                      </div>
+                    ) : null}
                     {holdingsLoading ? (
                       <p className="text-[12px] text-[#AEAEB2] py-3 text-center">読み込み中…</p>
                     ) : holdings.length === 0 ? (
