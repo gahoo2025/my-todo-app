@@ -128,11 +128,10 @@ function forwardFill(row) {
   return filled
 }
 
-// このシートは「銘柄名（1行目, 結合セル）」→「直近過去1年 / 過去ALL（2行目, 結合セル）」→
+// このシートは「銘柄名（1行目, 結合セル）」→「直近過去1年（2行目, 結合セル）」→
 // 「Date/Close/Open/High/Low/Volume（3行目, 実列名）」という3段見出しで、
-// 銘柄ごとに複数ブロックが横に並ぶ構造。各ブロックは独立した行範囲を持つため、
-// 銘柄ごとに「過去ALL」ブロックのDate列・Close列を優先して選び、行はブロック間で
-// 揃っていない前提でそれぞれ独立にパースする。
+// 銘柄ごとに1ブロックが横に並ぶ構造（過去ALLブロックは廃止され直近分のみ）。
+// 各ブロックは独立した行範囲を持つため、銘柄ごとに独立にパースする。
 function parseSheet(csvText, debug) {
   const rows = parseCsv(csvText)
   debug.rowCount = rows.length
@@ -140,43 +139,30 @@ function parseSheet(csvText, debug) {
   if (rows.length < 4) return {}
 
   const titleRow = forwardFill(rows[0])
-  const periodRow = forwardFill(rows[1])
   const colNameRow = rows[2]
   const dataRows = rows.slice(3)
   debug.titleRow = titleRow
-  debug.periodRow = periodRow
   debug.colNameRow = colNameRow
   debug.sampleDataRow = dataRows[0] ?? null
 
-  // symbol -> { all: {date, close}, recent: {date, close} }
-  const candidatesBySymbol = {}
+  // symbol -> { date: colIndex, close: colIndex }
+  const symbolColumns = {}
   colNameRow.forEach((colName, i) => {
     const symbol = matchSymbol(titleRow[i] || '')
     if (!symbol) return
-    const period = /all/i.test(periodRow[i] || '') ? 'all' : 'recent'
     let key = null
     if (DATE_HEADER_RE.test(colName)) key = 'date'
     else if (/close/i.test(colName) || /終値/.test(colName)) key = 'close'
     if (!key) return
-    candidatesBySymbol[symbol] ??= {}
-    candidatesBySymbol[symbol][period] ??= {}
-    candidatesBySymbol[symbol][period][key] = i
+    symbolColumns[symbol] ??= {}
+    symbolColumns[symbol][key] = i
   })
-  debug.candidatesBySymbol = candidatesBySymbol
-
-  const symbolColumns = {}
-  for (const [symbol, periods] of Object.entries(candidatesBySymbol)) {
-    const chosen =
-      (periods.all?.date != null && periods.all?.close != null) ? periods.all
-      : (periods.recent?.date != null && periods.recent?.close != null) ? periods.recent
-      : null
-    if (chosen) symbolColumns[symbol] = chosen
-  }
   debug.symbolColumns = symbolColumns
 
   const result = {}
   for (const row of dataRows) {
     for (const [symbol, cols] of Object.entries(symbolColumns)) {
+      if (cols.date == null || cols.close == null) continue
       const tradeDate = parseDate(row[cols.date])
       const value = parseNumber(row[cols.close])
       if (!tradeDate || value == null) continue
@@ -249,26 +235,46 @@ export default async function handler(req, res) {
       return res.status(422).json({ error: 'シートから指標データを検出できませんでした', warnings, debugSheets })
     }
 
-    const rows = []
-    for (const [symbol, points] of Object.entries(merged)) {
-      for (const p of points) {
-        rows.push({ user_id: user.id, symbol, trade_date: p.trade_date, value: p.value })
-      }
-    }
-
     const dbHeaders = {
       apikey: serviceKey,
       Authorization: `Bearer ${serviceKey}`,
       'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates',
     }
+
+    // 差分取り込み: 銘柄ごとにDB上の最新trade_dateを取得し、それより新しい行だけを対象にする
+    const latestDates = {}
+    await Promise.all(symbols.map(async symbol => {
+      const r = await fetch(
+        `${url.replace(/\/$/, '')}/rest/v1/market_index_history?select=trade_date&user_id=eq.${user.id}&symbol=eq.${symbol}&order=trade_date.desc&limit=1`,
+        { headers: dbHeaders }
+      )
+      if (!r.ok) return
+      const data = await r.json().catch(() => [])
+      latestDates[symbol] = data?.[0]?.trade_date ?? null
+    }))
+    debugSheets.push({ latestDates })
+
+    const rows = []
+    const skipped = {}
+    for (const [symbol, points] of Object.entries(merged)) {
+      const latest = latestDates[symbol]
+      let added = 0
+      for (const p of points) {
+        if (latest && p.trade_date <= latest) continue
+        rows.push({ user_id: user.id, symbol, trade_date: p.trade_date, value: p.value })
+        added++
+      }
+      skipped[symbol] = points.length - added
+    }
+
+    const upsertHeaders = { ...dbHeaders, Prefer: 'resolution=merge-duplicates' }
     const chunkSize = 500
     let inserted = 0
     for (let i = 0; i < rows.length; i += chunkSize) {
       const chunk = rows.slice(i, i + chunkSize)
       const r = await fetch(
         `${url.replace(/\/$/, '')}/rest/v1/market_index_history?on_conflict=user_id,symbol,trade_date`,
-        { method: 'POST', headers: dbHeaders, body: JSON.stringify(chunk) }
+        { method: 'POST', headers: upsertHeaders, body: JSON.stringify(chunk) }
       )
       if (!r.ok) {
         const errBody = await r.json().catch(() => ({}))
@@ -277,8 +283,11 @@ export default async function handler(req, res) {
       inserted += chunk.length
     }
 
-    const counts = Object.fromEntries(Object.entries(merged).map(([s, pts]) => [s, pts.length]))
-    return res.status(200).json({ inserted, counts, warnings })
+    const counts = {}
+    for (const symbol of symbols) {
+      counts[symbol] = rows.filter(r => r.symbol === symbol).length
+    }
+    return res.status(200).json({ inserted, counts, skipped, warnings })
   } catch (err) {
     return res.status(500).json({
       error: `${err?.name ?? 'Error'}: ${err?.message ?? 'unknown error'}`,

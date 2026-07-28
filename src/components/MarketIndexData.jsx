@@ -205,7 +205,7 @@ export default function MarketIndexData() {
         )}
         {importResult?.success && (
           <p className="mt-3 text-[12px] text-[#34C759]">
-            ✓ {importResult.inserted}件のデータを取り込みました
+            ✓ {importResult.inserted > 0 ? `${importResult.inserted}件の新しいデータを取り込みました` : '新しいデータはありませんでした（最新の状態です）'}
           </p>
         )}
       </div>
