@@ -22,9 +22,10 @@ const PERIODS = [
 ]
 
 const MA_LINES = [
-  { window: 5,  color: '#FF9500', label: '5日' },
-  { window: 25, color: '#AF52DE', label: '25日' },
-  { window: 75, color: '#34C759', label: '75日' },
+  { window: 5,   color: '#FF9500', label: '5日' },
+  { window: 25,  color: '#AF52DE', label: '25日' },
+  { window: 75,  color: '#34C759', label: '75日' },
+  { window: 200, color: '#FF3B30', label: '200日' },
 ]
 
 function filterLastNDays(points, days) {
