@@ -30,10 +30,18 @@ function FamilyAssetSummary() {
 
   if (loading) return null
 
+  const PERSON_ORDER = ['パパ', 'ママ', '長女', '次女', '長男']
   const entries = Object.entries(byPersonBroker)
     .map(([person, brokers]) => [person, Object.values(brokers).reduce((s, v) => s + v, 0), brokers])
     .filter(([, amount]) => amount > 0)
-    .sort((a, b) => b[1] - a[1])
+    .sort((a, b) => {
+      const ia = PERSON_ORDER.indexOf(a[0])
+      const ib = PERSON_ORDER.indexOf(b[0])
+      if (ia === -1 && ib === -1) return 0
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    })
 
   return (
     <div className="ios-card overflow-hidden mb-3">
