@@ -4,6 +4,7 @@ import { useState } from 'react'
 import MarketLogSection from '../components/MarketLog'
 import WatchStocksSection from '../components/WatchStocks'
 import MarketIndexData from '../components/MarketIndexData'
+import AssetHoldingsImport from '../components/AssetHoldingsImport'
 
 // サブ機能の定義（今後ここに追加していく）
 // 資産管理（資産情報・家計情報）と投資管理（投資情報・監視銘柄・指標データ蓄積）の
@@ -92,6 +93,9 @@ export default function AssetsPage({ embedded }) {
     <>
       {/* 家族の資産集計（資産管理アプリからの連携） */}
       <FamilyAssetSummary />
+
+      {/* 資産管理アプリのCSVファイル取り込み */}
+      <AssetHoldingsImport />
 
       {/* サブ機能セグメント */}
       <div className="sticky top-below-header z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
