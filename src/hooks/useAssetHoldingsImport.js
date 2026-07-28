@@ -39,9 +39,67 @@ export function isFolderPickerSupported() {
   return typeof window !== 'undefined' && 'showDirectoryPicker' in window
 }
 
-export function useAssetHoldingsImport(userId) {
+function decodeText(buf) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buf)
+  } catch {
+    return new TextDecoder('shift_jis').decode(buf)
+  }
+}
+
+// ファイル名の先頭パターンで種別を判定する（資産管理アプリの手動ダウンロード手順で固定）
+function detectTypeFromFilename(filename) {
+  if (/^assetbalanceall_/i.test(filename)) return 'assetbalanceall'
+  if (/^assetbalanceinvst_/i.test(filename)) return 'assetbalanceinvst'
+  if (/^balancesummary_/i.test(filename)) return 'balancesummary'
+  if (/^stockposition/i.test(filename)) return 'stockposition'
+  return null
+}
+
+// ファイル名から日付(YYYYMMDD)とその後ろのタイムスタンプ(あれば)を取り出す
+function parseFilenameStamp(filename) {
+  const m = /_(\d{8})_?(\d{6})?/.exec(filename)
+  if (!m) return null
+  return { date: m[1], time: m[2] || '' }
+}
+
+const REQUIRED_COUNTS = { assetbalanceall: 2, assetbalanceinvst: 3, balancesummary: 1, stockposition: 1 }
+
+// 日付ごとにグループ化し、各種別のタイムスタンプ順で人物・証券会社を自動割り当てする
+function buildGroups(files) {
+  const byDate = {}
+  for (const f of files) {
+    const stamp = parseFilenameStamp(f.filename)
+    if (!f.type || !stamp) continue
+    byDate[stamp.date] ??= { assetbalanceall: [], assetbalanceinvst: [], balancesummary: [], stockposition: [] }
+    byDate[stamp.date][f.type].push({ ...f, time: stamp.time })
+  }
+
+  const groups = []
+  for (const [date, byType] of Object.entries(byDate)) {
+    const counts = Object.fromEntries(Object.keys(REQUIRED_COUNTS).map(t => [t, byType[t].length]))
+    const ok = Object.entries(REQUIRED_COUNTS).every(([t, n]) => counts[t] === n)
+    const assigned = []
+    if (ok) {
+      const sorted = t => [...byType[t]].sort((a, b) => a.time.localeCompare(b.time))
+      const all = sorted('assetbalanceall')
+      assigned.push({ ...all[0], person: 'パパ', broker: '楽天' })
+      assigned.push({ ...all[1], person: 'ママ', broker: '楽天' })
+      const invst = sorted('assetbalanceinvst')
+      const invstPersons = ['長女', '次女', '長男']
+      invst.forEach((f, i) => assigned.push({ ...f, person: invstPersons[i], broker: '楽天' }))
+      assigned.push({ ...byType.balancesummary[0], person: 'パパ', broker: '大和' })
+      assigned.push({ ...byType.stockposition[0], person: 'パパ', broker: 'マネックス' })
+    }
+    groups.push({ date, ok, counts, files: ok ? assigned : [...byType.assetbalanceall, ...byType.assetbalanceinvst, ...byType.balancesummary, ...byType.stockposition] })
+  }
+  return groups.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+export function useAssetHoldingsImport() {
   const [folderName, setFolderName] = useState(null)
-  const [detectedFiles, setDetectedFiles] = useState([])
+  const [groups, setGroups] = useState([])
+  const [unmatchedFiles, setUnmatchedFiles] = useState([])
   const [scanning, setScanning] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState(null)
@@ -61,7 +119,8 @@ export function useAssetHoldingsImport(userId) {
     const handle = await window.showDirectoryPicker()
     await saveHandle(handle)
     setFolderName(handle.name)
-    setDetectedFiles([])
+    setGroups([])
+    setUnmatchedFiles([])
     setImportResult(null)
   }
 
@@ -83,29 +142,21 @@ export function useAssetHoldingsImport(userId) {
         if (entry.kind !== 'file' || !entry.name.toLowerCase().endsWith('.csv')) continue
         const file = await entry.getFile()
         const buf = await file.arrayBuffer()
-        let text
-        try {
-          text = new TextDecoder('shift_jis').decode(buf)
-        } catch {
-          text = new TextDecoder('utf-8').decode(buf)
-        }
-        const type = detectTypeClient(text)
-        files.push({ filename: entry.name, text, type, person: '', broker: '' })
+        const text = decodeText(buf)
+        const type = detectTypeFromFilename(entry.name)
+        files.push({ filename: entry.name, text, type })
       }
-      setDetectedFiles(files)
+      setUnmatchedFiles(files.filter(f => !f.type).map(f => f.filename))
+      setGroups(buildGroups(files.filter(f => f.type)))
     } finally {
       setScanning(false)
     }
   }
 
-  function updateFileAssignment(filename, field, value) {
-    setDetectedFiles(prev => prev.map(f => f.filename === filename ? { ...f, [field]: value } : f))
-  }
-
   async function runImport() {
-    const ready = detectedFiles.filter(f => f.type && f.person && f.broker)
-    if (ready.length === 0) {
-      setImportResult({ error: '取り込むファイルがありません（人物・証券会社を選択してください）' })
+    const readyFiles = groups.filter(g => g.ok).flatMap(g => g.files)
+    if (readyFiles.length === 0) {
+      setImportResult({ error: '取り込める日付分がありません（7ファイルが揃っている日付がありません）' })
       return
     }
     setImporting(true)
@@ -121,7 +172,7 @@ export function useAssetHoldingsImport(userId) {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          files: ready.map(({ filename, text, person, broker }) => ({ filename, text, person, broker })),
+          files: readyFiles.map(({ filename, text, type, person, broker }) => ({ filename, text, type, person, broker })),
         }),
       })
       const text = await r.text()
@@ -135,7 +186,7 @@ export function useAssetHoldingsImport(userId) {
         return
       }
       setImportResult({ success: true, ...body })
-      setDetectedFiles([])
+      setGroups([])
     } catch (err) {
       setImportResult({ error: `${err?.name ?? 'Error'}: ${err?.message ?? String(err)}` })
     } finally {
@@ -144,15 +195,7 @@ export function useAssetHoldingsImport(userId) {
   }
 
   return {
-    folderName, detectedFiles, scanning, importing, importResult,
-    restoreFolder, pickFolder, scanFolder, updateFileAssignment, runImport,
+    folderName, groups, unmatchedFiles, scanning, importing, importResult,
+    restoreFolder, pickFolder, scanFolder, runImport,
   }
-}
-
-function detectTypeClient(text) {
-  const firstLine = (text.split(/\r?\n/)[0] || '').trim()
-  if (firstLine.replace(/"/g, '') === '■資産合計欄') return 'assetbalanceall'
-  if (firstLine.includes('投資信託種別')) return 'assetbalanceinvst'
-  if (firstLine.includes('銘柄コード') && firstLine.includes('日付')) return 'stockposition'
-  return null
 }

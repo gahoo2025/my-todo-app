@@ -1,18 +1,23 @@
 import { useEffect } from 'react'
 import { useAssetHoldingsImport, isFolderPickerSupported } from '../hooks/useAssetHoldingsImport'
 
-const PERSONS = ['パパ', 'ママ', '長女', '次女', '長男']
-
 const TYPE_LABELS = {
   assetbalanceall: '資産合計＋保有銘柄',
   assetbalanceinvst: '投資信託詳細',
+  balancesummary: '大和残高',
   stockposition: '個別株ポジション',
+}
+
+const REQUIRED_LABELS = 'assetbalanceall×2・assetbalanceINVST×3・balancesummary×1・stockposition×1（計7）'
+
+function formatDate(yyyymmdd) {
+  return `${yyyymmdd.slice(0, 4)}/${yyyymmdd.slice(4, 6)}/${yyyymmdd.slice(6, 8)}`
 }
 
 export default function AssetHoldingsImport() {
   const {
-    folderName, detectedFiles, scanning, importing, importResult,
-    restoreFolder, pickFolder, scanFolder, updateFileAssignment, runImport,
+    folderName, groups, unmatchedFiles, scanning, importing, importResult,
+    restoreFolder, pickFolder, scanFolder, runImport,
   } = useAssetHoldingsImport()
 
   useEffect(() => { restoreFolder() }, [restoreFolder])
@@ -28,7 +33,7 @@ export default function AssetHoldingsImport() {
     )
   }
 
-  const readyCount = detectedFiles.filter(f => f.type && f.person && f.broker).length
+  const readyCount = groups.filter(g => g.ok).length
 
   return (
     <div className="ios-card px-4 py-4 mb-3">
@@ -53,47 +58,48 @@ export default function AssetHoldingsImport() {
           disabled={scanning}
           className="mt-3 w-full px-4 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[14px] font-semibold disabled:opacity-40 active:opacity-70 transition-opacity"
         >
-          {scanning ? '読み込み中…' : '取り込む'}
+          {scanning ? '読み込み中…' : 'フォルダを確認'}
         </button>
       )}
 
-      {detectedFiles.length > 0 && (
+      {groups.length > 0 && (
         <div className="mt-3 space-y-2">
-          <p className="text-[11px] text-[#8E8E93]">
-            {detectedFiles.length}件のCSVを検出しました。人物・証券会社を選んでください。
-          </p>
-          {detectedFiles.map(f => (
-            <div key={f.filename} className="p-2.5 rounded-[10px] bg-black/[0.03]">
-              <p className="text-[12px] font-medium text-[#1C1C1E] break-all">{f.filename}</p>
-              <p className="text-[11px] text-[#8E8E93] mt-0.5">
-                {f.type ? TYPE_LABELS[f.type] : '⚠ 形式を判別できませんでした'}
-              </p>
-              {f.type && (
-                <div className="flex gap-2 mt-1.5">
-                  <select
-                    value={f.person}
-                    onChange={e => updateFileAssignment(f.filename, 'person', e.target.value)}
-                    className="flex-1 text-[13px] px-2 py-1.5 rounded-[8px] bg-white border border-black/[0.08]"
-                  >
-                    <option value="">人物を選択</option>
-                    {PERSONS.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <input
-                    value={f.broker}
-                    onChange={e => updateFileAssignment(f.filename, 'broker', e.target.value)}
-                    placeholder="証券会社（例: 楽天）"
-                    className="flex-1 text-[13px] px-2 py-1.5 rounded-[8px] bg-white border border-black/[0.08]"
-                  />
+          <p className="text-[11px] text-[#AEAEB2]">1日付につき {REQUIRED_LABELS} が揃っている必要があります</p>
+          {groups.map(g => (
+            <div key={g.date} className={`p-2.5 rounded-[10px] ${g.ok ? 'bg-black/[0.03]' : 'bg-[#FF3B30]/[0.06]'}`}>
+              <div className="flex items-center justify-between">
+                <p className="text-[13px] font-semibold text-[#1C1C1E]">{formatDate(g.date)}</p>
+                <p className={`text-[11px] font-medium ${g.ok ? 'text-[#34C759]' : 'text-[#FF3B30]'}`}>
+                  {g.ok ? '取り込み対象' : 'スキップ（ファイル不足）'}
+                </p>
+              </div>
+              {!g.ok && (
+                <p className="text-[11px] text-[#8E8E93] mt-1">
+                  assetbalanceall:{g.counts.assetbalanceall}/2　assetbalanceINVST:{g.counts.assetbalanceinvst}/3　balancesummary:{g.counts.balancesummary}/1　stockposition:{g.counts.stockposition}/1
+                </p>
+              )}
+              {g.ok && (
+                <div className="mt-1.5 space-y-0.5">
+                  {g.files.map(f => (
+                    <p key={f.filename} className="text-[11px] text-[#8E8E93]">
+                      {f.person}（{f.broker}）— {TYPE_LABELS[f.type]}
+                    </p>
+                  ))}
                 </div>
               )}
             </div>
           ))}
+          {unmatchedFiles.length > 0 && (
+            <p className="text-[11px] text-[#AEAEB2]">
+              判別できないファイル {unmatchedFiles.length}件は無視されます
+            </p>
+          )}
           <button
             onClick={runImport}
             disabled={importing || readyCount === 0}
             className="w-full px-4 py-2.5 rounded-[10px] bg-[#34C759] text-white text-[14px] font-semibold disabled:opacity-40 active:opacity-70 transition-opacity"
           >
-            {importing ? '取り込み中…' : `${readyCount}件を取り込む`}
+            {importing ? '取り込み中…' : `${readyCount}日分を取り込む`}
           </button>
         </div>
       )}

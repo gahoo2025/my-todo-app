@@ -61,7 +61,7 @@ function parseCsv(text) {
 
 function parseNumber(text) {
   if (text == null) return null
-  const cleaned = String(text).replace(/[,，¥$%\s+]/g, '')
+  const cleaned = String(text).replace(/[,，¥$%\s+株口]/g, '')
   if (!cleaned || cleaned === '-') return null
   const n = Number(cleaned)
   return Number.isFinite(n) ? n : null
@@ -80,12 +80,26 @@ function dateFromFilename(filename) {
   return `${m[1]}-${m[2]}-${m[3]}`
 }
 
-function detectType(text) {
-  const firstLine = (text.split(/\r?\n/)[0] || '').trim()
-  if (firstLine.replace(/"/g, '') === '■資産合計欄') return 'assetbalanceall'
-  if (firstLine.includes('投資信託種別')) return 'assetbalanceinvst'
-  if (firstLine.includes('銘柄コード') && firstLine.includes('日付')) return 'stockposition'
-  return null
+function parseBalanceSummary(text, filename) {
+  const rows = parseCsv(text).filter(r => r.length > 1 && r[0])
+  const recordedAt = dateFromFilename(filename)
+  const holdings = []
+  for (const row of rows.slice(1)) {
+    holdings.push({
+      holding_type: row[0].includes('投資信託') ? 'fund' : 'stock',
+      symbol_code: row[1] || '',
+      symbol_name: row[2],
+      account_type: row[8],
+      quantity: parseNumber(row[9]),
+      avg_cost: parseNumber(row[13]),
+      current_price: parseNumber(row[18]),
+      market_value: parseNumber(row[17]),
+      unrealized_pl: parseNumber(row[22]),
+      unrealized_pl_pct: parseNumber(row[25]),
+      recorded_at: recordedAt,
+    })
+  }
+  return { holdings, totals: [] }
 }
 
 function parseInvst(text, filename) {
@@ -201,20 +215,17 @@ export default async function handler(req, res) {
     const allTotals = []
     const fileResults = []
 
+    const VALID_TYPES = ['assetbalanceall', 'assetbalanceinvst', 'balancesummary', 'stockposition']
     for (const f of files) {
-      const { person, broker, filename, text } = f
-      if (!person || !broker || !text) {
-        fileResults.push({ filename, error: 'person/broker/textが不足しています' })
-        continue
-      }
-      const type = detectType(text)
-      if (!type) {
-        fileResults.push({ filename, error: 'ファイル形式を判別できませんでした' })
+      const { person, broker, filename, text, type } = f
+      if (!person || !broker || !text || !VALID_TYPES.includes(type)) {
+        fileResults.push({ filename, error: 'person/broker/text/typeが不足しています' })
         continue
       }
       let parsed
       if (type === 'assetbalanceall') parsed = parseAssetBalanceAll(text, filename)
       else if (type === 'assetbalanceinvst') parsed = parseInvst(text, filename)
+      else if (type === 'balancesummary') parsed = parseBalanceSummary(text, filename)
       else parsed = parseStockPosition(text)
 
       for (const h of parsed.holdings) {
