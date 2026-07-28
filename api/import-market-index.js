@@ -280,6 +280,9 @@ export default async function handler(req, res) {
     const counts = Object.fromEntries(Object.entries(merged).map(([s, pts]) => [s, pts.length]))
     return res.status(200).json({ inserted, counts, warnings })
   } catch (err) {
-    return res.status(500).json({ error: err?.message ?? 'unknown error' })
+    return res.status(500).json({
+      error: `${err?.name ?? 'Error'}: ${err?.message ?? 'unknown error'}`,
+      stack: err?.stack ? String(err.stack).slice(0, 2000) : undefined,
+    })
   }
 }

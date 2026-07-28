@@ -53,6 +53,7 @@ export function useMarketIndices(userId) {
   async function importFromSheet() {
     setImporting(true)
     setImportResult(null)
+    let step = 'getSession'
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData?.session?.access_token
@@ -60,22 +61,44 @@ export function useMarketIndices(userId) {
         setImportResult({ error: 'ログイン情報が取得できませんでした' })
         return
       }
+
+      step = 'fetch'
       const r = await fetch('/api/import-market-index', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       })
-      const body = await r.json()
+
+      step = 'readText'
+      const text = await r.text()
+
+      step = 'parseJson'
+      let body
+      try {
+        body = JSON.parse(text)
+      } catch {
+        setImportResult({
+          error: `サーバーからの応答を解析できませんでした（HTTP ${r.status}）`,
+          debugSheets: [{ rawResponseSnippet: text.slice(0, 800) }],
+        })
+        return
+      }
+
       if (!r.ok) {
         setImportResult({
           error: body?.error?.message || body?.error || '取り込みに失敗しました',
-          debugSheets: body?.debugSheets,
+          debugSheets: body?.debugSheets || (body?.stack ? [{ stack: body.stack }] : undefined),
         })
         return
       }
       setImportResult({ success: true, counts: body.counts, inserted: body.inserted })
+
+      step = 'fetchSummary'
       await fetchSummary()
     } catch (err) {
-      setImportResult({ error: err?.message ?? '不明なエラー' })
+      setImportResult({
+        error: `[${step}] ${err?.name ?? 'Error'}: ${err?.message ?? String(err)}`,
+        debugSheets: err?.stack ? [{ stack: String(err.stack).slice(0, 1200) }] : undefined,
+      })
     } finally {
       setImporting(false)
     }
