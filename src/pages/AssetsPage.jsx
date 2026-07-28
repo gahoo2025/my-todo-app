@@ -11,9 +11,10 @@ import AssetHoldingsImport from '../components/AssetHoldingsImport'
 // 資産管理（資産情報・家計情報）と投資管理（投資情報・監視銘柄・指標データ蓄積）の
 // うち、投資管理のサブ機能をここに並べる
 const SUB_FEATURES = [
+  { id: 'family',    label: '家族の資産' },
+  { id: 'indices',   label: '指標データ' },
   { id: 'marketlog', label: 'マーケットログ' },
   { id: 'watch',     label: '監視銘柄' },
-  { id: 'indices',   label: '指標データ' },
 ]
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 })
@@ -140,17 +141,11 @@ function FamilyAssetSummary() {
 }
 
 export default function AssetsPage({ embedded }) {
-  const [sub, setSub] = useState('marketlog')
+  const [sub, setSub] = useState('family')
   const [assetRefreshKey, setAssetRefreshKey] = useState(0)
 
   const body = (
     <>
-      {/* 家族の資産集計（資産管理アプリからの連携） */}
-      <FamilyAssetSummary key={assetRefreshKey} />
-
-      {/* 資産管理アプリのCSVファイル取り込み */}
-      <AssetHoldingsImport onImported={() => setAssetRefreshKey(k => k + 1)} />
-
       {/* サブ機能セグメント */}
       <div className="sticky top-below-header z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2 overflow-x-auto">
         {SUB_FEATURES.map(f => (
@@ -169,6 +164,12 @@ export default function AssetsPage({ embedded }) {
       </div>
 
       <div className="mt-3">
+        {sub === 'family' && (
+          <>
+            <FamilyAssetSummary key={assetRefreshKey} />
+            <AssetHoldingsImport onImported={() => setAssetRefreshKey(k => k + 1)} />
+          </>
+        )}
         {sub === 'marketlog' && <MarketLogSection />}
         {sub === 'watch' && <WatchStocksSection />}
         {sub === 'indices' && <MarketIndexData />}
