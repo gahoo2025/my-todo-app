@@ -153,6 +153,12 @@ export default function TodoPage() {
     if (!error) setTasks(tasks.map(t => t.id === id ? data : t))
   }
 
+  async function toggleToday(id, todayFlag) {
+    const { data, error } = await supabase
+      .from('tasks').update({ today_flag: !todayFlag }).eq('id', id).select().single()
+    if (!error) setTasks(tasks.map(t => t.id === id ? data : t))
+  }
+
   async function trashTask(id) {
     const { error } = await supabase
       .from('tasks').update({ deleted_at: new Date().toISOString() }).eq('id', id)
@@ -315,6 +321,7 @@ export default function TodoPage() {
                   onDelete={trashTask}
                   onEdit={setEditingTask}
                   onReorder={reorderTasks}
+                  onToggleToday={toggleToday}
                 />
               )}
             </div>

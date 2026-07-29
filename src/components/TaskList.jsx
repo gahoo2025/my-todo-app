@@ -9,7 +9,7 @@ import {
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import TaskItem from './TaskItem'
 
-export default function TaskList({ tasks, userId, onToggle, onDelete, onEdit, onReorder }) {
+export default function TaskList({ tasks, userId, onToggle, onDelete, onEdit, onReorder, onToggleToday }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
@@ -46,7 +46,7 @@ export default function TaskList({ tasks, userId, onToggle, onDelete, onEdit, on
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={pending.map(t => t.id)} strategy={verticalListSortingStrategy}>
               {pending.map(task => (
-                <TaskItem key={task.id} task={task} userId={userId} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} />
+                <TaskItem key={task.id} task={task} userId={userId} onToggle={onToggle} onDelete={onDelete} onEdit={onEdit} onToggleToday={onToggleToday} />
               ))}
             </SortableContext>
           </DndContext>

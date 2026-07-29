@@ -13,7 +13,7 @@ const CATEGORY_TINTS = {
   'その他': 'text-[#8E8E93]',
 }
 
-export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
+export default function TaskItem({ task, userId, onToggle, onDelete, onEdit, onToggleToday }) {
   const [expanded, setExpanded] = useState(false)
 
   const {
@@ -44,7 +44,7 @@ export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white transition-shadow duration-200 ${
+      className={`transition-shadow duration-200 ${task.today_flag ? 'bg-[#FFF7E0]' : 'bg-white'} ${
         isDragging ? 'shadow-[0_8px_24px_rgba(0,0,0,0.12)] rounded-[14px] relative' : ''
       }`}
     >
@@ -82,9 +82,9 @@ export default function TaskItem({ task, userId, onToggle, onDelete, onEdit }) {
           )}
         </button>
 
-        {/* 本文 */}
+        {/* 本文（タップで今日やるフラグを切り替え） */}
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => onToggleToday(task.id, task.today_flag)}
           className="flex-1 min-w-0 text-left"
         >
           <p className={`text-[15px] leading-snug truncate ${
