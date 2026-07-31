@@ -196,8 +196,8 @@ export default function AssetsPage({ embedded }) {
       <div className="mt-3">
         {sub === 'family' && (
           <>
-            <FamilyAssetSummary key={assetRefreshKey} />
             <AssetHoldingsImport onImported={() => setAssetRefreshKey(k => k + 1)} />
+            <FamilyAssetSummary key={assetRefreshKey} />
           </>
         )}
         {sub === 'marketlog' && <MarketLogSection />}
