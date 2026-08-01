@@ -241,6 +241,17 @@ export default async function handler(req, res) {
       }
     }
 
+    // CSVに存在しなくなった銘柄（過去のパース不具合で残った不正な行を含む）は削除して置き換える
+    const codesList = rows.map(r => `"${r.symbol_code.replace(/"/g, '\\"')}"`).join(',')
+    const delRes = await fetch(
+      `${url.replace(/\/$/, '')}/rest/v1/stock_master_list?user_id=eq.${user.id}&symbol_code=not.in.(${codesList})`,
+      { method: 'DELETE', headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+    )
+    if (!delRes.ok) {
+      const errText = await delRes.text().catch(() => '')
+      warnings.push(`古い行の削除に失敗しました: ${errText.slice(0, 300)}`)
+    }
+
     return res.status(200).json({ imported: rows.length, warnings, debug })
   } catch (err) {
     return res.status(500).json({ error: `${err?.name ?? 'Error'}: ${err?.message ?? 'unknown error'}` })
