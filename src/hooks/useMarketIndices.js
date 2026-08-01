@@ -9,6 +9,7 @@ export const INDEX_SYMBOLS = [
   { id: 'sp500',     label: 'S&P500' },
   { id: 'dow',       label: 'NYダウ' },
   { id: 'nasdaq',    label: 'ナスダック' },
+  { id: 'bitcoin',   label: 'ビットコイン' },
 ]
 
 export function useMarketIndices(userId) {

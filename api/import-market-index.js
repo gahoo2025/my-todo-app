@@ -172,6 +172,71 @@ function parseSheet(csvText, debug) {
   return result
 }
 
+async function getDriveRefreshToken(url, serviceKey, userId) {
+  const r = await fetch(
+    `${url.replace(/\/$/, '')}/rest/v1/google_drive_tokens?select=refresh_token&user_id=eq.${userId}&limit=1`,
+    { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+  )
+  if (!r.ok) return null
+  const data = await r.json().catch(() => [])
+  return data?.[0]?.refresh_token ?? null
+}
+
+async function getDriveAccessToken(refreshToken) {
+  const clientId = process.env.GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  if (!clientId || !clientSecret) return null
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  })
+  if (!r.ok) return null
+  const data = await r.json().catch(() => ({}))
+  return data.access_token ?? null
+}
+
+// Googleドライブから bitcoin.csv（日付,終値,始値,高値,安値,出来高,変化率 %）を取得しパースする
+async function fetchBitcoinCsvFromDrive(accessToken, warnings) {
+  const headers = { Authorization: `Bearer ${accessToken}` }
+  const listUrl = 'https://www.googleapis.com/drive/v3/files?' + new URLSearchParams({
+    q: "name='bitcoin.csv' and trashed=false",
+    fields: 'files(id,name)',
+    spaces: 'drive',
+  })
+  const listRes = await fetch(listUrl, { headers })
+  if (!listRes.ok) {
+    warnings.push('Googleドライブのファイル一覧取得に失敗しました')
+    return null
+  }
+  const listData = await listRes.json().catch(() => ({}))
+  const file = listData.files?.[0]
+  if (!file) {
+    warnings.push('Googleドライブに bitcoin.csv が見つかりませんでした')
+    return null
+  }
+  const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, { headers })
+  if (!dlRes.ok) {
+    warnings.push('bitcoin.csv のダウンロードに失敗しました')
+    return null
+  }
+  const csvText = await dlRes.text()
+  const rows = parseCsv(csvText)
+  const points = []
+  for (const row of rows.slice(1)) {
+    const tradeDate = parseDate(row[0])
+    const value = parseNumber(row[1])
+    if (!tradeDate || value == null) continue
+    points.push({ trade_date: tradeDate, value })
+  }
+  return points
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -228,6 +293,20 @@ export default async function handler(req, res) {
       for (const [symbol, points] of Object.entries(parsed)) {
         (merged[symbol] ??= []).push(...points)
       }
+    }
+
+    // Googleドライブに連携済みなら bitcoin.csv も取り込む
+    const driveRefreshToken = await getDriveRefreshToken(url, serviceKey, user.id)
+    if (driveRefreshToken) {
+      const accessToken = await getDriveAccessToken(driveRefreshToken)
+      if (!accessToken) {
+        warnings.push('Googleドライブのアクセストークン取得に失敗しました')
+      } else {
+        const bitcoinPoints = await fetchBitcoinCsvFromDrive(accessToken, warnings)
+        if (bitcoinPoints?.length) (merged.bitcoin ??= []).push(...bitcoinPoints)
+      }
+    } else {
+      warnings.push('Googleドライブが未連携のため bitcoin.csv はスキップしました')
     }
 
     const symbols = Object.keys(merged)

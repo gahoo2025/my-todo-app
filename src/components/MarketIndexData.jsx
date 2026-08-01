@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useMarketIndices, INDEX_SYMBOLS } from '../hooks/useMarketIndices'
+import { useGoogleDriveLink } from '../hooks/useGoogleDriveLink'
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -239,6 +240,7 @@ export default function MarketIndexData() {
     latestBySymbol, counts, loading, importing, importResult, importFromSheet,
     historyBySymbol, historyLoading, fetchHistory,
   } = useMarketIndices(user?.id)
+  const { linked: driveLinked, linking: driveLinking, error: driveError, linkDrive } = useGoogleDriveLink(user?.id)
   const [expanded, setExpanded] = useState(null)
 
   function toggleExpand(id) {
@@ -282,6 +284,20 @@ export default function MarketIndexData() {
             ✓ {importResult.inserted > 0 ? `${importResult.inserted}件の新しいデータを取り込みました` : '新しいデータはありませんでした（最新の状態です）'}
           </p>
         )}
+
+        {driveLinked === false && (
+          <div className="mt-3 pt-3 border-t border-black/[0.05] flex items-center justify-between">
+            <p className="text-[12px] text-[#8E8E93]">Googleドライブ未連携（ビットコインのCSVは取り込まれません）</p>
+            <button
+              onClick={linkDrive}
+              disabled={driveLinking}
+              className="flex-shrink-0 px-3 py-1.5 rounded-[8px] bg-black/[0.04] text-[#1C1C1E] text-[12px] font-medium disabled:opacity-40 active:opacity-70 transition-opacity"
+            >
+              {driveLinking ? '連携中…' : 'Googleドライブと連携'}
+            </button>
+          </div>
+        )}
+        {driveError && <p className="mt-2 text-[11px] text-[#FF3B30]">⚠ {driveError}</p>}
       </div>
 
       <div className="ios-card overflow-hidden">
