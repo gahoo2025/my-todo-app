@@ -346,7 +346,7 @@ export default async function handler(req, res) {
       const latest = latestDates[symbol]
       let added = 0
       for (const p of points) {
-        if (latest && p.trade_date <= latest) continue
+        if (latest && p.trade_date < latest) continue
         rows.push({ user_id: user.id, symbol, trade_date: p.trade_date, value: p.value })
         added++
       }
