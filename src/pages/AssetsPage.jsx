@@ -9,6 +9,7 @@ import WatchStocksSection from '../components/WatchStocks'
 import MarketIndexData from '../components/MarketIndexData'
 import AssetHoldingsImport from '../components/AssetHoldingsImport'
 import AssetHistoryChart from '../components/AssetHistoryChart'
+import StockListView from '../components/StockListView'
 
 // サブ機能の定義（今後ここに追加していく）
 // 資産管理（資産情報・家計情報）と投資管理（投資情報・監視銘柄・指標データ蓄積）の
@@ -18,6 +19,7 @@ const SUB_FEATURES = [
   { id: 'family',    label: '家族の資産' },
   { id: 'marketlog', label: 'マーケットログ' },
   { id: 'watch',     label: '監視銘柄' },
+  { id: 'stocklist', label: '銘柄リスト' },
 ]
 
 const yen = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY', maximumFractionDigits: 0 })
@@ -242,6 +244,7 @@ export default function AssetsPage({ embedded }) {
         )}
         {sub === 'marketlog' && <MarketLogSection />}
         {sub === 'watch' && <WatchStocksSection />}
+        {sub === 'stocklist' && <StockListView />}
         {sub === 'indices' && <MarketIndexData />}
       </div>
     </>
