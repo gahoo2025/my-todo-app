@@ -56,6 +56,7 @@ function movingAverage(points, window) {
 function IndexChart({ points }) {
   const [periodId, setPeriodId] = useState('1m')
   const period = PERIODS.find(p => p.id === periodId)
+  const [hoverIdx, setHoverIdx] = useState(null)
 
   // 表示期間で絞る前の全期間データで移動平均を計算し、表示範囲の先頭でも
   // 直前の実績を使ったMAが途切れないようにする
@@ -138,7 +139,17 @@ function IndexChart({ points }) {
   return (
     <div>
       <PeriodTabs periodId={periodId} onChange={setPeriodId} />
-      <div className="relative h-[160px] md:h-[360px] md:pl-14 md:pb-5">
+      <div
+        className="relative h-[160px] md:h-[360px] md:pl-14 md:pb-5"
+        onMouseMove={e => {
+          const rect = e.currentTarget.getBoundingClientRect()
+          const padLeft = window.innerWidth >= 768 ? 56 : 0
+          const xFrac = (e.clientX - rect.left - padLeft) / (rect.width - padLeft)
+          const idx = Math.round(xFrac * (filtered.length - 1))
+          setHoverIdx(Math.max(0, Math.min(filtered.length - 1, idx)))
+        }}
+        onMouseLeave={() => setHoverIdx(null)}
+      >
         {/* 縦軸（PCのみ） */}
         <div className="hidden md:flex flex-col justify-between absolute left-0 top-0 bottom-5 w-12 text-[10px] text-[#8E8E93] text-right pr-2">
           <span>{numFmt.format(chart.hi)}</span>
@@ -183,7 +194,29 @@ function IndexChart({ points }) {
               />
             )
           })}
+          {hoverIdx != null && chart.linePoints[hoverIdx] && (
+            <g className="hidden md:block">
+              <line
+                x1={chart.linePoints[hoverIdx].x} y1="0"
+                x2={chart.linePoints[hoverIdx].x} y2="100"
+                stroke="#000000" strokeOpacity="0.2" strokeWidth="1"
+                vectorEffect="non-scaling-stroke" strokeDasharray="2,2"
+              />
+              <circle
+                cx={chart.linePoints[hoverIdx].x} cy={chart.linePoints[hoverIdx].y}
+                r="2" fill="#000000" vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          )}
         </svg>
+        {hoverIdx != null && filtered[hoverIdx] && (
+          <div
+            className="hidden md:block absolute top-1 px-2 py-1 rounded-[6px] bg-[#1C1C1E] text-white text-[11px] whitespace-nowrap pointer-events-none -translate-x-1/2"
+            style={{ left: `calc(56px + (100% - 56px) * ${hoverIdx / (filtered.length - 1)})` }}
+          >
+            {formatDate(filtered[hoverIdx].trade_date)} ・ {numFmt.format(Number(filtered[hoverIdx].value))}
+          </div>
+        )}
         {/* 横軸（PCのみ） */}
         <div className="hidden md:block absolute left-14 right-0 bottom-0 h-5 text-[10px] text-[#8E8E93]">
           {xTicks.map(t => (
