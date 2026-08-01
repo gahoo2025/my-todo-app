@@ -42,10 +42,10 @@ export function useStockList(userId) {
         return
       }
       if (!r.ok) {
-        setImportResult({ error: body?.error?.message || body?.error || '取り込みに失敗しました', warnings: body?.warnings })
+        setImportResult({ error: body?.error?.message || body?.error || '取り込みに失敗しました', warnings: body?.warnings, debug: body?.debug })
         return
       }
-      setImportResult({ success: true, imported: body.imported, warnings: body.warnings })
+      setImportResult({ success: true, imported: body.imported, warnings: body.warnings, debug: body.debug })
       await fetchList()
     } catch (err) {
       setImportResult({ error: `${err?.name ?? 'Error'}: ${err?.message ?? String(err)}` })

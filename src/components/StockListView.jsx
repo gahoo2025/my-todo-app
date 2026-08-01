@@ -57,6 +57,14 @@ export default function StockListView() {
         {importResult?.success && (
           <p className="mt-3 text-[12px] text-[#34C759]">✓ {importResult.imported}件を取り込みました</p>
         )}
+        {importResult?.debug && (
+          <details className="mt-3">
+            <summary className="text-[11px] text-[#007AFF]">デバッグ情報</summary>
+            <pre className="mt-2 p-2 rounded-[8px] bg-black/[0.04] text-[10px] text-[#636366] overflow-x-auto whitespace-pre-wrap break-all">
+              {JSON.stringify(importResult.debug, null, 2)}
+            </pre>
+          </details>
+        )}
       </div>
 
       <input

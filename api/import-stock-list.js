@@ -67,33 +67,38 @@ async function getDriveAccessToken(refreshToken, warnings) {
   return data.access_token ?? null
 }
 
-function parseCsvLine(line) {
-  const result = []
+// クォート内の改行・カンマにも対応した1パスCSVパーサー
+// （行単位に先に分割すると、クォート内に改行を含むセルがある場合に崩れるため）
+function parseCsv(text) {
+  const rows = []
+  let row = []
   let cur = ''
   let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i]
+  let i = 0
+  const n = text.length
+  while (i < n) {
+    const c = text[i]
     if (inQuotes) {
       if (c === '"') {
-        if (line[i + 1] === '"') { cur += '"'; i++ } else { inQuotes = false }
-      } else {
-        cur += c
+        if (text[i + 1] === '"') { cur += '"'; i += 2; continue }
+        inQuotes = false; i++; continue
       }
-    } else if (c === '"') {
-      inQuotes = true
-    } else if (c === ',') {
-      result.push(cur)
-      cur = ''
-    } else {
-      cur += c
+      cur += c; i++; continue
     }
+    if (c === '"') { inQuotes = true; i++; continue }
+    if (c === ',') { row.push(cur.trim()); cur = ''; i++; continue }
+    if (c === '\r') { i++; continue }
+    if (c === '\n') {
+      row.push(cur.trim()); cur = ''
+      if (row.some(v => v !== '')) rows.push(row)
+      row = []
+      i++; continue
+    }
+    cur += c; i++
   }
-  result.push(cur)
-  return result.map(s => s.trim())
-}
-
-function parseCsv(text) {
-  return text.split(/\r?\n/).filter(l => l.length > 0).map(parseCsvLine)
+  row.push(cur.trim())
+  if (row.some(v => v !== '')) rows.push(row)
+  return rows
 }
 
 function parseNumber(text) {
@@ -111,8 +116,11 @@ const COLUMN_KEYS = [
 ]
 const NUMBER_COLUMNS = new Set(['latest_price', 'dividend_amount', 'dividend_yield'])
 
-function parseStockList(csvText) {
+function parseStockList(csvText, debug) {
   const rows = parseCsv(csvText)
+  debug.rowCount = rows.length
+  debug.headerRow = rows[0] ?? null
+  debug.sampleDataRows = rows.slice(1, 4)
   if (rows.length < 2) return []
   const dataRows = rows.slice(1)
   const items = []
@@ -129,7 +137,7 @@ function parseStockList(csvText) {
   return items
 }
 
-async function fetchStockListFromDrive(accessToken, warnings) {
+async function fetchStockListFromDrive(accessToken, warnings, debug) {
   const headers = { Authorization: `Bearer ${accessToken}` }
   const listUrl = 'https://www.googleapis.com/drive/v3/files?' + new URLSearchParams({
     q: "name='銘柄リスト.csv' and trashed=false",
@@ -161,7 +169,7 @@ async function fetchStockListFromDrive(accessToken, warnings) {
   } catch {
     csvText = new TextDecoder('utf-8').decode(buf)
   }
-  return parseStockList(csvText)
+  return parseStockList(csvText, debug)
 }
 
 export default async function handler(req, res) {
@@ -194,12 +202,13 @@ export default async function handler(req, res) {
     if (!accessToken) {
       return res.status(502).json({ error: warnings[warnings.length - 1] || 'アクセストークン取得に失敗しました', warnings })
     }
-    const items = await fetchStockListFromDrive(accessToken, warnings)
+    const debug = {}
+    const items = await fetchStockListFromDrive(accessToken, warnings, debug)
     if (!items) {
-      return res.status(422).json({ error: warnings[warnings.length - 1] || '銘柄リストを取得できませんでした', warnings })
+      return res.status(422).json({ error: warnings[warnings.length - 1] || '銘柄リストを取得できませんでした', warnings, debug })
     }
     if (items.length === 0) {
-      return res.status(422).json({ error: '銘柄リスト.csvから有効な行を検出できませんでした', warnings })
+      return res.status(422).json({ error: '銘柄リスト.csvから有効な行を検出できませんでした', warnings, debug })
     }
 
     // 銘柄コードの重複行があると同一バッチ内でON CONFLICTが二重適用されエラーになるため、
@@ -229,7 +238,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ imported: rows.length, warnings })
+    return res.status(200).json({ imported: rows.length, warnings, debug })
   } catch (err) {
     return res.status(500).json({ error: `${err?.name ?? 'Error'}: ${err?.message ?? 'unknown error'}` })
   }
