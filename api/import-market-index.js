@@ -211,7 +211,8 @@ async function fetchBitcoinCsvFromDrive(accessToken, warnings) {
   })
   const listRes = await fetch(listUrl, { headers })
   if (!listRes.ok) {
-    warnings.push('Googleドライブのファイル一覧取得に失敗しました')
+    const errText = await listRes.text().catch(() => '')
+    warnings.push(`Googleドライブのファイル一覧取得に失敗しました (HTTP ${listRes.status}): ${errText.slice(0, 300)}`)
     return null
   }
   const listData = await listRes.json().catch(() => ({}))
@@ -222,7 +223,8 @@ async function fetchBitcoinCsvFromDrive(accessToken, warnings) {
   }
   const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, { headers })
   if (!dlRes.ok) {
-    warnings.push('bitcoin.csv のダウンロードに失敗しました')
+    const errText = await dlRes.text().catch(() => '')
+    warnings.push(`bitcoin.csv のダウンロードに失敗しました (HTTP ${dlRes.status}): ${errText.slice(0, 300)}`)
     return null
   }
   const csvText = await dlRes.text()
