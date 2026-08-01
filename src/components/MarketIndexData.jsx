@@ -166,6 +166,16 @@ function IndexChart({ points }) {
               vectorEffect="non-scaling-stroke"
             />
           ))}
+          {/* 補助線（横軸＝日付の目盛りに対応する縦線） */}
+          {xTicks.map(t => (
+            <line
+              key={t.date}
+              x1={Math.max(1, Math.min(99, t.pct))} y1="0"
+              x2={Math.max(1, Math.min(99, t.pct))} y2="100"
+              stroke="#8E8E93" strokeOpacity="0.25" strokeWidth="1"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
           <polyline
             fill="none"
             stroke="#000000"
