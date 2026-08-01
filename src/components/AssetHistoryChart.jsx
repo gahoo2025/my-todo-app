@@ -69,7 +69,7 @@ export default function AssetHistoryChart({ points }) {
       </div>
       {chart ? (
         <>
-          <div className="relative h-[140px]">
+          <div className="relative h-[140px] md:h-[300px]">
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
               <polyline
                 fill="none"

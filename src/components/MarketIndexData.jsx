@@ -129,7 +129,7 @@ function IndexChart({ points }) {
   return (
     <div>
       <PeriodTabs periodId={periodId} onChange={setPeriodId} />
-      <div className="relative h-[160px]">
+      <div className="relative h-[160px] md:h-[360px]">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
           <polyline
             fill="none"
