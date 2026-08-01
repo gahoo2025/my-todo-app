@@ -449,7 +449,7 @@ export default function MarketLogSection() {
         <CrossView entries={entries} onBack={() => setShowCrossView(false)} />
       ) : (
         <>
-          <div className="flex gap-2 mb-3">
+          <div className="sticky top-below-header z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2">
             <input
               type="text"
               value={query}
@@ -462,6 +462,12 @@ export default function MarketLogSection() {
               className="flex-shrink-0 px-3 py-2.5 rounded-[10px] bg-white text-[#1C1C1E] text-[13px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.06)] active:opacity-70 transition-opacity"
             >
               🔍 銘柄別
+            </button>
+            <button
+              onClick={() => setEditing({ mode: 'new' })}
+              className="flex-shrink-0 px-3 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.06)] active:opacity-70 transition-opacity"
+            >
+              ＋ 新規登録
             </button>
           </div>
 
@@ -490,14 +496,6 @@ export default function MarketLogSection() {
           )}
         </>
       )}
-
-      {/* 新規追加ボタン（PC） */}
-      <button
-        onClick={() => setEditing({ mode: 'new' })}
-        className="hidden md:block w-full mt-4 py-2.5 rounded-[12px] bg-[#007AFF] text-white font-semibold text-[14px] active:opacity-70 transition-opacity shadow-[0_2px_8px_rgba(0,122,255,0.3)]"
-      >
-        ＋ 新規登録
-      </button>
 
       {/* モバイル FAB */}
       <button
