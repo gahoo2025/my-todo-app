@@ -19,6 +19,8 @@ const PERIODS = [
   { id: '3m',  label: '3か月',  days: 90 },
   { id: '6m',  label: '6か月',  days: 180 },
   { id: '1y',  label: '1年',    days: 365 },
+  { id: '5y',  label: '5年',    days: 365 * 5 },
+  { id: '10y', label: '10年',   days: 365 * 10 },
   { id: 'all', label: '全期間', days: null },
 ]
 
