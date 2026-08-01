@@ -14,6 +14,36 @@ function formatDate(s) {
 
 const numFmt = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 2 })
 
+// 1,2,5刻みの「キリのいい」目盛りを算出する（D3のnice-ticksと同様の考え方）
+function niceNum(range, round) {
+  const exponent = Math.floor(Math.log10(range))
+  const fraction = range / 10 ** exponent
+  let niceFraction
+  if (round) {
+    if (fraction < 1.5) niceFraction = 1
+    else if (fraction < 3) niceFraction = 2
+    else if (fraction < 7) niceFraction = 5
+    else niceFraction = 10
+  } else {
+    if (fraction <= 1) niceFraction = 1
+    else if (fraction <= 2) niceFraction = 2
+    else if (fraction <= 5) niceFraction = 5
+    else niceFraction = 10
+  }
+  return niceFraction * 10 ** exponent
+}
+
+function niceTicks(min, max, count = 4) {
+  if (min === max) return { niceMin: min, niceMax: max, ticks: [min] }
+  const range = niceNum(max - min, false)
+  const step = niceNum(range / (count - 1), true)
+  const niceMin = Math.floor(min / step) * step
+  const niceMax = Math.ceil(max / step) * step
+  const ticks = []
+  for (let v = niceMin; v <= niceMax + step * 0.5; v += step) ticks.push(Math.round(v * 1e6) / 1e6)
+  return { niceMin, niceMax, ticks }
+}
+
 const PERIODS = [
   { id: '1m',  label: '1か月',  days: 30 },
   { id: '3m',  label: '3か月',  days: 90 },
@@ -105,8 +135,9 @@ function IndexChart({ points }) {
       }
     }
     const pad = Math.max((max - min) * 0.08, 0.01)
-    const lo = min - pad
-    const hi = max + pad
+    const { niceMin, niceMax, ticks } = niceTicks(min - pad, max + pad, 4)
+    const lo = niceMin
+    const hi = niceMax
     const w = 100
     const h = 100
     const step = w / (filtered.length - 1)
@@ -115,7 +146,8 @@ function IndexChart({ points }) {
     const maLinePoints = mas.map(ma =>
       ma.map((v, i) => (v == null ? null : { x: i * step, y: toY(v) })).filter(Boolean)
     )
-    return { linePoints, maLinePoints, lo, hi }
+    const yTicks = ticks.filter(t => t >= lo && t <= hi).map(t => ({ value: t, y: toY(t) }))
+    return { linePoints, maLinePoints, lo, hi, yTicks }
   }, [filtered, mas])
 
   // PC表示時のみ縦軸(値)・横軸(日付)の目盛りを出す
@@ -152,18 +184,20 @@ function IndexChart({ points }) {
         }}
         onMouseLeave={() => setHoverIdx(null)}
       >
-        {/* 縦軸（PCのみ） */}
-        <div className="hidden md:flex flex-col justify-between absolute left-0 top-0 bottom-5 w-12 text-[10px] text-[#8E8E93] text-right pr-2">
-          <span>{numFmt.format(chart.hi)}</span>
-          <span>{numFmt.format((chart.hi + chart.lo) / 2)}</span>
-          <span>{numFmt.format(chart.lo)}</span>
+        {/* 縦軸（PCのみ、キリのいい数値で目盛りを打つ） */}
+        <div className="hidden md:block absolute left-0 top-0 bottom-5 w-12 text-[10px] text-[#8E8E93] text-right">
+          {chart.yTicks.map(t => (
+            <span key={t.value} className="absolute right-2 -translate-y-1/2" style={{ top: `${t.y}%` }}>
+              {numFmt.format(t.value)}
+            </span>
+          ))}
         </div>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
           {/* 補助線（縦軸目盛りに対応する横線） */}
-          {[0, 50, 100].map(y => (
+          {chart.yTicks.map(t => (
             <line
-              key={y}
-              x1="0" y1={Math.max(1, Math.min(99, y))} x2="100" y2={Math.max(1, Math.min(99, y))}
+              key={t.value}
+              x1="0" y1={Math.max(1, Math.min(99, t.y))} x2="100" y2={Math.max(1, Math.min(99, t.y))}
               stroke="#8E8E93" strokeOpacity="0.25" strokeWidth="1"
               vectorEffect="non-scaling-stroke"
             />
