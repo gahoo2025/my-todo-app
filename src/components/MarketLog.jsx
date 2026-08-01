@@ -21,6 +21,14 @@ function formatEntryAt(iso) {
   return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+const PERIODS = [
+  { id: 'daily',   label: '日々' },
+  { id: 'weekly',  label: '週間' },
+  { id: 'monthly', label: '月間' },
+  { id: 'yearly',  label: '年間' },
+]
+const PERIOD_LABEL = Object.fromEntries(PERIODS.map(p => [p.id, p.label]))
+
 function firstLines(text, n = 2) {
   if (!text) return ''
   return text.split('\n').filter(Boolean).slice(0, n).join(' ')
@@ -44,6 +52,7 @@ function EntryEditor({ initial, onSave, onClose }) {
   const [entryAtLocal, setEntryAtLocal] = useState(
     initial?.entry_at ? toDatetimeLocalValue(new Date(initial.entry_at)) : toDatetimeLocalValue(new Date())
   )
+  const [period, setPeriod] = useState(initial?.period ?? 'daily')
   const [actual, setActual] = useState(initial?.actual ?? '')
   const [outlook, setOutlook] = useState(initial?.outlook ?? '')
   const [bulkMode, setBulkMode] = useState(false)
@@ -71,7 +80,7 @@ function EntryEditor({ initial, onSave, onClose }) {
     setSaving(true)
     try {
       const { stocks, todos } = analyzeBlocks(actual, outlook)
-      const parsed = { actual: actual.trim() || null, outlook: outlook.trim() || null, stocks, todos }
+      const parsed = { actual: actual.trim() || null, outlook: outlook.trim() || null, stocks, todos, period }
       await onSave(parsed, fromDatetimeLocalValue(entryAtLocal), savedRawText)
       onClose()
     } catch (err) {
@@ -113,6 +122,21 @@ function EntryEditor({ initial, onSave, onClose }) {
                 className="text-[15px] text-[#8E8E93] bg-transparent focus:outline-none text-right"
               />
             </div>
+          </div>
+
+          {/* 分類 */}
+          <div className="flex gap-1.5">
+            {PERIODS.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setPeriod(p.id)}
+                className={`flex-1 py-1.5 rounded-[10px] text-[13px] font-medium transition-colors ${
+                  period === p.id ? 'bg-[#1C1C1E] text-white' : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
 
           {bulkMode ? (
@@ -201,7 +225,12 @@ function EntryCard({ entry, onOpen }) {
     >
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0 space-y-1.5">
-          <p className="text-[12px] text-[#AEAEB2]">{formatEntryAt(entry.entry_at)}</p>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-[#FF9500]/12 text-[#FF9500]">
+              {PERIOD_LABEL[entry.period] ?? '日々'}
+            </span>
+            <p className="text-[12px] text-[#AEAEB2]">{formatEntryAt(entry.entry_at)}</p>
+          </div>
           {entry.actual && (
             <p className="text-[13px] text-[#3C3C43] leading-snug line-clamp-2">
               <span className="text-[11px] font-semibold text-[#8E8E93] mr-1">実績</span>
@@ -421,18 +450,20 @@ export default function MarketLogSection() {
   const [viewing, setViewing] = useState(null)
   const [showCrossView, setShowCrossView] = useState(false)
   const [query, setQuery] = useState('')
+  const [periodFilter, setPeriodFilter] = useState('all')
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return entries
     return entries.filter(e => {
+      if (periodFilter !== 'all' && (e.period ?? 'daily') !== periodFilter) return false
+      if (!q) return true
       const haystack = [
         e.actual, e.outlook,
         ...e.stocks.map(s => `${s.name} ${s.code}`),
       ].filter(Boolean).join(' ').toLowerCase()
       return haystack.includes(q)
     })
-  }, [entries, query])
+  }, [entries, query, periodFilter])
 
   async function handleSaveNew(parsed, entryAt, rawText) {
     await addEntry(parsed, entryAt, rawText)
@@ -469,6 +500,20 @@ export default function MarketLogSection() {
             >
               ＋ 新規登録
             </button>
+          </div>
+
+          <div className="flex gap-1.5 mb-3 overflow-x-auto">
+            {[{ id: 'all', label: 'すべて' }, ...PERIODS].map(p => (
+              <button
+                key={p.id}
+                onClick={() => setPeriodFilter(p.id)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors ${
+                  periodFilter === p.id ? 'bg-[#1C1C1E] text-white' : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
 
           {loading ? (

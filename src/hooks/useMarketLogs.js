@@ -70,6 +70,7 @@ export function useMarketLogs(userId) {
       actual: parsed.actual || null,
       outlook: parsed.outlook || null,
       raw_text: rawText || null,
+      period: parsed.period || 'daily',
     }]).select().single()
     if (error) { alert('保存に失敗しました: ' + error.message); return null }
 
@@ -88,6 +89,7 @@ export function useMarketLogs(userId) {
       actual: parsed.actual || null,
       outlook: parsed.outlook || null,
       raw_text: rawText || null,
+      period: parsed.period || 'daily',
       updated_at: new Date().toISOString(),
     }).eq('id', logId).select().single()
     if (error) { alert('更新に失敗しました: ' + error.message); return null }
