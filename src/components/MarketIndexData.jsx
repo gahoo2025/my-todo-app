@@ -280,9 +280,18 @@ export default function MarketIndexData() {
           </div>
         )}
         {importResult?.success && (
-          <p className="mt-3 text-[12px] text-[#34C759]">
-            ✓ {importResult.inserted > 0 ? `${importResult.inserted}件の新しいデータを取り込みました` : '新しいデータはありませんでした（最新の状態です）'}
-          </p>
+          <div className="mt-3">
+            <p className="text-[12px] text-[#34C759]">
+              ✓ {importResult.inserted > 0 ? `${importResult.inserted}件の新しいデータを取り込みました` : '新しいデータはありませんでした（最新の状態です）'}
+            </p>
+            {importResult.warnings?.length > 0 && (
+              <ul className="mt-1 space-y-0.5">
+                {importResult.warnings.map((w, i) => (
+                  <li key={i} className="text-[11px] text-[#FF9500]">⚠ {w}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
 
         {driveLinked === false && (

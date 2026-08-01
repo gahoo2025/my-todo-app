@@ -91,7 +91,7 @@ export function useMarketIndices(userId) {
         })
         return
       }
-      setImportResult({ success: true, counts: body.counts, inserted: body.inserted })
+      setImportResult({ success: true, counts: body.counts, inserted: body.inserted, warnings: body.warnings })
 
       step = 'fetchSummary'
       await fetchSummary()
