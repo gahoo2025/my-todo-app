@@ -111,8 +111,16 @@ function IndexChart({ points }) {
     const maLinePoints = mas.map(ma =>
       ma.map((v, i) => (v == null ? null : { x: i * step, y: toY(v) })).filter(Boolean)
     )
-    return { linePoints, maLinePoints }
+    return { linePoints, maLinePoints, lo, hi }
   }, [filtered, mas])
+
+  // PC表示時のみ縦軸(値)・横軸(日付)の目盛りを出す
+  const xTicks = useMemo(() => {
+    if (filtered.length < 2) return []
+    const n = Math.min(6, filtered.length)
+    const idx = Array.from({ length: n }, (_, i) => Math.round((i * (filtered.length - 1)) / (n - 1)))
+    return [...new Set(idx)].map(i => ({ pct: (i / (filtered.length - 1)) * 100, date: filtered[i].trade_date }))
+  }, [filtered])
 
   if (filtered.length < 2) {
     return (
@@ -129,7 +137,13 @@ function IndexChart({ points }) {
   return (
     <div>
       <PeriodTabs periodId={periodId} onChange={setPeriodId} />
-      <div className="relative h-[160px] md:h-[360px]">
+      <div className="relative h-[160px] md:h-[360px] md:pl-14 md:pb-5">
+        {/* 縦軸（PCのみ） */}
+        <div className="hidden md:flex flex-col justify-between absolute left-0 top-0 bottom-5 w-12 text-[10px] text-[#8E8E93] text-right pr-2">
+          <span>{numFmt.format(chart.hi)}</span>
+          <span>{numFmt.format((chart.hi + chart.lo) / 2)}</span>
+          <span>{numFmt.format(chart.lo)}</span>
+        </div>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
           <polyline
             fill="none"
@@ -158,6 +172,14 @@ function IndexChart({ points }) {
             )
           })}
         </svg>
+        {/* 横軸（PCのみ） */}
+        <div className="hidden md:block absolute left-14 right-0 bottom-0 h-5 text-[10px] text-[#8E8E93]">
+          {xTicks.map(t => (
+            <span key={t.date} className="absolute -translate-x-1/2 top-0" style={{ left: `${t.pct}%` }}>
+              {formatDate(t.date)}
+            </span>
+          ))}
+        </div>
       </div>
       <div className="flex items-center justify-between mt-2 text-[11px] text-[#AEAEB2]">
         <span>{formatDate(first.trade_date)}・{numFmt.format(Number(first.value))}</span>

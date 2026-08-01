@@ -49,7 +49,15 @@ export default function AssetHistoryChart({ points }) {
     const step = w / (filtered.length - 1)
     const toY = v => h - ((v - lo) / (hi - lo)) * h
     const linePoints = filtered.map((p, i) => ({ x: i * step, y: toY(Number(p.value)) }))
-    return { linePoints }
+    return { linePoints, lo, hi }
+  }, [filtered])
+
+  // PC表示時のみ縦軸(金額)・横軸(日付)の目盛りを出す
+  const xTicks = useMemo(() => {
+    if (filtered.length < 2) return []
+    const n = Math.min(6, filtered.length)
+    const idx = Array.from({ length: n }, (_, i) => Math.round((i * (filtered.length - 1)) / (n - 1)))
+    return [...new Set(idx)].map(i => ({ pct: (i / (filtered.length - 1)) * 100, date: filtered[i].trade_date }))
   }, [filtered])
 
   return (
@@ -69,7 +77,13 @@ export default function AssetHistoryChart({ points }) {
       </div>
       {chart ? (
         <>
-          <div className="relative h-[140px] md:h-[300px]">
+          <div className="relative h-[140px] md:h-[300px] md:pl-16 md:pb-5">
+            {/* 縦軸（PCのみ） */}
+            <div className="hidden md:flex flex-col justify-between absolute left-0 top-0 bottom-5 w-14 text-[10px] text-[#8E8E93] text-right pr-2">
+              <span>{yen.format(chart.hi)}</span>
+              <span>{yen.format((chart.hi + chart.lo) / 2)}</span>
+              <span>{yen.format(chart.lo)}</span>
+            </div>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
               <polyline
                 fill="none"
@@ -81,6 +95,14 @@ export default function AssetHistoryChart({ points }) {
                 points={chart.linePoints.map(c => `${c.x},${c.y}`).join(' ')}
               />
             </svg>
+            {/* 横軸（PCのみ） */}
+            <div className="hidden md:block absolute left-16 right-0 bottom-0 h-5 text-[10px] text-[#8E8E93]">
+              {xTicks.map(t => (
+                <span key={t.date} className="absolute -translate-x-1/2 top-0" style={{ left: `${t.pct}%` }}>
+                  {formatDate(t.date)}
+                </span>
+              ))}
+            </div>
           </div>
           <div className="flex items-center justify-between mt-2 text-[11px] text-[#AEAEB2]">
             <span>{formatDate(filtered[0].trade_date)}・{yen.format(Number(filtered[0].value))}</span>

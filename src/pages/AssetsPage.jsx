@@ -209,14 +209,14 @@ export default function AssetsPage({ embedded }) {
 
   if (embedded) {
     return (
-      <main className="max-w-lg md:max-w-5xl mx-auto px-4 py-4 pb-28 md:pb-10">
+      <main className="max-w-lg md:max-w-none mx-auto px-4 md:px-8 py-4 pb-28 md:pb-10">
         {body}
       </main>
     )
   }
   return (
     <div className="min-h-screen">
-      <main className="max-w-lg md:max-w-5xl mx-auto px-4 py-4 pb-10">{body}</main>
+      <main className="max-w-lg md:max-w-none mx-auto px-4 md:px-8 py-4 pb-10">{body}</main>
     </div>
   )
 }
