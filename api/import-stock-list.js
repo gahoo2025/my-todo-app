@@ -202,7 +202,14 @@ export default async function handler(req, res) {
       return res.status(422).json({ error: '銘柄リスト.csvから有効な行を検出できませんでした', warnings })
     }
 
-    const rows = items.map(item => ({ user_id: user.id, ...item, updated_at: new Date().toISOString() }))
+    // 銘柄コードの重複行があると同一バッチ内でON CONFLICTが二重適用されエラーになるため、
+    // 後勝ちで重複を除去する
+    const bySymbol = new Map()
+    for (const item of items) bySymbol.set(item.symbol_code, item)
+    const duplicateCount = items.length - bySymbol.size
+    if (duplicateCount > 0) warnings.push(`銘柄コードの重複行 ${duplicateCount}件は最後の行を採用しました`)
+
+    const rows = [...bySymbol.values()].map(item => ({ user_id: user.id, ...item, updated_at: new Date().toISOString() }))
     const dbHeaders = {
       apikey: serviceKey,
       Authorization: `Bearer ${serviceKey}`,
