@@ -2,6 +2,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useAssetTotalsSummary } from '../hooks/useAssetTotalsSummary'
 import { useAssetHoldingsLatest } from '../hooks/useAssetHoldingsLatest'
 import { useAssetTotalsHistory } from '../hooks/useAssetTotalsHistory'
+import { useAssetHoldingHistory, holdingKey } from '../hooks/useAssetHoldingHistory'
 import { useState } from 'react'
 import MarketLogSection from '../components/MarketLog'
 import WatchStocksSection from '../components/WatchStocks'
@@ -33,8 +34,20 @@ function FamilyAssetSummary() {
   const { byPersonBroker, total, latestDate, loading, refetch } = useAssetTotalsSummary(user?.id)
   const { byPerson: holdingsByPerson, loading: holdingsLoading } = useAssetHoldingsLatest(user?.id)
   const { familySeries, byPersonSeries, byPersonBrokerSeries, loading: historyLoading } = useAssetTotalsHistory(user?.id)
+  const { historyByKey: holdingHistoryByKey, loadingKey: holdingHistoryLoadingKey, fetchHistory: fetchHoldingHistory } = useAssetHoldingHistory(user?.id)
   const [expanded, setExpanded] = useState(null)
+  const [expandedHolding, setExpandedHolding] = useState(null)
   const [showFamilyChart, setShowFamilyChart] = useState(false)
+
+  function toggleHolding(h) {
+    const key = holdingKey(h)
+    if (expandedHolding === key) {
+      setExpandedHolding(null)
+      return
+    }
+    setExpandedHolding(key)
+    fetchHoldingHistory(h)
+  }
 
   if (loading) return null
 
@@ -147,20 +160,36 @@ function FamilyAssetSummary() {
                           const pl = Number(h.unrealized_pl ?? 0)
                           const plColor = pl < 0 ? 'text-[#FF3B30]' : pl > 0 ? 'text-[#34C759]' : 'text-[#8E8E93]'
                           const sign = pl > 0 ? '+' : ''
+                          const key = holdingKey(h)
+                          const isHoldingOpen = expandedHolding === key
+                          const holdingPoints = holdingHistoryByKey[key] ?? []
                           return (
-                            <div key={`${h.broker}_${h.holding_type}_${h.symbol_code}_${h.symbol_name}_${h.account_type}`} className="flex items-center justify-between">
-                              <div className="min-w-0">
-                                <p className="text-[12px] text-[#1C1C1E] truncate">{h.symbol_name}</p>
-                                <p className="text-[10px] text-[#AEAEB2]">{h.broker}証券・{h.account_type || '—'}</p>
-                              </div>
-                              <div className="text-right flex-shrink-0 ml-2">
-                                <p className="text-[12px] text-[#1C1C1E] tabular-nums">{yen.format(Number(h.market_value ?? 0))}</p>
-                                {h.unrealized_pl != null && (
-                                  <p className={`text-[10px] tabular-nums ${plColor}`}>
-                                    {sign}{yen.format(pl)}{h.unrealized_pl_pct != null && ` (${sign}${Number(h.unrealized_pl_pct).toFixed(1)}%)`}
-                                  </p>
-                                )}
-                              </div>
+                            <div key={key}>
+                              <button onClick={() => toggleHolding(h)} className="w-full flex items-center justify-between text-left active:opacity-60">
+                                <div className="min-w-0">
+                                  <p className="text-[12px] text-[#1C1C1E] truncate">{h.symbol_name}</p>
+                                  <p className="text-[10px] text-[#AEAEB2]">{h.broker}証券・{h.account_type || '—'}</p>
+                                </div>
+                                <div className="text-right flex-shrink-0 ml-2">
+                                  <p className="text-[12px] text-[#1C1C1E] tabular-nums">{yen.format(Number(h.market_value ?? 0))}</p>
+                                  {h.unrealized_pl != null && (
+                                    <p className={`text-[10px] tabular-nums ${plColor}`}>
+                                      {sign}{yen.format(pl)}{h.unrealized_pl_pct != null && ` (${sign}${Number(h.unrealized_pl_pct).toFixed(1)}%)`}
+                                    </p>
+                                  )}
+                                </div>
+                              </button>
+                              {isHoldingOpen && (
+                                <div className="mt-2 pb-1">
+                                  {holdingHistoryLoadingKey === key ? (
+                                    <p className="text-[11px] text-[#AEAEB2] py-3 text-center">読み込み中…</p>
+                                  ) : holdingPoints.length >= 2 ? (
+                                    <AssetHistoryChart points={holdingPoints} />
+                                  ) : (
+                                    <p className="text-[11px] text-[#AEAEB2] py-3 text-center">この銘柄はデータが2件以上ありません</p>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )
                         })}
