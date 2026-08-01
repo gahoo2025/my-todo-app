@@ -182,10 +182,13 @@ async function getDriveRefreshToken(url, serviceKey, userId) {
   return data?.[0]?.refresh_token ?? null
 }
 
-async function getDriveAccessToken(refreshToken) {
+async function getDriveAccessToken(refreshToken, warnings) {
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-  if (!clientId || !clientSecret) return null
+  if (!clientId || !clientSecret) {
+    warnings.push('GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRETが未設定です')
+    return null
+  }
   const r = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -196,7 +199,11 @@ async function getDriveAccessToken(refreshToken) {
       grant_type: 'refresh_token',
     }),
   })
-  if (!r.ok) return null
+  if (!r.ok) {
+    const errText = await r.text().catch(() => '')
+    warnings.push(`Googleドライブのアクセストークン取得に失敗しました (HTTP ${r.status}): ${errText.slice(0, 300)}`)
+    return null
+  }
   const data = await r.json().catch(() => ({}))
   return data.access_token ?? null
 }
@@ -300,10 +307,8 @@ export default async function handler(req, res) {
     // Googleドライブに連携済みなら bitcoin.csv も取り込む
     const driveRefreshToken = await getDriveRefreshToken(url, serviceKey, user.id)
     if (driveRefreshToken) {
-      const accessToken = await getDriveAccessToken(driveRefreshToken)
-      if (!accessToken) {
-        warnings.push('Googleドライブのアクセストークン取得に失敗しました')
-      } else {
+      const accessToken = await getDriveAccessToken(driveRefreshToken, warnings)
+      if (accessToken) {
         const bitcoinPoints = await fetchBitcoinCsvFromDrive(accessToken, warnings)
         if (bitcoinPoints?.length) (merged.bitcoin ??= []).push(...bitcoinPoints)
       }
