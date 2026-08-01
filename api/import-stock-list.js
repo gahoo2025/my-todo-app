@@ -103,17 +103,20 @@ function parseCsv(text) {
 
 function parseNumber(text) {
   if (!text) return null
-  const cleaned = text.replace(/[,，¥$%\s]/g, '')
+  const cleaned = text.replace(/[,，¥$%円\s]/g, '')
   if (!cleaned || cleaned === '-') return null
   const n = Number(cleaned)
   return Number.isFinite(n) ? n : null
 }
 
+// 実際のCSV列順: 除外, 更新スクリーニング日時, 分類, 銘柄コード, 銘柄名, セクター,
+// 最新株価, 配当額, 配当利回り, Layer1判定, Layer2の状況, Layer2信号, 最終判定
 const COLUMN_KEYS = [
-  'category', 'symbol_code', 'symbol_name', 'sector', 'latest_price',
-  'dividend_amount', 'dividend_yield', 'layer1_judgement', 'layer2_status',
-  'layer2_signal', 'final_judgement',
+  'excluded', 'screened_at', 'category', 'symbol_code', 'symbol_name', 'sector',
+  'latest_price', 'dividend_amount', 'dividend_yield', 'layer1_judgement',
+  'layer2_status', 'layer2_signal', 'final_judgement',
 ]
+const SYMBOL_CODE_INDEX = COLUMN_KEYS.indexOf('symbol_code')
 const NUMBER_COLUMNS = new Set(['latest_price', 'dividend_amount', 'dividend_yield'])
 
 function parseStockList(csvText, debug) {
@@ -125,7 +128,7 @@ function parseStockList(csvText, debug) {
   const dataRows = rows.slice(1)
   const items = []
   for (const row of dataRows) {
-    const symbolCode = (row[1] || '').trim()
+    const symbolCode = (row[SYMBOL_CODE_INDEX] || '').trim()
     if (!symbolCode) continue
     const item = {}
     COLUMN_KEYS.forEach((key, i) => {
