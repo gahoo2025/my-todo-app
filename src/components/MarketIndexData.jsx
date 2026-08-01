@@ -209,10 +209,25 @@ function IndexChart({ points }) {
         </svg>
         {hoverIdx != null && filtered[hoverIdx] && (
           <div
-            className="hidden md:block absolute top-1 px-2 py-1 rounded-[6px] bg-[#1C1C1E] text-white text-[11px] whitespace-nowrap pointer-events-none -translate-x-1/2"
+            className="hidden md:block absolute top-1 px-2.5 py-1.5 rounded-[8px] bg-[#1C1C1E] text-white text-[11px] whitespace-nowrap pointer-events-none -translate-x-1/2 space-y-0.5"
             style={{ left: `calc(56px + (100% - 56px) * ${hoverIdx / (filtered.length - 1)})` }}
           >
-            {formatDate(filtered[hoverIdx].trade_date)} ・ {numFmt.format(Number(filtered[hoverIdx].value))}
+            <p className="font-semibold">
+              {formatDate(filtered[hoverIdx].trade_date)} ・ {numFmt.format(Number(filtered[hoverIdx].value))}
+            </p>
+            {MA_LINES.map((m, i) => {
+              const v = mas[i]?.[hoverIdx]
+              if (v == null) return null
+              return (
+                <p key={m.window} className="flex items-center gap-1 text-[#AEAEB2]">
+                  <span
+                    className="inline-block w-2 h-0.5"
+                    style={{ backgroundColor: `rgba(${MA_COLOR}, ${m.opacity})` }}
+                  />
+                  {m.label}: {numFmt.format(v)}
+                </p>
+              )
+            })}
           </div>
         )}
         {/* 横軸（PCのみ） */}
