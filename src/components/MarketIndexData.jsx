@@ -294,15 +294,17 @@ export default function MarketIndexData() {
           </div>
         )}
 
-        {driveLinked === false && (
+        {driveLinked !== null && (
           <div className="mt-3 pt-3 border-t border-black/[0.05] flex items-center justify-between">
-            <p className="text-[12px] text-[#8E8E93]">Googleドライブ未連携（ビットコインのCSVは取り込まれません）</p>
+            <p className="text-[12px] text-[#8E8E93]">
+              {driveLinked ? 'Googleドライブ連携済み' : 'Googleドライブ未連携（ビットコインのCSVは取り込まれません）'}
+            </p>
             <button
               onClick={linkDrive}
               disabled={driveLinking}
               className="flex-shrink-0 px-3 py-1.5 rounded-[8px] bg-black/[0.04] text-[#1C1C1E] text-[12px] font-medium disabled:opacity-40 active:opacity-70 transition-opacity"
             >
-              {driveLinking ? '連携中…' : 'Googleドライブと連携'}
+              {driveLinking ? '連携中…' : driveLinked ? '再連携する' : 'Googleドライブと連携'}
             </button>
           </div>
         )}
