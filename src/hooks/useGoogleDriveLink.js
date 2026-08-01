@@ -1,15 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
-// Googleドライブのファイルを読むためのOAuthスコープを持つGoogle IDを、
-// 現在ログイン中のSupabaseユーザーに追加でリンクする（既存のログインセッションは維持する）
+const GOOGLE_CLIENT_ID = '53489147565-g66dmfi0q7egshumsbk0ot6h8kktllj6.apps.googleusercontent.com'
+
+// Googleドライブのファイルを読むための認可を、Supabaseを介さず直接Googleの
+// OAuthエンドポイントへリダイレクトして行う。戻り先は api/google-oauth-callback.js。
 export function useGoogleDriveLink(userId) {
   const [linked, setLinked] = useState(null) // null=未確認, true/false
   const [linking, setLinking] = useState(false)
   const [error, setError] = useState(null)
-  const [debugLog, setDebugLog] = useState([])
-
-  const log = m => setDebugLog(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString('ja-JP')} ${m}`])
 
   const checkStatus = useCallback(async () => {
     if (!userId) return
@@ -26,42 +25,41 @@ export function useGoogleDriveLink(userId) {
 
   useEffect(() => { checkStatus() }, [checkStatus])
 
-  // Google側のOAuthリダイレクトから戻ってきた直後、セッションにprovider_refresh_tokenが
-  // 含まれていればサーバーに送って保存する
+  // コールバックからのリダイレクト直後、URLの ?drive=linked|error を読み取って表示する
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      log(`event=${event} provider_token=${!!session?.provider_token} provider_refresh_token=${!!session?.provider_refresh_token}`)
-      if (!session?.provider_refresh_token) return
-      const r = await fetch('/api/google-drive-link', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: session.provider_refresh_token }),
-      })
-      log(`POST /api/google-drive-link -> ${r.status}`)
-      if (r.ok) setLinked(true)
-    })
-    return () => subscription.unsubscribe()
+    const params = new URLSearchParams(window.location.search)
+    const drive = params.get('drive')
+    if (!drive) return
+    if (drive === 'linked') setLinked(true)
+    if (drive === 'error') setError(params.get('message') || '連携に失敗しました')
+    params.delete('drive')
+    params.delete('message')
+    const rest = params.toString()
+    window.history.replaceState({}, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash)
   }, [])
 
   async function linkDrive() {
     setLinking(true)
     setError(null)
-    log('linkIdentity開始')
-    try {
-      const { data, error } = await supabase.auth.linkIdentity({
-        provider: 'google',
-        options: {
-          scopes: 'https://www.googleapis.com/auth/drive.readonly',
-          queryParams: { access_type: 'offline', prompt: 'consent' },
-          redirectTo: window.location.href,
-        },
-      })
-      if (error) { setError(error.message); log(`linkIdentity error: ${error.message}`) }
-      else log(`linkIdentity url=${data?.url ?? '(なし)'}`)
-    } finally {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData?.session?.access_token
+    if (!accessToken) {
+      setError('ログイン情報が取得できませんでした')
       setLinking(false)
+      return
     }
+    const redirectUri = `${window.location.origin}/api/google-oauth-callback`
+    const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+      client_id: GOOGLE_CLIENT_ID,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'https://www.googleapis.com/auth/drive.readonly',
+      access_type: 'offline',
+      prompt: 'consent',
+      state: accessToken,
+    })
+    window.location.href = authUrl
   }
 
-  return { linked, linking, error, linkDrive, debugLog }
+  return { linked, linking, error, linkDrive }
 }

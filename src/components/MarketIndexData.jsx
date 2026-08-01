@@ -240,7 +240,7 @@ export default function MarketIndexData() {
     latestBySymbol, counts, loading, importing, importResult, importFromSheet,
     historyBySymbol, historyLoading, fetchHistory,
   } = useMarketIndices(user?.id)
-  const { linked: driveLinked, linking: driveLinking, error: driveError, linkDrive, debugLog } = useGoogleDriveLink(user?.id)
+  const { linked: driveLinked, linking: driveLinking, error: driveError, linkDrive } = useGoogleDriveLink(user?.id)
   const [expanded, setExpanded] = useState(null)
 
   function toggleExpand(id) {
@@ -309,11 +309,6 @@ export default function MarketIndexData() {
           </div>
         )}
         {driveError && <p className="mt-2 text-[11px] text-[#FF3B30]">⚠ {driveError}</p>}
-        {debugLog.length > 0 && (
-          <pre className="mt-2 p-2 rounded-[8px] bg-black/[0.04] text-[10px] text-[#636366] overflow-x-auto whitespace-pre-wrap break-all">
-            {debugLog.join('\n')}
-          </pre>
-        )}
       </div>
 
       <div className="ios-card overflow-hidden">
