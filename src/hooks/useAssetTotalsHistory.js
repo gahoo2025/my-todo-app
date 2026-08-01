@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 export function useAssetTotalsHistory(userId) {
   const [familySeries, setFamilySeries] = useState([])
   const [byPersonSeries, setByPersonSeries] = useState({})
+  const [byPersonBrokerSeries, setByPersonBrokerSeries] = useState({})
   const [loading, setLoading] = useState(true)
 
   const fetchHistory = useCallback(async () => {
@@ -29,10 +30,15 @@ export function useAssetTotalsHistory(userId) {
 
     const byDate = {} // date -> total
     const byPersonDate = {} // person -> date -> total
+    const byPersonBrokerDate = {} // person -> broker -> date -> total
     for (const row of all) {
       byDate[row.recorded_at] = (byDate[row.recorded_at] ?? 0) + Number(row.total_value)
       byPersonDate[row.person] ??= {}
       byPersonDate[row.person][row.recorded_at] = (byPersonDate[row.person][row.recorded_at] ?? 0) + Number(row.total_value)
+      byPersonBrokerDate[row.person] ??= {}
+      byPersonBrokerDate[row.person][row.broker] ??= {}
+      byPersonBrokerDate[row.person][row.broker][row.recorded_at] =
+        (byPersonBrokerDate[row.person][row.broker][row.recorded_at] ?? 0) + Number(row.total_value)
     }
 
     const family = Object.entries(byDate)
@@ -46,12 +52,23 @@ export function useAssetTotalsHistory(userId) {
         .sort((a, b) => a.trade_date.localeCompare(b.trade_date))
     }
 
+    const byPersonBroker = {}
+    for (const [person, brokers] of Object.entries(byPersonBrokerDate)) {
+      byPersonBroker[person] = {}
+      for (const [broker, dates] of Object.entries(brokers)) {
+        byPersonBroker[person][broker] = Object.entries(dates)
+          .map(([trade_date, value]) => ({ trade_date, value }))
+          .sort((a, b) => a.trade_date.localeCompare(b.trade_date))
+      }
+    }
+
     setFamilySeries(family)
     setByPersonSeries(byPerson)
+    setByPersonBrokerSeries(byPersonBroker)
     setLoading(false)
   }, [userId])
 
   useEffect(() => { fetchHistory() }, [fetchHistory])
 
-  return { familySeries, byPersonSeries, loading, refetch: fetchHistory }
+  return { familySeries, byPersonSeries, byPersonBrokerSeries, loading, refetch: fetchHistory }
 }

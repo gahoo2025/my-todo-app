@@ -32,7 +32,7 @@ function FamilyAssetSummary() {
   const { user } = useAuth()
   const { byPersonBroker, total, latestDate, loading, refetch } = useAssetTotalsSummary(user?.id)
   const { byPerson: holdingsByPerson, loading: holdingsLoading } = useAssetHoldingsLatest(user?.id)
-  const { familySeries, byPersonSeries, loading: historyLoading } = useAssetTotalsHistory(user?.id)
+  const { familySeries, byPersonSeries, byPersonBrokerSeries, loading: historyLoading } = useAssetTotalsHistory(user?.id)
   const [expanded, setExpanded] = useState(null)
   const [showFamilyChart, setShowFamilyChart] = useState(false)
 
@@ -123,7 +123,18 @@ function FamilyAssetSummary() {
                       <p className="text-[12px] text-[#AEAEB2] py-3 text-center">読み込み中…</p>
                     ) : (byPersonSeries[name]?.length ?? 0) >= 2 ? (
                       <div className="mb-3">
+                        <p className="text-[12px] font-semibold text-[#8E8E93] mb-1">合計の推移</p>
                         <AssetHistoryChart points={byPersonSeries[name]} />
+                        {breakdown.length > 1 && breakdown.map(([broker]) => {
+                          const brokerSeries = byPersonBrokerSeries[name]?.[broker] ?? []
+                          if (brokerSeries.length < 2) return null
+                          return (
+                            <div key={broker} className="mt-4">
+                              <p className="text-[12px] font-semibold text-[#8E8E93] mb-1">{broker}証券の推移</p>
+                              <AssetHistoryChart points={brokerSeries} />
+                            </div>
+                          )
+                        })}
                       </div>
                     ) : null}
                     {holdingsLoading ? (
