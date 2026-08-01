@@ -240,7 +240,7 @@ export default function MarketIndexData() {
     latestBySymbol, counts, loading, importing, importResult, importFromSheet,
     historyBySymbol, historyLoading, fetchHistory,
   } = useMarketIndices(user?.id)
-  const { linked: driveLinked, linking: driveLinking, error: driveError, linkDrive } = useGoogleDriveLink(user?.id)
+  const { linked: driveLinked, linking: driveLinking, error: driveError, linkDrive, pendingUrl, goToGoogle } = useGoogleDriveLink(user?.id)
   const [expanded, setExpanded] = useState(null)
 
   function toggleExpand(id) {
@@ -309,6 +309,20 @@ export default function MarketIndexData() {
           </div>
         )}
         {driveError && <p className="mt-2 text-[11px] text-[#FF3B30]">⚠ {driveError}</p>}
+        {pendingUrl && (
+          <div className="mt-3 pt-3 border-t border-black/[0.05] space-y-2">
+            <p className="text-[11px] text-[#8E8E93]">このURLにアクセスします（確認用）：</p>
+            <pre className="p-2 rounded-[8px] bg-black/[0.04] text-[10px] text-[#636366] overflow-x-auto whitespace-pre-wrap break-all">
+              {pendingUrl}
+            </pre>
+            <button
+              onClick={goToGoogle}
+              className="w-full px-4 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[14px] font-semibold active:opacity-70 transition-opacity"
+            >
+              Googleに進む
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="ios-card overflow-hidden">

@@ -9,6 +9,7 @@ export function useGoogleDriveLink(userId) {
   const [linked, setLinked] = useState(null) // null=未確認, true/false
   const [linking, setLinking] = useState(false)
   const [error, setError] = useState(null)
+  const [pendingUrl, setPendingUrl] = useState(null)
 
   const checkStatus = useCallback(async () => {
     if (!userId) return
@@ -58,8 +59,13 @@ export function useGoogleDriveLink(userId) {
       prompt: 'consent',
       state: accessToken,
     })
-    window.location.href = authUrl
+    setPendingUrl(authUrl)
+    setLinking(false)
   }
 
-  return { linked, linking, error, linkDrive }
+  function goToGoogle() {
+    if (pendingUrl) window.location.href = pendingUrl
+  }
+
+  return { linked, linking, error, linkDrive, pendingUrl, goToGoogle }
 }
