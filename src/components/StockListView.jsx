@@ -18,7 +18,6 @@ export default function StockListView() {
   const { user } = useAuth()
   const { items, loading, importing, importResult, importList } = useStockList(user?.id)
   const [query, setQuery] = useState('')
-  const [expanded, setExpanded] = useState(null)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -82,72 +81,76 @@ export default function StockListView() {
         className="w-full px-3 py-2.5 rounded-[10px] bg-white text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] shadow-[0_1px_2px_rgba(0,0,0,0.06)] focus:outline-none"
       />
 
-      <div className="ios-card overflow-hidden">
-        {loading ? (
-          <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">読み込み中…</p>
-        ) : filtered.length === 0 ? (
-          <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">
-            {items.length === 0 ? '「取り込む」から銘柄リストを取り込んでください' : '該当する銘柄がありません'}
-          </p>
-        ) : (
-          <div className="divide-y divide-black/[0.04]">
-            {filtered.map(it => {
-              const isOpen = expanded === it.symbol_code
-              const badge = judgementBadge(it.final_judgement)
-              const hasDetail = it.layer1_judgement || it.layer2_status || it.layer2_signal
-              return (
-                <div key={it.symbol_code}>
-                  <button
-                    onClick={() => setExpanded(isOpen ? null : it.symbol_code)}
-                    className="w-full px-4 py-3 text-left active:bg-black/[0.02] transition-colors"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-[14px] font-semibold text-[#1C1C1E] truncate">
-                          {it.symbol_name || '（銘柄名なし）'}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          <span className="text-[11px] text-[#AEAEB2] tabular-nums">{it.symbol_code}</span>
-                          {it.category && (
-                            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-[#007AFF]/10 text-[#007AFF]">{it.category}</span>
-                          )}
-                          {it.sector && <span className="text-[11px] text-[#8E8E93]">{it.sector}</span>}
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        {it.latest_price != null && (
-                          <p className="text-[15px] font-semibold text-[#1C1C1E] tabular-nums">{numFmt.format(it.latest_price)}円</p>
-                        )}
-                        {it.dividend_yield != null && (
-                          <p className="text-[11px] text-[#8E8E93] tabular-nums">利回り{numFmt.format(it.dividend_yield)}%</p>
-                        )}
-                      </div>
-                    </div>
-                    {it.final_judgement && (
-                      <p className={`mt-2 inline-block text-[11px] font-semibold px-2 py-1 rounded-full ${badge.bg} ${badge.text}`}>
-                        {it.final_judgement}
-                      </p>
-                    )}
-                  </button>
-                  {isOpen && hasDetail && (
-                    <div className="px-4 pb-3 space-y-1.5 bg-black/[0.02] mx-4 mb-3 rounded-[10px] p-3">
-                      {it.layer1_judgement && (
-                        <p className="text-[12px] text-[#636366]"><span className="font-semibold text-[#8E8E93]">Layer1</span> {it.layer1_judgement}</p>
-                      )}
-                      {it.layer2_status && (
-                        <p className="text-[12px] text-[#636366]"><span className="font-semibold text-[#8E8E93]">Layer2状況</span> {it.layer2_status}</p>
-                      )}
-                      {it.layer2_signal && (
-                        <p className="text-[12px] text-[#636366]"><span className="font-semibold text-[#8E8E93]">Layer2信号</span> {it.layer2_signal}</p>
-                      )}
-                    </div>
+      {loading ? (
+        <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">読み込み中…</p>
+      ) : filtered.length === 0 ? (
+        <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">
+          {items.length === 0 ? '「取り込む」から銘柄リストを取り込んでください' : '該当する銘柄がありません'}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(it => {
+            const badge = judgementBadge(it.final_judgement)
+            return (
+              <div key={it.symbol_code} className="ios-card px-4 py-3.5">
+                {/* 銘柄名・コード・分類・セクター */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="text-[15px] font-semibold text-[#1C1C1E]">
+                    {it.symbol_name || '（銘柄名なし）'}
+                    <span className="text-[12px] font-normal text-[#AEAEB2] ml-1.5 tabular-nums">{it.symbol_code}</span>
+                  </p>
+                  {it.final_judgement && (
+                    <p className={`text-[11px] font-semibold px-2 py-1 rounded-full ${badge.bg} ${badge.text}`}>
+                      {it.final_judgement}
+                    </p>
                   )}
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {it.category && (
+                    <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-[#007AFF]/10 text-[#007AFF]">{it.category}</span>
+                  )}
+                  {it.sector && <span className="text-[11px] text-[#8E8E93]">{it.sector}</span>}
+                </div>
+
+                {/* 株価・配当（重要指標として銘柄名の直下にラベル付きで表示） */}
+                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-black/[0.05]">
+                  <div>
+                    <p className="text-[10px] text-[#AEAEB2]">最新株価</p>
+                    <p className="text-[14px] font-semibold text-[#1C1C1E] tabular-nums">
+                      {it.latest_price != null ? `${numFmt.format(it.latest_price)}円` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[#AEAEB2]">配当額</p>
+                    <p className="text-[14px] font-semibold text-[#1C1C1E] tabular-nums">
+                      {it.dividend_amount != null ? `${numFmt.format(it.dividend_amount)}円` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[#AEAEB2]">配当利回り</p>
+                    <p className="text-[14px] font-semibold text-[#1C1C1E] tabular-nums">
+                      {it.dividend_yield != null ? `${numFmt.format(it.dividend_yield)}%` : '—'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Layer判定・除外・更新日時（すべて常時表示） */}
+                <div className="mt-3 pt-3 border-t border-black/[0.05] space-y-1">
+                  <p className="text-[12px] text-[#636366]"><span className="font-semibold text-[#8E8E93]">Layer1判定</span> {it.layer1_judgement || '—'}</p>
+                  <p className="text-[12px] text-[#636366]"><span className="font-semibold text-[#8E8E93]">Layer2の状況</span> {it.layer2_status || '—'}</p>
+                  <p className="text-[12px] text-[#636366]"><span className="font-semibold text-[#8E8E93]">Layer2信号</span> {it.layer2_signal || '—'}</p>
+                  {it.excluded && (
+                    <p className="text-[12px] text-[#FF3B30]"><span className="font-semibold">除外</span> {it.excluded}</p>
+                  )}
+                  {it.screened_at && (
+                    <p className="text-[11px] text-[#AEAEB2] pt-1">更新スクリーニング日時: {it.screened_at}</p>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
