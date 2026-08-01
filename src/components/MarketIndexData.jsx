@@ -146,6 +146,17 @@ function IndexChart({ points }) {
           <span>{numFmt.format(chart.lo)}</span>
         </div>
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+          {/* 補助線（PCのみ、縦軸目盛りに対応する横線） */}
+          <g className="hidden md:block">
+            {[0, 50, 100].map(y => (
+              <line
+                key={y}
+                x1="0" y1={y} x2="100" y2={y}
+                stroke="#000000" strokeOpacity="0.06" strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </g>
           <polyline
             fill="none"
             stroke="#000000"
