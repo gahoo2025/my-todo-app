@@ -480,26 +480,28 @@ export default function MarketLogSection() {
         <CrossView entries={entries} onBack={() => setShowCrossView(false)} />
       ) : (
         <>
-          <div className="sticky top-below-header z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl flex gap-2">
+          <div className="sticky top-below-header z-[5] -mx-4 px-4 pt-2 pb-2.5 bg-[#F2F2F7]/85 backdrop-blur-xl space-y-2">
             <input
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="キーワード・銘柄コードで検索"
-              className="flex-1 px-3 py-2.5 rounded-[10px] bg-white text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] shadow-[0_1px_2px_rgba(0,0,0,0.06)] focus:outline-none"
+              className="w-full px-3 py-2.5 rounded-[10px] bg-white text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] shadow-[0_1px_2px_rgba(0,0,0,0.06)] focus:outline-none"
             />
-            <button
-              onClick={() => setShowCrossView(true)}
-              className="flex-shrink-0 px-3 py-2.5 rounded-[10px] bg-white text-[#1C1C1E] text-[13px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.06)] active:opacity-70 transition-opacity"
-            >
-              🔍 銘柄別
-            </button>
-            <button
-              onClick={() => setEditing({ mode: 'new' })}
-              className="flex-shrink-0 px-3 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.06)] active:opacity-70 transition-opacity"
-            >
-              ＋ 新規登録
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCrossView(true)}
+                className="flex-1 px-3 py-2.5 rounded-[10px] bg-white text-[#1C1C1E] text-[13px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.06)] active:opacity-70 transition-opacity"
+              >
+                🔍 銘柄別
+              </button>
+              <button
+                onClick={() => setEditing({ mode: 'new' })}
+                className="flex-1 px-3 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[13px] font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.06)] active:opacity-70 transition-opacity"
+              >
+                ＋ 新規登録
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-1.5 mb-3 overflow-x-auto">
