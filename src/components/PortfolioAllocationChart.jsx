@@ -23,8 +23,8 @@ export default function PortfolioAllocationChart({ holdings }) {
   })
 
   return (
-    <div className="flex flex-col md:flex-row items-center gap-5">
-      <div className="relative w-[160px] h-[160px] flex-shrink-0">
+    <div className="flex flex-col sm:flex-row items-start gap-6 max-w-md">
+      <div className="relative w-[160px] h-[160px] flex-shrink-0 mx-auto sm:mx-0">
         <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
           {arcs.map(a => (
             <circle
@@ -43,17 +43,14 @@ export default function PortfolioAllocationChart({ holdings }) {
           <span className="text-[13px] font-semibold text-[#1C1C1E]">内訳</span>
         </div>
       </div>
-      <div className="w-full space-y-1.5">
+      <div className="w-full sm:min-w-0 space-y-2">
         {arcs.map(a => (
-          <div key={a.category} className="flex items-center justify-between text-[12px]">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
-              <span className="text-[#1C1C1E] truncate">{a.category}</span>
-            </div>
-            <div className="flex-shrink-0 flex items-baseline gap-1.5 tabular-nums">
-              <span className="text-[#8E8E93]">{a.pct.toFixed(1)}%</span>
-              <span className="text-[#1C1C1E] font-medium">{yen.format(a.amount)}</span>
-            </div>
+          <div key={a.category} className="flex items-center gap-2.5 text-[12px]">
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color }} />
+            <span className="text-[#1C1C1E] flex-shrink-0">{a.category}</span>
+            <span className="flex-1 border-b border-dotted border-black/[0.08] mx-0.5 translate-y-[2px]" />
+            <span className="text-[#8E8E93] flex-shrink-0 tabular-nums">{a.pct.toFixed(1)}%</span>
+            <span className="text-[#1C1C1E] font-medium flex-shrink-0 tabular-nums w-[88px] text-right">{yen.format(a.amount)}</span>
           </div>
         ))}
       </div>
