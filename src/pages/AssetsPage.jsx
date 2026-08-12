@@ -10,6 +10,7 @@ import MarketIndexData from '../components/MarketIndexData'
 import AssetHoldingsImport from '../components/AssetHoldingsImport'
 import AssetHistoryChart from '../components/AssetHistoryChart'
 import StockListView from '../components/StockListView'
+import PortfolioAllocationChart from '../components/PortfolioAllocationChart'
 
 // サブ機能の定義（今後ここに追加していく）
 // 資産管理（資産情報・家計情報）と投資管理（投資情報・監視銘柄・指標データ蓄積）の
@@ -40,6 +41,7 @@ function FamilyAssetSummary() {
   const [expanded, setExpanded] = useState(null)
   const [expandedHolding, setExpandedHolding] = useState(null)
   const [showFamilyChart, setShowFamilyChart] = useState(false)
+  const [showAllocation, setShowAllocation] = useState(false)
 
   function toggleHolding(h) {
     const key = holdingKey(h)
@@ -52,6 +54,8 @@ function FamilyAssetSummary() {
   }
 
   if (loading) return null
+
+  const allHoldings = Object.values(holdingsByPerson).flat()
 
   const PERSON_ORDER = ['パパ', 'ママ', '長女', '次女', '長男']
   const entries = Object.entries(byPersonBroker)
@@ -91,6 +95,14 @@ function FamilyAssetSummary() {
               {showFamilyChart ? 'グラフを閉じる' : '推移をグラフ表示'}
             </button>
           )}
+          {allHoldings.length > 0 && (
+            <button
+              onClick={() => setShowAllocation(v => !v)}
+              className="text-[12px] font-medium text-[#007AFF] px-2 py-1 active:opacity-50"
+            >
+              {showAllocation ? '内訳を閉じる' : 'ポートフォリオ内訳'}
+            </button>
+          )}
         </div>
       </div>
       {showFamilyChart && (
@@ -99,6 +111,15 @@ function FamilyAssetSummary() {
             <p className="text-[12px] text-[#AEAEB2] py-6 text-center">読み込み中…</p>
           ) : (
             <AssetHistoryChart points={familySeries} />
+          )}
+        </div>
+      )}
+      {showAllocation && (
+        <div className="px-4 py-3 border-b border-black/[0.05]">
+          {holdingsLoading ? (
+            <p className="text-[12px] text-[#AEAEB2] py-6 text-center">読み込み中…</p>
+          ) : (
+            <PortfolioAllocationChart holdings={allHoldings} />
           )}
         </div>
       )}
