@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>my-todo-app アーキテクチャマップ</title>
+<style>
+  :root {
+    --bg: #f5f5f7; --card: #ffffff; --text: #1c1c1e; --sub: #6b7280;
+    --border: #e5e7eb; --accent: #007aff; --accent-bg: #eaf3ff;
+    --green: #248a3d; --green-bg: #eafbf0; --amber: #b45309; --amber-bg: #fff7e6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    line-height: 1.6; padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lead { color: var(--sub); font-size: 14px; margin-bottom: 28px; }
+  h2 { font-size: 16px; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 14px; margin: 20px 0 8px; color: var(--sub); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--card); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: #fafafa; font-weight: 600; color: var(--sub); font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  code { background: #eef0f2; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+  .tag.blue { background: var(--accent-bg); color: var(--accent); }
+  .tag.green { background: var(--green-bg); color: var(--green); }
+  .tag.amber { background: var(--amber-bg); color: var(--amber); }
+  .flow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+  .box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 13px; text-align: center; min-width: 90px; }
+  .box.accent { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .arrow { color: var(--sub); font-size: 16px; }
+  .tabs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
+  .tab-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 13px; }
+  .tab-box .id { font-weight: 700; color: var(--accent); }
+  .tab-box .sub { color: var(--sub); font-size: 12px; margin-top: 4px; }
+  .note { background: var(--amber-bg); border: 1px solid #f5d99a; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #7a4d00; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
+  footer { margin-top: 50px; color: var(--sub); font-size: 12px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>my-todo-app アーキテクチャマップ</h1>
+  <p class="lead">2026-08-12作成。カテゴリ・期限付きタスク管理を中心に、カレンダー／メモ／ひらめき／目標（飲酒・体重・運動）／資産管理（家族資産・相場ログ・監視銘柄・銘柄リスト・指標データ）を統合した個人用ライフ管理PWA。<br>
+  機械可読版は同フォルダの <code>architecture.json</code> を参照（新機能担当エージェント向け）。</p>
+
+  <h2>1. 全体構成</h2>
+  <div class="flow">
+    <div class="box">main.jsx</div>
+    <span class="arrow">→</span>
+    <div class="box">App.jsx（認証ゲート）</div>
+    <span class="arrow">→</span>
+    <div class="box accent">LoginPage</div>
+    <span class="arrow">or</span>
+    <div class="box accent">TodoPage（本体）</div>
+  </div>
+  <div class="flow">
+    <div class="box">React 19 + Vite 8</div>
+    <div class="box">Tailwind CSS v4</div>
+    <div class="box">@dnd-kit（並べ替え）</div>
+    <div class="box">react-markdown</div>
+    <div class="box">vite-plugin-pwa</div>
+  </div>
+  <div class="note">
+    <b>デプロイは2系統に分かれる：</b> フロントエンド（静的SPA）は GitHub Pages（<code>.github/workflows/deploy-pages.yml</code>、main pushで自動デプロイ）。
+    <code>api/*.js</code>（Vercel Serverless Functions）は<b>このワークフローではデプロイされない</b>ため、別途Vercelプロジェクトを本リポジトリに紐付ける必要がある。
+  </div>
+
+  <h2>2. ボトムタブ構成（TodoPage.jsx）</h2>
+  <div class="tabs-grid">
+    <div class="tab-box"><span class="id">タスク</span><div class="sub">デフォルトタブ。カテゴリ/買い物フィルタ、dnd-kit並べ替え、完了・今日フラグ</div></div>
+    <div class="tab-box"><span class="id">カレンダー</span><div class="sub">CalendarView：タスク期限＋events。日タップでDayScheduleView</div></div>
+    <div class="tab-box"><span class="id">メモ</span><div class="sub">NotesPage：Markdown対応ノート</div></div>
+    <div class="tab-box"><span class="id">ひらめき</span><div class="sub">SparksPage：簡易アイデアメモ</div></div>
+    <div class="tab-box"><span class="id">プラン</span><div class="sub">GoalsPage：目標＋飲酒/体重/運動トラッカー</div></div>
+    <div class="tab-box"><span class="id">資産</span><div class="sub">AssetsPage：資産管理の複合ページ（下記4章）</div></div>
+  </div>
+  <p style="font-size:13px;color:var(--sub)">タブ以外の画面：<code>history</code>（完了履歴）・<code>trash</code>（ゴミ箱）・<code>category</code>（カテゴリ管理）— いずれもタスクタブのヘッダーアイコンから開く。ルーティングは <code>react-router-dom</code> は未使用で、<code>useState('tab'|'page')</code> による手動切り替え。</p>
+
+  <h2>3. GoalsPage（プランタブ）のサブ機能</h2>
+  <table>
+    <tr><th>サブ機能</th><th>実装</th><th>主なhook</th></tr>
+    <tr><td>目標</td><td>GoalsPage.jsx 内蔵</td><td><code>useGoals</code> / <code>useGoalActions</code></td></tr>
+    <tr><td>🍺 飲酒</td><td>GoalsPage.jsx 内蔵（DrinkTracker）</td><td><code>useDrinkTracker</code></td></tr>
+    <tr><td>⚖️ 体重</td><td>GoalsPage.jsx 内蔵（WeightTracker）</td><td><code>useWeightTracker</code></td></tr>
+    <tr><td>🏃 運動</td><td><code>components/ExerciseTracker.jsx</code></td><td><code>useExerciseTracker</code></td></tr>
+  </table>
+
+  <h2>4. AssetsPage（資産タブ）のサブ機能 — gahoo-companyのinvestment部署と関心領域が重複</h2>
+  <table>
+    <tr><th>サブ機能</th><th>コンポーネント</th><th>Supabaseテーブル</th><th>gahoo-company側の対応物</th></tr>
+    <tr><td>指標データ</td><td>MarketIndexData.jsx</td><td>market_index_history</td><td>—（日経平均・S&P500等）</td></tr>
+    <tr><td>家族の資産</td><td>AssetHoldingsImport.jsx + FamilyAssetSummary</td><td>asset_holdings_history, asset_total_history</td><td><code>investment/holdings.md</code></td></tr>
+    <tr><td>マーケットログ</td><td>MarketLog.jsx</td><td>market_log_entries/stocks/todos</td><td><code>investment/consultations/</code>（週次相場チェック）</td></tr>
+    <tr><td>監視銘柄</td><td>WatchStocks.jsx</td><td>watch_stocks</td><td>watchlist-price-checkスキル</td></tr>
+    <tr><td>銘柄リスト</td><td>StockListView.jsx</td><td>stock_master_list</td><td>銘柄リスト.csv（fundamental-3layer-screeningスキル）</td></tr>
+  </table>
+
+  <h2>5. 共有コンポーネント</h2>
+  <table>
+    <tr><th>ファイル</th><th>用途</th></tr>
+    <tr><td>TaskForm.jsx / TaskList.jsx / TaskItem.jsx</td><td>タスクの新規作成・一覧・単体行（TaskListがdnd-kit並べ替えを保持）</td></tr>
+    <tr><td>EditTaskModal.jsx</td><td>タスク編集。SubtaskPanel・MemoSectionを内包</td></tr>
+    <tr><td>SubtaskPanel.jsx</td><td>サブタスクCRUD（<code>subtasks</code>テーブル）</td></tr>
+    <tr><td>MemoSection.jsx</td><td>タスクへのMarkdownメモ付与</td></tr>
+    <tr><td>CalendarView.jsx / DayScheduleView.jsx / EventForm.jsx</td><td>カレンダー表示・日別スケジュール・予定編集（<code>events</code>テーブル）</td></tr>
+    <tr><td>ScheduleFields.jsx</td><td>期限入力の共通UI部品</td></tr>
+    <tr><td>ToggleRow.jsx</td><td>汎用トグル行UI</td></tr>
+    <tr><td>Markdown.jsx</td><td>react-markdown + remark-gfmのラッパー</td></tr>
+  </table>
+
+  <h2>6. api/ — Vercel Serverless Functions</h2>
+  <table>
+    <tr><th>ファイル</th><th>認証</th><th>用途</th></tr>
+    <tr><td>stock-analysis.js</td><td><span class="tag amber">Bearer INGEST_TOKEN</span></td><td>銘柄分析メモの登録/取得。<b>Claudeチャットからcurlで登録する運用</b>（<code>docs/chat-ingest.md</code>）</td></tr>
+    <tr><td>asset-balance.js</td><td><span class="tag amber">Bearer INGEST_TOKEN</span></td><td>株式/投信の残高登録・取得（<code>asset_balances</code>テーブル）</td></tr>
+    <tr><td>import-asset-holdings.js</td><td><span class="tag blue">ログインユーザーのaccess_token</span></td><td>楽天証券CSVの取り込み</td></tr>
+    <tr><td>import-market-index.js</td><td><span class="tag blue">ログインユーザーのaccess_token</span></td><td>公開Googleスプレッドシート(CSV)から指標データ取り込み（maxDuration 60s）</td></tr>
+    <tr><td>import-stock-list.js</td><td><span class="tag blue">ログインユーザーのaccess_token</span></td><td>Google Driveの銘柄リスト.csvを取り込み（maxDuration 30s）</td></tr>
+    <tr><td>google-drive-status.js / google-oauth-callback.js</td><td><span class="tag blue">ログインユーザー / state経由</span></td><td>Googleドライブ連携（OAuth）</td></tr>
+  </table>
+
+  <h2>7. Supabaseテーブル一覧（推定含む・厳密なDDLはSupabase側が正）</h2>
+  <div class="cols">
+    <div>
+      <h3>タスク・生活管理系</h3>
+      <table>
+        <tr><td><code>tasks</code></td><td>id, user_id, title, category, due_date, completed, position, today_flag, deleted_at, created_at</td></tr>
+        <tr><td><code>subtasks</code></td><td>—</td></tr>
+        <tr><td><code>categories</code></td><td>id, user_id, name, position</td></tr>
+        <tr><td><code>events</code></td><td>—</td></tr>
+        <tr><td><code>notes</code></td><td>—</td></tr>
+        <tr><td><code>sparks</code></td><td>—</td></tr>
+        <tr><td><code>goals</code> / <code>goal_actions</code></td><td>goal_actions: id, goal_id, title, status, due_date</td></tr>
+        <tr><td><code>drink_entries</code> / <code>drink_goals</code></td><td>—</td></tr>
+        <tr><td><code>weight_entries</code> / <code>weight_goals</code></td><td>—</td></tr>
+        <tr><td><code>exercise_menu_items</code> / <code>exercise_logs</code></td><td>—</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>資産・相場系</h3>
+      <table>
+        <tr><td><code>watch_stocks</code></td><td>—</td></tr>
+        <tr><td><code>stock_master_list</code></td><td>—</td></tr>
+        <tr><td><code>stock_analyses</code></td><td>title, memo, analyzed_on, user_id</td></tr>
+        <tr><td><code>market_log_entries/stocks/todos</code></td><td>—</td></tr>
+        <tr><td><code>market_index_history</code></td><td>user_id, symbol, trade_date, value</td></tr>
+        <tr><td><code>asset_holdings_history</code></td><td>person, broker, holding_type, symbol_code/name, account_type, quantity, market_value, unrealized_pl(_pct), recorded_at</td></tr>
+        <tr><td><code>asset_total_history</code></td><td>person, broker, total_value, recorded_at</td></tr>
+        <tr><td><code>asset_balances</code></td><td>kind(stock/fund), amount, as_of</td></tr>
+        <tr><td><code>asset_summary</code></td><td>total, by_person, by_person_asset, updated_at</td></tr>
+        <tr><td><code>google_drive_tokens</code></td><td>—</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2>8. 要確認・未整理事項</h2>
+  <div class="note">
+    <ul style="margin:0;padding-left:18px">
+      <li><code>asset_balances</code> / <code>asset_summary</code> / <code>asset_holdings_history</code> / <code>asset_total_history</code> の4テーブルの役割分担が重複気味。整理の余地があるか要確認</li>
+      <li><code>react-router-dom</code>は依存関係にあるが実際は未使用（手動タブ切り替え）。将来URLベースのルーティングへ移行するかは未検討</li>
+      <li>他テーブルの正式なDDLはこのリポジトリ内になし（<code>tasks</code>・<code>asset_summary</code>のみREADME.mdに記載）。新機能でテーブルを触る前にSupabase側の実物スキーマを確認すること</li>
+    </ul>
+  </div>
+
+  <footer>gahoo-company / product部署が管理。更新したら本ファイルと <code>architecture.json</code> の両方を同時に直すこと。</footer>
+</div>
+</body>
+</html>
