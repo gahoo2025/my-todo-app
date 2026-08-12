@@ -92,3 +92,41 @@ curl -X POST https://<あなたのドメイン>/api/asset-balance \
 curl "https://<あなたのドメイン>/api/asset-balance?latest=1" \
   -H "Authorization: Bearer $INGEST_TOKEN"
 ```
+
+---
+
+# 暗号資産価格 取り込みAPI（bitcoin.csv → DB直結）
+
+資産タブ「指標データ」に表示されるビットコイン価格を、`market_index_history`テーブル（symbol='bitcoin'）に**Google Driveを経由せず直接**登録するAPI。環境変数・認証は他のAPIと共通（`INGEST_TOKEN`など）。
+
+これにより、ローカルの`bitcoin-csv-update`スキルが`bitcoin.csv`を更新したあと、「手でGoogle Driveにアップロード→アプリの取り込みボタンを押す」という手動ステップを省略できる。ローカルCLIから直接このAPIをcurlで叩けば、その場でDBに反映される。
+
+## 登録（POST）
+
+```bash
+curl -X POST https://<あなたのドメイン>/api/crypto-price \
+  -H "Authorization: Bearer $INGEST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "symbol": "bitcoin",
+    "points": [
+      { "trade_date": "2026-08-12", "value": 64914.7 },
+      { "trade_date": "2026-08-13", "value": 65200.0 }
+    ]
+  }'
+```
+
+- `symbol` … 省略時は `bitcoin`（将来他の暗号資産を追加する場合に備えて指定可能にしてある）
+- `points` … 必須。`trade_date`（`YYYY-MM-DD`）と`value`（終値、数値）の配列。複数日まとめて送信できる
+- 同じ`(symbol, trade_date)`の組み合わせで再送すると、値が上書きされる（当日値の確定前後での再送に対応）
+
+## 確認（GET）
+
+```bash
+curl "https://<あなたのドメイン>/api/crypto-price?symbol=bitcoin&limit=5" \
+  -H "Authorization: Bearer $INGEST_TOKEN"
+```
+
+## bitcoin-csv-updateスキルとの連携
+
+ローカルの`bitcoin-csv-update`スキル（`gahoo-company/.claude/skills/bitcoin-csv-update/`）が、`bitcoin.csv`をローカル更新したあと、その日の差分行を上記APIへPOSTする運用にできる。Google Driveへのミラー更新（既存の手動ドラッグ＆ドロップ）は、バックアップとして引き続き行ってもよいが、**アプリのDBへの反映という目的においては必須ではなくなる**。
