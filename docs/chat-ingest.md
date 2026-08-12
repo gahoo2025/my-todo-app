@@ -130,3 +130,5 @@ curl "https://<あなたのドメイン>/api/crypto-price?symbol=bitcoin&limit=5
 ## bitcoin-csv-updateスキルとの連携
 
 ローカルの`bitcoin-csv-update`スキル（`gahoo-company/.claude/skills/bitcoin-csv-update/`）が、`bitcoin.csv`をローカル更新したあと、その日の差分行を上記APIへPOSTする運用にできる。Google Driveへのミラー更新（既存の手動ドラッグ＆ドロップ）は、バックアップとして引き続き行ってもよいが、**アプリのDBへの反映という目的においては必須ではなくなる**。
+
+**2026-08-12、指標データタブの「取り込む」ボタンからのbitcoin.csv取り込みは廃止した。** 以前は`api/import-market-index.js`がGoogleドライブ上の`bitcoin.csv`を検索・ダウンロードして取り込む処理を持っていたが、上記APIへの直接POSTに一本化したため削除した。「取り込む」ボタンは指標（日経平均・TOPIX・ドル円等）のGoogleスプレッドシート取り込みのみを行う。
