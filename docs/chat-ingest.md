@@ -132,3 +132,62 @@ curl "https://<あなたのドメイン>/api/crypto-price?symbol=bitcoin&limit=5
 ローカルの`bitcoin-csv-update`スキル（`gahoo-company/.claude/skills/bitcoin-csv-update/`）が、`bitcoin.csv`をローカル更新したあと、その日の差分行を上記APIへPOSTする運用にできる。Google Driveへのミラー更新（既存の手動ドラッグ＆ドロップ）は、バックアップとして引き続き行ってもよいが、**アプリのDBへの反映という目的においては必須ではなくなる**。
 
 **2026-08-12、指標データタブの「取り込む」ボタンからのbitcoin.csv取り込みは廃止した。** 以前は`api/import-market-index.js`がGoogleドライブ上の`bitcoin.csv`を検索・ダウンロードして取り込む処理を持っていたが、上記APIへの直接POSTに一本化したため削除した。「取り込む」ボタンは指標（日経平均・TOPIX・ドル円等）のGoogleスプレッドシート取り込みのみを行う。
+
+---
+
+# 銘柄リスト（3層フレームワーク）同期API（銘柄リスト.csv → DB直結）
+
+資産タブ「銘柄リスト」が使う`stock_master_list`テーブルに、**Google Driveを経由せず直接**登録するAPI。環境変数・認証は他のAPIと共通（`INGEST_TOKEN`など）。
+
+これにより、ローカルの`fundamental-3layer-screening`スキルがスクリーニングを実行したあと、「手でGoogle Driveにアップロード→アプリの取り込みボタンを押す」という手動ステップを省略できる。ローカルCLIから直接このAPIをcurlで叩けば、その場でDBに反映される。
+
+## 登録（POST）
+
+```bash
+curl -X POST https://<あなたのドメイン>/api/stock-list-sync \
+  -H "Authorization: Bearer $INGEST_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data @payload.json
+```
+
+`payload.json`の例：
+
+```json
+{
+  "items": [
+    {
+      "symbol_code": "8951",
+      "symbol_name": "日本ビルファンド投資法人",
+      "category": "REIT候補",
+      "sector": "不動産投資信託",
+      "latest_price": 480000,
+      "dividend_amount": 12000,
+      "dividend_yield": 2.5,
+      "layer1_judgement": "81点（80点以上）",
+      "layer2_status": "信用倍率3.76倍（過熱水準）",
+      "layer2_signal": null,
+      "final_judgement": "監視リスト",
+      "excluded": null,
+      "screened_at": "2026-08-12"
+    }
+  ],
+  "replace": true
+}
+```
+
+- `items` … 必須。銘柄リスト.csvの1行＝1オブジェクト。`symbol_code`のみ必須、他は省略可（nullになる）
+- `replace` … 省略時`true`。`true`の場合、`items`に含まれない既存銘柄（DB上にあるがCSVから消えた行）は削除される（＝銘柄リスト.csv全体を送る運用を想定）。スクリーニング結果の一部銘柄だけを差分更新したい場合は`false`を指定する
+- 同じ`symbol_code`の行は上書きされる
+
+## 確認（GET）
+
+```bash
+curl "https://<あなたのドメイン>/api/stock-list-sync?limit=10" \
+  -H "Authorization: Bearer $INGEST_TOKEN"
+```
+
+## fundamental-3layer-screeningスキルとの連携
+
+ローカルの`fundamental-3layer-screening`スキル（`gahoo-company/.claude/skills/fundamental-3layer-screening/`）が、`銘柄リスト.csv`をローカル更新したあと、CSV全行を上記APIへ`items`としてPOSTする運用にできる。Google Driveへのミラー更新（既存の手動ドラッグ＆ドロップ）は、バックアップとして引き続き行ってもよいが、**アプリのDBへの反映という目的においては必須ではなくなる**。
+
+現時点では、資産タブ「銘柄リスト」の既存の「取り込む」ボタン（Google Drive経由）はそのまま残している（bitcoin.csvのときと異なり、まだ廃止していない）。
