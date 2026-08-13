@@ -228,3 +228,46 @@ curl "https://<あなたのドメイン>/api/asset-category-sync?limit=20" \
 ```
 
 `category`パラメータで絞り込みも可能（例：`?category=securities&limit=10`）。
+
+---
+
+# マーケットログ 同期API（日次・週次・月次・年次の実績・見通し）
+
+Claudeチャット（investment部署）で行った株式市場の分析結果（実績・見通し）を、資産タブ「マーケットログ」に直接反映するAPI。`market_log_entries`（実績・見通し本体）・`market_log_stocks`（関連銘柄）・`market_log_todos`（関連TODO）へ書き込む。環境変数・認証は他のAPIと共通（`INGEST_TOKEN`など）。
+
+アプリのUIから手動でテキストを貼り付けて登録する既存の運用（`marketLogParser.js`）と並行して使える。呼ぶたびに新規エントリが1件追加される（更新・削除は引き続きアプリのUIから行う）。
+
+## 登録（POST）
+
+```bash
+curl -X POST https://<あなたのドメイン>/api/market-log-sync \
+  -H "Authorization: Bearer $INGEST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "period": "daily",
+    "entry_at": "2026-08-13",
+    "actual": "日経平均は前日比+320円の反発。半導体関連が牽引。",
+    "outlook": "短期的には様子見。米CPI発表待ちのレンジ推移を想定。",
+    "stocks": [
+      { "block": "上昇", "name": "東京エレクトロン", "code": "8035" }
+    ],
+    "todos": [
+      { "content": "米CPI発表後の反応を確認する", "done": false }
+    ]
+  }'
+```
+
+- `period` … 省略時`daily`。`daily`/`weekly`/`monthly`/`yearly`のいずれか
+- `entry_at` … 省略時はサーバーの現在時刻。分析対象の日時（`YYYY-MM-DD`等）
+- `actual` … 実績のまとめ（Markdown可）。`outlook`とどちらか必須
+- `outlook` … 見通しのまとめ（Markdown可）。`actual`とどちらか必須
+- `raw_text` … 任意。分析の元テキスト全文
+- `stocks` … 任意。関連銘柄の配列（`block`・`name`・`code`・`score`）
+- `todos` … 任意。関連TODOの配列（`content`・`done`）
+
+## 確認（GET）
+
+```bash
+curl "https://<あなたのドメイン>/api/market-log-sync?limit=10" \
+  -H "Authorization: Bearer $INGEST_TOKEN"
+```
