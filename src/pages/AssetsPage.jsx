@@ -3,6 +3,7 @@ import { useAssetTotalsSummary } from '../hooks/useAssetTotalsSummary'
 import { useAssetHoldingsLatest } from '../hooks/useAssetHoldingsLatest'
 import { useAssetTotalsHistory } from '../hooks/useAssetTotalsHistory'
 import { useAssetHoldingHistory, holdingKey } from '../hooks/useAssetHoldingHistory'
+import { useAssetYearlyTotals } from '../hooks/useAssetYearlyTotals'
 import { useState } from 'react'
 import MarketLogSection from '../components/MarketLog'
 import WatchStocksSection from '../components/WatchStocks'
@@ -11,6 +12,7 @@ import AssetHoldingsImport from '../components/AssetHoldingsImport'
 import AssetHistoryChart from '../components/AssetHistoryChart'
 import StockListView from '../components/StockListView'
 import PortfolioAllocationChart from '../components/PortfolioAllocationChart'
+import AssetYearlyTotalChart from '../components/AssetYearlyTotalChart'
 
 // サブ機能の定義（今後ここに追加していく）
 // 資産管理（資産情報・家計情報）と投資管理（投資情報・監視銘柄・指標データ蓄積）の
@@ -38,10 +40,12 @@ function FamilyAssetSummary() {
   const { byPerson: holdingsByPerson, loading: holdingsLoading } = useAssetHoldingsLatest(user?.id)
   const { familySeries, byPersonSeries, byPersonBrokerSeries, loading: historyLoading } = useAssetTotalsHistory(user?.id)
   const { historyByKey: holdingHistoryByKey, loadingKey: holdingHistoryLoadingKey, fetchHistory: fetchHoldingHistory } = useAssetHoldingHistory(user?.id)
+  const { yearly: yearlyTotals, loading: yearlyLoading } = useAssetYearlyTotals(user?.id)
   const [expanded, setExpanded] = useState(null)
   const [expandedHolding, setExpandedHolding] = useState(null)
   const [showFamilyChart, setShowFamilyChart] = useState(false)
   const [showAllocation, setShowAllocation] = useState(false)
+  const [showYearly, setShowYearly] = useState(false)
 
   function toggleHolding(h) {
     const key = holdingKey(h)
@@ -103,6 +107,14 @@ function FamilyAssetSummary() {
               {showAllocation ? '内訳を閉じる' : 'ポートフォリオ内訳'}
             </button>
           )}
+          {yearlyTotals.length > 0 && (
+            <button
+              onClick={() => setShowYearly(v => !v)}
+              className="text-[12px] font-medium text-[#007AFF] px-2 py-1 active:opacity-50"
+            >
+              {showYearly ? '年別推移を閉じる' : '年別推移（証券・現金・保険）'}
+            </button>
+          )}
         </div>
       </div>
       {showFamilyChart && (
@@ -111,6 +123,18 @@ function FamilyAssetSummary() {
             <p className="text-[12px] text-[#AEAEB2] py-6 text-center">読み込み中…</p>
           ) : (
             <AssetHistoryChart points={familySeries} />
+          )}
+        </div>
+      )}
+      {showYearly && (
+        <div className="px-4 py-3 border-b border-black/[0.05]">
+          {yearlyLoading ? (
+            <p className="text-[12px] text-[#AEAEB2] py-6 text-center">読み込み中…</p>
+          ) : (
+            <>
+              <p className="text-[12px] font-semibold text-[#8E8E93] mb-2">年別の総資産推移（証券+現金+保険、各年最終記録日時点）</p>
+              <AssetYearlyTotalChart yearly={yearlyTotals} />
+            </>
           )}
         </div>
       )}
