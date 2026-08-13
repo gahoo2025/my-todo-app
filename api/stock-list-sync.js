@@ -60,9 +60,14 @@ const STRING_FIELDS = [
 ]
 const NUMBER_FIELDS = ['latest_price', 'dividend_amount', 'dividend_yield']
 
+// import-stock-list.js の parseNumber と同じ正規化（カンマ・円・%・¥・$・空白を除去してから数値化）。
+// ローカルCLI側がCSVの表記（例："3,422円"・"4.24%"）をそのまま送ってくるケースに対応するため、
+// 数値だけを渡された場合と両方で正しく動くようにしておく。
 function toNumberOrNull(v) {
   if (v === null || v === undefined || v === '') return null
-  const n = Number(v)
+  const cleaned = v.toString().replace(/[,，¥$%円\s]/g, '')
+  if (!cleaned || cleaned === '-') return null
+  const n = Number(cleaned)
   return Number.isFinite(n) ? n : null
 }
 
