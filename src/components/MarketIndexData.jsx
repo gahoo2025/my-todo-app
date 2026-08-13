@@ -445,7 +445,7 @@ export default function MarketIndexData() {
         {driveLinked !== null && (
           <div className="mt-3 pt-3 border-t border-black/[0.05] flex items-center justify-between">
             <p className="text-[12px] text-[#8E8E93]">
-              {driveLinked ? 'Googleドライブ連携済み' : 'Googleドライブ未連携（銘柄リストのCSVは取り込まれません）'}
+              {driveLinked ? 'Googleドライブ連携済み' : 'Googleドライブ未連携（指標データのCSVは取り込まれません）'}
             </p>
             <button
               onClick={linkDrive}
