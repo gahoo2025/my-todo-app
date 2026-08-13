@@ -190,7 +190,7 @@ curl "https://<あなたのドメイン>/api/stock-list-sync?limit=10" \
 
 ローカルの`fundamental-3layer-screening`スキル（`gahoo-company/.claude/skills/fundamental-3layer-screening/`）が、`銘柄リスト.csv`をローカル更新したあと、CSV全行を上記APIへ`items`としてPOSTする運用にできる。Google Driveへのミラー更新（既存の手動ドラッグ＆ドロップ）は、バックアップとして引き続き行ってもよいが、**アプリのDBへの反映という目的においては必須ではなくなる**。
 
-現時点では、資産タブ「銘柄リスト」の既存の「取り込む」ボタン（Google Drive経由）はそのまま残している（bitcoin.csvのときと異なり、まだ廃止していない）。
+**2026-08-13、資産タブ「銘柄リスト」の「取り込む」ボタン（Google Drive経由）は廃止した。** 以前は`api/import-stock-list.js`がGoogleドライブ上の`銘柄リスト.csv`を検索・ダウンロードして取り込む処理を持っていたが、上記APIへの直接POSTに一本化したため削除した（bitcoin.csvのときと同じ整理）。銘柄リストタブは検索・絞り込み表示のみを行う。
 
 ---
 

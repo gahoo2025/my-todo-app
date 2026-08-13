@@ -25,7 +25,7 @@ const JUDGEMENT_FILTERS = [
 
 export default function StockListView() {
   const { user } = useAuth()
-  const { items, loading, importing, importResult, importList } = useStockList(user?.id)
+  const { items, loading } = useStockList(user?.id)
   const [query, setQuery] = useState('')
   const [judgementFilter, setJudgementFilter] = useState('all')
 
@@ -47,51 +47,7 @@ export default function StockListView() {
 
   return (
     <div className="space-y-3">
-      <div className="ios-card px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[15px] font-semibold text-[#1C1C1E]">銘柄リストの取り込み</p>
-            <p className="text-[12px] text-[#8E8E93] mt-0.5">Googleドライブの銘柄リスト.csvを取り込みます</p>
-          </div>
-          <button
-            onClick={importList}
-            disabled={importing}
-            className="flex-shrink-0 px-4 py-2.5 rounded-[10px] bg-[#007AFF] text-white text-[14px] font-semibold disabled:opacity-40 active:opacity-70 transition-opacity"
-          >
-            {importing ? '取り込み中…' : '取り込む'}
-          </button>
-        </div>
-        {importResult?.error && (
-          <div className="mt-3">
-            <p className="text-[12px] text-[#FF3B30]">⚠ {importResult.error}</p>
-            {importResult.warnings?.length > 0 && (
-              <ul className="mt-1 space-y-0.5">
-                {importResult.warnings.map((w, i) => <li key={i} className="text-[11px] text-[#FF9500]">⚠ {w}</li>)}
-              </ul>
-            )}
-          </div>
-        )}
-        {importResult?.success && (
-          <div className="mt-3">
-            <p className="text-[12px] text-[#34C759]">✓ {importResult.imported}件を取り込みました</p>
-            {importResult.warnings?.length > 0 && (
-              <ul className="mt-1 space-y-0.5">
-                {importResult.warnings.map((w, i) => <li key={i} className="text-[11px] text-[#FF9500]">⚠ {w}</li>)}
-              </ul>
-            )}
-          </div>
-        )}
-        {importResult?.debug && (
-          <details className="mt-3">
-            <summary className="text-[11px] text-[#007AFF]">デバッグ情報</summary>
-            <pre className="mt-2 p-2 rounded-[8px] bg-black/[0.04] text-[10px] text-[#636366] overflow-x-auto whitespace-pre-wrap break-all">
-              {JSON.stringify(importResult.debug, null, 2)}
-            </pre>
-          </details>
-        )}
-      </div>
-
-      <div className="sticky top-below-subtabs z-[4] -mx-4 px-4 pt-2 pb-2 bg-[#F2F2F7]/85 backdrop-blur-xl space-y-2">
+      <div className="sticky top-below-header z-[4] -mx-4 px-4 pt-2 pb-2 bg-[#F2F2F7]/85 backdrop-blur-xl space-y-2">
         <input
           type="text"
           value={query}
@@ -128,7 +84,7 @@ export default function StockListView() {
         <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">読み込み中…</p>
       ) : filtered.length === 0 ? (
         <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">
-          {items.length === 0 ? '「取り込む」から銘柄リストを取り込んでください' : '該当する銘柄がありません'}
+          {items.length === 0 ? '銘柄リストのデータがまだありません（分析スキルからDB連携してください）' : '該当する銘柄がありません'}
         </p>
       ) : (
         <div className="space-y-2">
