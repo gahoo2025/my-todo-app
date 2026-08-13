@@ -20,8 +20,9 @@
 //       "stocks": [ { "block": "上昇", "name": "トヨタ自動車", "code": "7203", "score": null } ],   … 任意
 //       "todos": [ { "content": "決算発表を確認する", "done": false } ]   … 任意
 //     }
-//     呼ぶたびに新規エントリが1件追加される（同じ日でも複数回POSTすれば複数件になる。
-//     UI側の「実績・見通しを編集」で後から手動修正・削除は可能）。
+//     同じ user_id + entry_at + period の組み合わせが既に存在する場合は、そのエントリを
+//     上書き（actual/outlook/raw_textを更新し、stocks/todosは全入れ替え）する。存在しなければ
+//     新規作成する（2026-08-14、失敗時の再送信で重複登録された事例を受けてupsertに変更）。
 //   GET /api/market-log-sync?limit=10   … 直近のエントリ一覧を確認
 
 export const config = { maxDuration: 30 }
@@ -90,14 +91,39 @@ export default async function handler(req, res) {
 
       const insertHeaders = { ...commonHeaders, Prefer: 'return=representation' }
 
-      const entryRes = await fetch(`${base}/market_log_entries`, {
-        method: 'POST',
-        headers: insertHeaders,
-        body: JSON.stringify([{ user_id: userId, entry_at: entryAt, period, actual, outlook, raw_text: rawText }]),
-      })
-      const entryData = await entryRes.json()
-      if (!entryRes.ok) return res.status(entryRes.status).json({ error: entryData })
-      const entry = Array.isArray(entryData) ? entryData[0] : entryData
+      // 既存エントリ（同一 user_id + entry_at + period）があれば上書き、無ければ新規作成
+      const existingQ = `${base}/market_log_entries?user_id=eq.${encodeURIComponent(userId)}&entry_at=eq.${encodeURIComponent(entryAt)}&period=eq.${encodeURIComponent(period)}&select=id`
+      const existingRes = await fetch(existingQ, { headers: commonHeaders })
+      const existingData = await existingRes.json()
+      if (!existingRes.ok) return res.status(existingRes.status).json({ error: existingData })
+      const existing = Array.isArray(existingData) && existingData.length > 0 ? existingData[0] : null
+
+      let entry
+      if (existing) {
+        const logId = existing.id
+        const patchRes = await fetch(`${base}/market_log_entries?id=eq.${encodeURIComponent(logId)}`, {
+          method: 'PATCH',
+          headers: insertHeaders,
+          body: JSON.stringify({ actual, outlook, raw_text: rawText }),
+        })
+        const patchData = await patchRes.json()
+        if (!patchRes.ok) return res.status(patchRes.status).json({ error: patchData })
+        entry = Array.isArray(patchData) ? patchData[0] : patchData
+        // 既存のstocks/todosは全入れ替えするため先に削除する
+        const delStocks = await fetch(`${base}/market_log_stocks?log_id=eq.${encodeURIComponent(logId)}`, { method: 'DELETE', headers: commonHeaders })
+        if (!delStocks.ok) return res.status(delStocks.status).json({ error: await delStocks.json() })
+        const delTodos = await fetch(`${base}/market_log_todos?log_id=eq.${encodeURIComponent(logId)}`, { method: 'DELETE', headers: commonHeaders })
+        if (!delTodos.ok) return res.status(delTodos.status).json({ error: await delTodos.json() })
+      } else {
+        const entryRes = await fetch(`${base}/market_log_entries`, {
+          method: 'POST',
+          headers: insertHeaders,
+          body: JSON.stringify([{ user_id: userId, entry_at: entryAt, period, actual, outlook, raw_text: rawText }]),
+        })
+        const entryData = await entryRes.json()
+        if (!entryRes.ok) return res.status(entryRes.status).json({ error: entryData })
+        entry = Array.isArray(entryData) ? entryData[0] : entryData
+      }
       const logId = entry.id
 
       const stocks = Array.isArray(body.stocks) ? body.stocks : []
@@ -132,6 +158,7 @@ export default async function handler(req, res) {
         id: logId,
         entry_at: entry.entry_at,
         period: entry.period,
+        updated: Boolean(existing),
         stocks_added: results.stocks.length,
         todos_added: results.todos.length,
       })

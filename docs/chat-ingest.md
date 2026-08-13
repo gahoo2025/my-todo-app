@@ -235,7 +235,7 @@ curl "https://<あなたのドメイン>/api/asset-category-sync?limit=20" \
 
 Claudeチャット（investment部署）で行った株式市場の分析結果（実績・見通し）を、資産タブ「マーケットログ」に直接反映するAPI。`market_log_entries`（実績・見通し本体）・`market_log_stocks`（関連銘柄）・`market_log_todos`（関連TODO）へ書き込む。環境変数・認証は他のAPIと共通（`INGEST_TOKEN`など）。
 
-アプリのUIから手動でテキストを貼り付けて登録する既存の運用（`marketLogParser.js`）と並行して使える。呼ぶたびに新規エントリが1件追加される（更新・削除は引き続きアプリのUIから行う）。
+アプリのUIから手動でテキストを貼り付けて登録する既存の運用（`marketLogParser.js`）と並行して使える。**同じ`entry_at`+`period`の組み合わせで既にエントリが存在する場合は上書き（actual/outlook/raw_textを更新、stocks/todosは全入れ替え）する。存在しなければ新規作成する**（2026-08-14、upsert方式に変更。以前は呼ぶたびに新規作成だったため、送信失敗時の再送信で重複登録される事例があった）。同じ日に複数回チェックする場合は`entry_at`を分けるか、最新の内容で上書きされる前提で運用する。削除は引き続きアプリのUIから行う。
 
 ## 登録（POST）
 
