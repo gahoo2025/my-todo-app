@@ -17,7 +17,10 @@ export default function PortfolioAllocationChart({ holdings }) {
   let cumulative = 0
   const arcs = slices.map(s => {
     const dasharray = `${s.pct} ${100 - s.pct}`
-    const dashoffset = 25 - cumulative // 12時方向から時計回りに開始
+    // 12時方向（真上）から時計回りに開始。回転は下のsvgの-rotate-90だけで行うため、
+    // ここでは単純にそれまでの累積%だけオフセットする（以前は25を足していて二重に回転しており、
+    // 開始位置が真上ではなく9時方向にずれるバグになっていた）
+    const dashoffset = -cumulative
     cumulative += s.pct
     return { ...s, dasharray, dashoffset }
   })
@@ -25,11 +28,11 @@ export default function PortfolioAllocationChart({ holdings }) {
   return (
     <div className="flex flex-col sm:flex-row items-start gap-6 max-w-md">
       <div className="relative w-[160px] h-[160px] flex-shrink-0 mx-auto sm:mx-0">
-        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+        <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
           {arcs.map(a => (
             <circle
               key={a.category}
-              cx="18" cy="18" r={r}
+              cx="20" cy="20" r={r}
               fill="none"
               stroke={a.color}
               strokeWidth="5.5"
