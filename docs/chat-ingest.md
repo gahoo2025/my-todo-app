@@ -191,3 +191,40 @@ curl "https://<あなたのドメイン>/api/stock-list-sync?limit=10" \
 ローカルの`fundamental-3layer-screening`スキル（`gahoo-company/.claude/skills/fundamental-3layer-screening/`）が、`銘柄リスト.csv`をローカル更新したあと、CSV全行を上記APIへ`items`としてPOSTする運用にできる。Google Driveへのミラー更新（既存の手動ドラッグ＆ドロップ）は、バックアップとして引き続き行ってもよいが、**アプリのDBへの反映という目的においては必須ではなくなる**。
 
 現時点では、資産タブ「銘柄リスト」の既存の「取り込む」ボタン（Google Drive経由）はそのまま残している（bitcoin.csvのときと異なり、まだ廃止していない）。
+
+---
+
+# 純資産の長期推移（証券・現金・保険の内訳）同期API
+
+家族の資産管理Excel（証券・現金・保険の内訳を長期間・年次で記録しているもの）を、DBへ直接反映するAPI。個別銘柄の保有履歴（`asset_holdings_history`）・証券会社別合計（`asset_total_history`）とは別に、家族全体の粗い区分・長期推移だけを保存する専用テーブル（`asset_category_history`）を使う。**アプリのUIには現時点では表示しない（DB保存のみ）**。
+
+事前にSupabaseでテーブルを作成する必要がある。手順は`README.md`の「おまけ: 純資産の長期推移（証券・現金・保険の内訳）連携」を参照。
+
+## 登録（POST）
+
+```bash
+curl -X POST https://<あなたのドメイン>/api/asset-category-sync \
+  -H "Authorization: Bearer $INGEST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      { "category": "securities", "as_of": "2025-12-31", "amount": 42104345 },
+      { "category": "cash",       "as_of": "2025-12-31", "amount": 7984219 },
+      { "category": "insurance",  "as_of": "2025-12-31", "amount": 7977742 }
+    ]
+  }'
+```
+
+- `category` … 必須。`securities`（証券）・`cash`（現金）・`insurance`（保険）のいずれか
+- `as_of` … 必須。`YYYY-MM-DD`形式。年次データの場合は`YYYY-12-31`等で表現する
+- `amount` … 必須。円単位の数値
+- 同じ`(category, as_of)`の組み合わせへの再送は上書きされる
+
+## 確認（GET）
+
+```bash
+curl "https://<あなたのドメイン>/api/asset-category-sync?limit=20" \
+  -H "Authorization: Bearer $INGEST_TOKEN"
+```
+
+`category`パラメータで絞り込みも可能（例：`?category=securities&limit=10`）。
