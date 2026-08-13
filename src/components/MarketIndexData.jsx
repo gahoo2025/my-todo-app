@@ -150,12 +150,57 @@ function IndexChart({ points }) {
     return { linePoints, maLinePoints, lo, hi, yTicks }
   }, [filtered, mas])
 
-  // PC表示時のみ縦軸(値)・横軸(日付)の目盛りを出す
+  // PC表示時のみ縦軸(値)・横軸(日付)の目盛りを出す。
+  // 横軸は等間隔インデックスではなく、年初・月初などキリのいい日付に揃える
   const xTicks = useMemo(() => {
     if (filtered.length < 2) return []
+
+    const firstStr = filtered[0].trade_date
+    const lastStr = filtered[filtered.length - 1].trade_date
+    const firstDate = new Date(firstStr)
+    const lastDate = new Date(lastStr)
+    const spanDays = (lastDate - firstDate) / 86400000
+
+    // 表示範囲に応じて、年初(1/1)または月初(1日)の候補日を作る
+    let boundaries = []
+    let labelFn = null
+    if (spanDays > 545) {
+      // 1.5年を超える範囲は年初刻み
+      for (let y = firstDate.getFullYear(); y <= lastDate.getFullYear(); y++) {
+        boundaries.push(new Date(y, 0, 1))
+      }
+      labelFn = d => `${d.getFullYear()}年`
+    } else if (spanDays > 20) {
+      // それ以外は月初刻み（範囲が長ければ間引いて最大6本程度にする）
+      const months = []
+      let d = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1)
+      const end = new Date(lastDate.getFullYear(), lastDate.getMonth(), 1)
+      while (d <= end) {
+        months.push(new Date(d))
+        d = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+      }
+      const monthStep = Math.max(1, Math.ceil(months.length / 6))
+      boundaries = months.filter((_, i) => i % monthStep === 0)
+      labelFn = d => `${d.getFullYear()}/${d.getMonth() + 1}月`
+    }
+
+    if (boundaries.length >= 2) {
+      const toStr = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const ticks = []
+      for (const b of boundaries) {
+        const bStr = toStr(b)
+        if (bStr < firstStr) continue
+        const idx = filtered.findIndex(p => p.trade_date >= bStr)
+        if (idx === -1) continue
+        ticks.push({ pct: (idx / (filtered.length - 1)) * 100, date: filtered[idx].trade_date, label: labelFn(b) })
+      }
+      if (ticks.length >= 2) return ticks
+    }
+
+    // 短い期間はキリのいい日付にできないため、従来通り等間隔インデックスにフォールバック
     const n = Math.min(6, filtered.length)
     const idx = Array.from({ length: n }, (_, i) => Math.round((i * (filtered.length - 1)) / (n - 1)))
-    return [...new Set(idx)].map(i => ({ pct: (i / (filtered.length - 1)) * 100, date: filtered[i].trade_date }))
+    return [...new Set(idx)].map(i => ({ pct: (i / (filtered.length - 1)) * 100, date: filtered[i].trade_date, label: formatDate(filtered[i].trade_date) }))
   }, [filtered])
 
   if (filtered.length < 2) {
@@ -280,7 +325,7 @@ function IndexChart({ points }) {
         <div className="hidden md:block absolute left-14 right-0 bottom-0 h-5 text-[10px] text-[#8E8E93]">
           {xTicks.map(t => (
             <span key={t.date} className="absolute -translate-x-1/2 top-0" style={{ left: `${t.pct}%` }}>
-              {formatDate(t.date)}
+              {t.label}
             </span>
           ))}
         </div>
