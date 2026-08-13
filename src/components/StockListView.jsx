@@ -47,7 +47,7 @@ export default function StockListView() {
 
   return (
     <div className="space-y-3">
-      <div className="sticky top-below-header z-[4] -mx-4 px-4 pt-2 pb-2 bg-[#F2F2F7]/85 backdrop-blur-xl space-y-2">
+      <div className="sticky top-below-subtabs z-[4] -mx-4 px-4 pt-2 pb-2 bg-[#F2F2F7]/85 backdrop-blur-xl space-y-2">
         <input
           type="text"
           value={query}
