@@ -249,7 +249,7 @@ curl -X POST https://<あなたのドメイン>/api/market-log-sync \
     "actual": "日経平均は前日比+320円の反発。半導体関連が牽引。",
     "outlook": "短期的には様子見。米CPI発表待ちのレンジ推移を想定。",
     "stocks": [
-      { "block": "上昇", "name": "東京エレクトロン", "code": "8035" }
+      { "block": "actual", "name": "東京エレクトロン", "code": "8035" }
     ],
     "todos": [
       { "content": "米CPI発表後の反応を確認する", "done": false }
@@ -262,7 +262,7 @@ curl -X POST https://<あなたのドメイン>/api/market-log-sync \
 - `actual` … 実績のまとめ（Markdown可）。`outlook`とどちらか必須
 - `outlook` … 見通しのまとめ（Markdown可）。`actual`とどちらか必須
 - `raw_text` … 任意。分析の元テキスト全文
-- `stocks` … 任意。関連銘柄の配列（`block`・`name`・`code`・`score`）
+- `stocks` … 任意。関連銘柄の配列（`block`・`name`・`code`・`score`）。**`block`は`'actual'`または`'outlook'`のいずれか固定値**（DBのCHECK制約で強制。「上昇/下落」等の自由な評価ラベルではなく、実績側の銘柄か見通し側の銘柄かを示す）
 - `todos` … 任意。関連TODOの配列（`content`・`done`）
 
 ## 確認（GET）
