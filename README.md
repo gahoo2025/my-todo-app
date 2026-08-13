@@ -74,6 +74,31 @@ create policy "Users can view their own asset summary"
 alter table asset_summary add column by_person_asset jsonb;
 ```
 
+## おまけ: 純資産の長期推移（証券・現金・保険の内訳）連携
+
+ローカルの資産管理Excel（証券・現金・保険の内訳を長期間にわたって年次で記録しているもの）を、`api/asset-category-sync.js`（INGEST_TOKEN方式）経由でDBに反映できます。個別銘柄の保有履歴（`asset_holdings_history`）や証券会社別合計（`asset_total_history`）とは別に、家族全体の粗い区分・長期推移を保存する専用テーブルです。利用するにはSupabaseで以下のテーブルを作成してください。
+
+```sql
+create table asset_category_history (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users,
+  category text not null check (category in ('securities','cash','insurance')),
+  as_of date not null,
+  amount numeric not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, category, as_of)
+);
+
+alter table asset_category_history enable row level security;
+
+create policy "Users can view their own asset category history"
+  on asset_category_history for select
+  using (auth.uid() = user_id);
+```
+
+書き込みは`service_role`キーを使ったサーバーサイド連携（`api/asset-category-sync.js`）で行うため、INSERT/UPDATE用のポリシーは不要です。使い方の詳細は`docs/chat-ingest.md`を参照してください。
+
 ## おまけ: テトリス 🎮
 
 ログイン不要で遊べるテトリスを同梱しています。依存ライブラリゼロの自己完結型 HTML（Canvas + 純粋 JS）です。
