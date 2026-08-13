@@ -66,3 +66,6 @@
 
 /* セーフエリアを考慮してヘッダー直下に固定（カテゴリ選択ピル用） */
 .top-below-header { top: calc(env(safe-area-inset-top) + 44px); }
+
+/* ヘッダー＋サブ機能タブ（h-8ボタン+パディング分）の直下に固定（銘柄リストの検索・絞り込み用） */
+.top-below-subtabs { top: calc(env(safe-area-inset-top) + 94px); }

@@ -14,18 +14,36 @@ function judgementBadge(v) {
   return { bg: 'bg-[#007AFF]/10', text: 'text-[#007AFF]' }
 }
 
+// 最終判定での絞り込みチップ。部分一致でグルーピングし（表記ゆれに対応）、優先度の高いものから並べる
+const JUDGEMENT_FILTERS = [
+  { id: 'buy',     label: '購入候補',   match: v => v.includes('購入候補') || v.includes('買い') },
+  { id: 'watch',   label: '監視リスト', match: v => v.includes('監視') },
+  { id: 'pass',    label: '見送り',     match: v => v.includes('見送り') },
+  { id: 'exclude', label: '除外',       match: v => v.includes('除外') },
+  { id: 'na',      label: '対象外',     match: v => v.includes('対象外') },
+]
+
 export default function StockListView() {
   const { user } = useAuth()
   const { items, loading, importing, importResult, importList } = useStockList(user?.id)
   const [query, setQuery] = useState('')
+  const [judgementFilter, setJudgementFilter] = useState('all')
+
+  // データに実際に存在する判定だけをチップとして出す
+  const availableFilters = useMemo(
+    () => JUDGEMENT_FILTERS.filter(f => items.some(it => it.final_judgement && f.match(it.final_judgement))),
+    [items]
+  )
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return items
-    return items.filter(it =>
-      [it.symbol_code, it.symbol_name, it.category, it.sector].filter(Boolean).join(' ').toLowerCase().includes(q)
-    )
-  }, [items, query])
+    const activeFilter = JUDGEMENT_FILTERS.find(f => f.id === judgementFilter)
+    return items.filter(it => {
+      if (activeFilter && !(it.final_judgement && activeFilter.match(it.final_judgement))) return false
+      if (!q) return true
+      return [it.symbol_code, it.symbol_name, it.category, it.sector].filter(Boolean).join(' ').toLowerCase().includes(q)
+    })
+  }, [items, query, judgementFilter])
 
   return (
     <div className="space-y-3">
@@ -73,13 +91,38 @@ export default function StockListView() {
         )}
       </div>
 
-      <input
-        type="text"
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        placeholder="銘柄名・コード・分類・セクターで検索"
-        className="w-full px-3 py-2.5 rounded-[10px] bg-white text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] shadow-[0_1px_2px_rgba(0,0,0,0.06)] focus:outline-none"
-      />
+      <div className="sticky top-below-subtabs z-[4] -mx-4 px-4 pt-2 pb-2 bg-[#F2F2F7]/85 backdrop-blur-xl space-y-2">
+        <input
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="銘柄名・コード・分類・セクターで検索"
+          className="w-full px-3 py-2.5 rounded-[10px] bg-white text-[14px] text-[#1C1C1E] placeholder:text-[#AEAEB2] shadow-[0_1px_2px_rgba(0,0,0,0.06)] focus:outline-none"
+        />
+        {availableFilters.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto">
+            <button
+              onClick={() => setJudgementFilter('all')}
+              className={`flex-shrink-0 px-3 h-7 rounded-full text-[12px] font-medium transition-colors ${
+                judgementFilter === 'all' ? 'bg-[#1C1C1E] text-white' : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+              }`}
+            >
+              すべて
+            </button>
+            {availableFilters.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setJudgementFilter(f.id)}
+                className={`flex-shrink-0 px-3 h-7 rounded-full text-[12px] font-medium transition-colors ${
+                  judgementFilter === f.id ? 'bg-[#1C1C1E] text-white' : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">読み込み中…</p>
