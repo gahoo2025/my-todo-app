@@ -95,6 +95,7 @@ function CategorySelect({ value, onChange, categories, className = '' }) {
 function QuickAdd({ onAdd, categories, defaultCategory }) {
   const [expanded, setExpanded] = useState(false)
   const [title, setTitle] = useState('')
+  const [url, setUrl] = useState('')
   const [content, setContent] = useState('')
   const [color, setColor] = useState('#FFFFFF')
   const [category, setCategory] = useState(defaultCategory ?? null)
@@ -106,9 +107,9 @@ function QuickAdd({ onAdd, categories, defaultCategory }) {
   }, [defaultCategory])
 
   async function save() {
-    if (!title.trim() && !content.trim()) { reset(); return }
+    if (!title.trim() && !url.trim() && !content.trim()) { reset(); return }
     setSaving(true)
-    await onAdd({ title: title.trim() || null, content: content.trim() || null, color, pinned: false, category })
+    await onAdd({ title: title.trim() || null, url: url.trim() || null, content: content.trim() || null, color, pinned: false, category })
     setSaving(false)
     reset()
   }
@@ -116,6 +117,7 @@ function QuickAdd({ onAdd, categories, defaultCategory }) {
   function reset() {
     setExpanded(false)
     setTitle('')
+    setUrl('')
     setContent('')
     setColor('#FFFFFF')
     setCategory(defaultCategory ?? null)
@@ -159,6 +161,13 @@ function QuickAdd({ onAdd, categories, defaultCategory }) {
         placeholder="タイトル"
         className="w-full px-4 pt-3 pb-1 text-[16px] font-semibold text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none"
       />
+      <input
+        type="url"
+        value={url}
+        onChange={e => setUrl(e.target.value)}
+        placeholder="URL"
+        className="w-full px-4 py-1 text-[14px] text-[#007AFF] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none"
+      />
       <textarea
         value={content}
         onChange={e => setContent(e.target.value)}
@@ -186,6 +195,7 @@ function QuickAdd({ onAdd, categories, defaultCategory }) {
 // メモ編集モーダル
 function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
   const [title, setTitle] = useState(note.title ?? '')
+  const [url, setUrl] = useState(note.url ?? '')
   const [content, setContent] = useState(note.content ?? '')
   const [color, setColor] = useState(note.color ?? '#FFFFFF')
   const [pinned, setPinned] = useState(note.pinned)
@@ -196,6 +206,7 @@ function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
   async function handleClose() {
     const changed =
       (title.trim() || null) !== note.title ||
+      (url.trim() || null) !== note.url ||
       (content.trim() || null) !== note.content ||
       color !== note.color ||
       pinned !== note.pinned ||
@@ -203,6 +214,7 @@ function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
     if (changed) {
       await onSave(note.id, {
         title: title.trim() || null,
+        url: url.trim() || null,
         content: content.trim() || null,
         color,
         pinned,
@@ -281,6 +293,13 @@ function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
             onChange={e => setTitle(e.target.value)}
             placeholder="タイトル"
             className="flex-shrink-0 w-full py-2 text-[18px] font-semibold text-[#1C1C1E] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none"
+          />
+          <input
+            type="url"
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            placeholder="URL"
+            className="flex-shrink-0 w-full py-1 text-[14px] text-[#007AFF] placeholder:text-[#8E8E93]/60 bg-transparent focus:outline-none"
           />
           {preview ? (
             content.trim() ? (
@@ -364,12 +383,23 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
         {note.title && (
           <p className="text-[15px] font-semibold text-[#1C1C1E] mb-1 pr-5 break-words">{note.title}</p>
         )}
+        {note.url && (
+          <a
+            href={note.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="block text-[12px] text-[#007AFF] underline underline-offset-1 break-all mb-1"
+          >
+            {note.url}
+          </a>
+        )}
         {note.content && (
           <div className="max-h-[360px] overflow-hidden">
             <Markdown>{note.content}</Markdown>
           </div>
         )}
-        {!note.title && !note.content && (
+        {!note.title && !note.url && !note.content && (
           <p className="text-[13px] text-[#AEAEB2]">（空のメモ）</p>
         )}
         {note.category && (
@@ -500,7 +530,7 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
         )}
         {creating && (
           <NoteModal
-            note={{ title: null, content: null, color: '#FFFFFF', pinned: false, category: defaultCategory }}
+            note={{ title: null, url: null, content: null, color: '#FFFFFF', pinned: false, category: defaultCategory }}
             isNew
             onSave={(_id, updates) => addNote(updates)}
             onDelete={() => {}}
@@ -555,7 +585,7 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
       )}
       {creating && (
         <NoteModal
-          note={{ title: null, content: null, color: '#FFFFFF', pinned: false, category: defaultCategory }}
+          note={{ title: null, url: null, content: null, color: '#FFFFFF', pinned: false, category: defaultCategory }}
           isNew
           onSave={(_id, updates) => addNote(updates)}
           onDelete={() => {}}
