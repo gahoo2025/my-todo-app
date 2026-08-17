@@ -447,7 +447,7 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
           {pinnedNotes.length > 0 && (
             <div className="mb-4">
               <p className="text-[12px] font-semibold text-[#8E8E93] mb-2 px-1">ピン留め</p>
-              <div className="columns-2 md:columns-3 gap-3">
+              <div className="columns-1 sm:columns-2 md:columns-3 gap-3">
                 {pinnedNotes.map(n => <NoteCard key={n.id} note={n} />)}
               </div>
             </div>
@@ -457,7 +457,7 @@ export default function NotesPage({ onBack, embedded, categories = [], filterCat
               {pinnedNotes.length > 0 && (
                 <p className="text-[12px] font-semibold text-[#8E8E93] mb-2 px-1">その他</p>
               )}
-              <div className="columns-2 md:columns-3 gap-3">
+              <div className="columns-1 sm:columns-2 md:columns-3 gap-3">
                 {otherNotes.map(n => <NoteCard key={n.id} note={n} />)}
               </div>
             </div>
