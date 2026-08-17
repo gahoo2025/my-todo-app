@@ -97,6 +97,14 @@ create policy "Users can view their own asset category history"
   using (auth.uid() = user_id);
 ```
 
+## おまけ: メモにURL欄を追加
+
+メモ（`notes`テーブル）にタイトル・本文とは別のURL専用欄を追加しました。既存の`notes`テーブルには`url`列が無いため、Supabaseで以下を実行してください。
+
+```sql
+alter table notes add column url text;
+```
+
 書き込みは`service_role`キーを使ったサーバーサイド連携（`api/asset-category-sync.js`）で行うため、INSERT/UPDATE用のポリシーは不要です。使い方の詳細は`docs/chat-ingest.md`を参照してください。
 
 ## おまけ: テトリス 🎮
