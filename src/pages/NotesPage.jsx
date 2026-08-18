@@ -202,6 +202,14 @@ function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
   const [category, setCategory] = useState(note.category ?? null)
   const [preview, setPreview] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const contentRef = useRef(null)
+
+  function selectAllContent() {
+    const el = contentRef.current
+    if (!el) return
+    el.focus()
+    el.select()
+  }
 
   async function handleClose() {
     const changed =
@@ -268,6 +276,18 @@ function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
                 </svg>
               )}
             </button>
+            {!preview && (
+              <button
+                onClick={selectAllContent}
+                disabled={!content}
+                className="w-9 h-9 flex items-center justify-center rounded-full text-[#8E8E93] hover:text-[#1C1C1E] active:bg-black/5 disabled:opacity-30 transition-colors"
+                title="本文を全選択"
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h4M4 4v4M20 4h-4M20 4v4M4 20h4M4 20v-4M20 20h-4M20 20v-4M8 9h8v6H8z" />
+                </svg>
+              </button>
+            )}
             <button
               onClick={() => setPreview(p => !p)}
               className={`text-[13px] font-medium px-3 py-1.5 rounded-full active:opacity-50 transition-colors ${
@@ -311,6 +331,7 @@ function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
             )
           ) : (
             <textarea
+              ref={contentRef}
               value={content}
               onChange={e => setContent(e.target.value)}
               placeholder="メモを入力…（Markdown / 表に対応）"
