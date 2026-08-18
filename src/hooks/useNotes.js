@@ -33,9 +33,10 @@ export function useNotes(userId) {
     return data
   }
 
-  async function updateNote(id, updates) {
+  async function updateNote(id, updates, { touchUpdatedAt = true } = {}) {
+    const payload = touchUpdatedAt ? { ...updates, updated_at: new Date().toISOString() } : updates
     const { data, error } = await supabase
-      .from('notes').update({ ...updates, updated_at: new Date().toISOString() })
+      .from('notes').update(payload)
       .eq('id', id).select().single()
     if (error) { alert('更新に失敗しました: ' + error.message); return }
     setNotes(prev => sortNotes(prev.map(n => n.id === id ? data : n)))

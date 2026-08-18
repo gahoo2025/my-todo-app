@@ -212,14 +212,16 @@ function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
   }
 
   async function handleClose() {
-    const changed =
-      (title.trim() || null) !== note.title ||
-      (url.trim() || null) !== note.url ||
-      (content.trim() || null) !== note.content ||
-      color !== note.color ||
-      pinned !== note.pinned ||
-      category !== note.category
+    const titleChanged = (title.trim() || null) !== note.title
+    const urlChanged = (url.trim() || null) !== note.url
+    const contentChanged = (content.trim() || null) !== note.content
+    const colorChanged = color !== note.color
+    const pinnedChanged = pinned !== note.pinned
+    const categoryChanged = category !== note.category
+    const changed = titleChanged || urlChanged || contentChanged || colorChanged || pinnedChanged || categoryChanged
     if (changed) {
+      // カテゴリだけを変更した場合は「更新」扱いにしない（一覧トップへの移動を防ぐ）
+      const categoryOnly = categoryChanged && !titleChanged && !urlChanged && !contentChanged && !colorChanged && !pinnedChanged
       await onSave(note.id, {
         title: title.trim() || null,
         url: url.trim() || null,
@@ -227,7 +229,7 @@ function NoteModal({ note, onSave, onDelete, onClose, categories, isNew }) {
         color,
         pinned,
         category,
-      })
+      }, { touchUpdatedAt: !categoryOnly })
     }
     onClose()
   }
