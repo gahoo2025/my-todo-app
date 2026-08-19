@@ -1,0 +1,27 @@
+{
+  "id": "/pacman.html",
+  "name": "パックマン",
+  "short_name": "パックマン",
+  "description": "ブラウザで遊べるパックマン。ドットを集めてゴーストから逃げよう。",
+  "lang": "ja",
+  "start_url": "/pacman.html",
+  "scope": "/pacman.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/icons/pacman-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/pacman-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
