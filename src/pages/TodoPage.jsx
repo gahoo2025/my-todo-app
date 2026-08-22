@@ -16,6 +16,7 @@ import NotesPage from './NotesPage'
 import GoalsPage from './GoalsPage'
 import SparksPage from './SparksPage'
 import AssetsPage from './AssetsPage'
+import KakeiboPage from './KakeiboPage'
 
 // ボトムタブアイコン
 function TabIcon({ tab, active }) {
@@ -51,6 +52,11 @@ function TabIcon({ tab, active }) {
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M21 7v4m0-4h-4" />
     </svg>
   )
+  if (tab === 'kakeibo') return (
+    <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m3 0h5M5 6h14a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+    </svg>
+  )
 }
 
 const TABS = [
@@ -60,6 +66,7 @@ const TABS = [
   { id: 'sparks',   label: 'ひらめき' },
   { id: 'goals',    label: 'プラン' },
   { id: 'assets',   label: '資産' },
+  { id: 'kakeibo',  label: '家計簿' },
 ]
 
 const TAB_TITLES = {
@@ -69,6 +76,7 @@ const TAB_TITLES = {
   sparks:   'ひらめき',
   goals:    'プラン',
   assets:   '資産管理',
+  kakeibo:  '家計簿',
 }
 
 export default function TodoPage() {
@@ -194,7 +202,7 @@ export default function TodoPage() {
 
       {/* ===== ナビゲーションバー ===== */}
       <header className="safe-top sticky top-0 z-10 bg-[#F2F2F7]/80 backdrop-blur-xl border-b border-black/5">
-        <div className={`max-w-lg mx-auto px-4 md:px-8 ${tab === 'assets' ? 'md:max-w-none' : 'md:max-w-5xl'}`}>
+        <div className={`max-w-lg mx-auto px-4 md:px-8 ${tab === 'assets' || tab === 'kakeibo' ? 'md:max-w-none' : 'md:max-w-5xl'}`}>
           <div className="flex items-center justify-between h-11">
             <span className="text-[17px] font-bold text-[#1C1C1E] tracking-tight">
               {TAB_TITLES[tab]}
@@ -428,6 +436,13 @@ export default function TodoPage() {
         {/* ── 資産タブ ── */}
         {tab === 'assets' && (
           <AssetsPage embedded />
+        )}
+
+        {/* ── 家計簿タブ ── */}
+        {tab === 'kakeibo' && (
+          <main className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 pb-28 md:pb-10">
+            <KakeiboPage embedded />
+          </main>
         )}
       </div>
 
