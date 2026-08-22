@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { parseBankStatement } from '../lib/bankStatementParser'
-import { classifyDescription, BANK_RULES } from '../lib/journalRules'
+import { parseBankStatement, billingMonthFromFilename } from '../lib/bankStatementParser'
+import { classifyDescription, ALL_CLASSIFICATIONS } from '../lib/journalRules'
+
+const CARD_INSTITUTIONS = new Set(['住友VISA', '横浜VISA', '楽天カード'])
 
 const DB_NAME = 'bank-statement-import-folder'
 const STORE = 'handles'
@@ -48,11 +50,17 @@ function decodeText(buf) {
   }
 }
 
-// 全ルールに登場する分類の一覧（未マッチ行の手動選択肢用）
-export const ALL_BANK_CLASSIFICATIONS = [...new Set(BANK_RULES.filter(r => r.method !== 'inherit').map(r => r.classification))].sort()
-
 function billingMonthOf(dateStr) {
   return dateStr.replace(/-/g, '').slice(0, 6)
+}
+
+// 銀行は利用日=支払月だが、カードはファイル名（例：202607.csv）から支払月を推定する。
+// ファイル名から取れない場合は取引日の月で代用する（精度は落ちるが未設定よりは安全）。
+function billingMonthFor(institution, transactionDate, sourceFile) {
+  if (CARD_INSTITUTIONS.has(institution)) {
+    return billingMonthFromFilename(sourceFile) || billingMonthOf(transactionDate)
+  }
+  return billingMonthOf(transactionDate)
 }
 
 function dupKey(institution, date, direction, amount) {
@@ -127,12 +135,18 @@ export function useBankStatementImport(userId, onImported) {
       // 取引先ごとに、ファイル内の並び順のまま仕訳１（一次仕訳）を適用する（直前行継承ルールのため）
       const institutions = [...new Set(parsedRows.map(r => r.institution))]
       const previousByInstitutionFile = {}
-      const classified = parsedRows.map(row => {
+      const classifiedAll = parsedRows.map(row => {
         const key = `${row.institution}|${row.source_file}`
         const prev = previousByInstitutionFile[key]
-        const result = classifyDescription(row.institution, row.description, prev)
+        const result = classifyDescription(row.institution, row.description, { previousClassification: prev, holder: row.holder })
         if (result.classification) previousByInstitutionFile[key] = result.classification
         return { ...row, ...result }
+      })
+      // exclude（カード名義ヘッダー行の表記ゆれ・海外利用の換算レート注記行など、実取引ではない行）は除外する
+      let excludedCount = 0
+      const classified = classifiedAll.filter(row => {
+        if (row.status === 'exclude') { excludedCount++; return false }
+        return true
       })
 
       // 既存の登録済み仕訳（過去データ含む）と重複するものはスキップする
@@ -169,7 +183,7 @@ export function useBankStatementImport(userId, onImported) {
         } else {
           needsReview.push({
             ...row,
-            candidates: row.candidates && row.candidates.length > 0 ? row.candidates : ALL_BANK_CLASSIFICATIONS,
+            candidates: row.candidates && row.candidates.length > 0 ? row.candidates : ALL_CLASSIFICATIONS,
           })
         }
       }
@@ -178,7 +192,7 @@ export function useBankStatementImport(userId, onImported) {
       setReadyRows(ready)
       setQueue(needsReview)
       setDuplicateCount(dupCount)
-      setScanResult({ totalFiles: unmatched.length + institutions.length, institutions, total: classified.length, ready: ready.length, review: needsReview.length, duplicates: dupCount })
+      setScanResult({ totalFiles: unmatched.length + institutions.length, institutions, total: classified.length, ready: ready.length, review: needsReview.length, duplicates: dupCount, excluded: excludedCount })
     } finally {
       setScanning(false)
     }
@@ -202,14 +216,15 @@ export function useBankStatementImport(userId, onImported) {
       const rows = readyRows.map(r => ({
         user_id: userId,
         institution: r.institution,
+        card_holder: r.institution === '住友VISA' ? r.holder : null,
         transaction_date: r.transaction_date,
-        billing_month: billingMonthOf(r.transaction_date),
+        billing_month: billingMonthFor(r.institution, r.transaction_date, r.source_file),
         description: r.description,
         direction: r.direction,
         amount: r.amount,
         balance: r.balance,
         classification: r.classification,
-        classification_source: r.classification_source_override || (r.needsConfirmation ? 'rule_auto' : 'rule_auto'),
+        classification_source: r.classification_source_override || 'rule_auto',
         memo: r.needsConfirmation ? '（要確認：自動仕訳の再確認対象）' : null,
         source_file: r.source_file,
       }))

@@ -30,10 +30,11 @@ export default function BankStatementImport({ onImported }) {
   return (
     <div className="space-y-3">
       <div className="ios-card px-4 py-4">
-        <p className="text-[13px] font-semibold text-[#1C1C1E] mb-2">明細インポート（銀行系）</p>
+        <p className="text-[13px] font-semibold text-[#1C1C1E] mb-2">明細インポート</p>
         <p className="text-[12px] text-[#8E8E93] mb-3">
-          横浜銀行・住友銀行・ゆうちょ・みずほ銀行のCSV明細が入ったフォルダを選択してください。
-          複数ファイルをまとめて取り込めます。取引先はファイルの内容から自動判別します。
+          横浜銀行・住友銀行・ゆうちょ・みずほ銀行・住友VISA・横浜VISA・楽天カードのCSV明細が
+          入ったフォルダを選択してください。複数ファイルをまとめて取り込めます。取引先はファイルの
+          内容から自動判別します。
         </p>
         <div className="flex flex-wrap gap-2">
           <button
@@ -63,7 +64,10 @@ export default function BankStatementImport({ onImported }) {
         {scanResult && (
           <div className="mt-3 text-[12px] text-[#1C1C1E] space-y-0.5">
             <p>取引先: {scanResult.institutions.join('・') || 'なし'}</p>
-            <p>読み込み件数: {scanResult.total}件（自動仕訳 {scanResult.ready}件／要確認 {scanResult.review}件／重複スキップ {scanResult.duplicates}件）</p>
+            <p>
+              読み込み件数: {scanResult.total}件（自動仕訳 {scanResult.ready}件／要確認 {scanResult.review}件／
+              重複スキップ {scanResult.duplicates}件{scanResult.excluded > 0 ? `／非取引行除外 ${scanResult.excluded}件` : ''}）
+            </p>
           </div>
         )}
       </div>
@@ -74,7 +78,9 @@ export default function BankStatementImport({ onImported }) {
             確認要（残り{queue.length}件）
           </p>
           <div className="rounded-xl bg-black/[0.03] px-3 py-2.5 mb-3">
-            <p className="text-[12px] text-[#8E8E93]">{current.institution}・{current.transaction_date}</p>
+            <p className="text-[12px] text-[#8E8E93]">
+              {current.institution}{current.holder ? `（${current.holder}）` : ''}・{current.transaction_date}
+            </p>
             <p className="text-[15px] text-[#1C1C1E] mt-0.5">{current.description || '（摘要なし）'}</p>
             <p className="text-[15px] font-semibold text-[#1C1C1E] mt-0.5">
               {current.direction} {yen.format(current.amount)}円

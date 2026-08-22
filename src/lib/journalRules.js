@@ -1,8 +1,8 @@
 // 仕訳１（一次仕訳）ルールエンジン
 //
 // 仕訳ルール_統合版.xlsx（535ルール）のうち、銀行系4取引先（横浜銀行・住友銀行・
-// ゆうちょ・みずほ銀行）分（74ルール）を対象とする。カード系（横浜VISA・住友VISA・
-// 楽天カード）は未対応（今後のスコープ）。
+// ゆうちょ・みずほ銀行、74ルール）＋カード系3取引先（住友VISA・横浜VISA・楽天カード、
+// 437ルール）を対象とする。
 //
 // 自動仕訳区分：
 //   auto    … ルール条件だけで一意に分類が決まる。完全自動で確定してよい。
@@ -15,6 +15,8 @@
 // 正規化ルール（元Excelの設計方針どおり）：
 //   ・半角スペース・全角スペースをすべて除去
 //   ・長音符・ダッシュ系の文字（ー／－／-／−／ｰ／‐）をすべて「ー」に統一
+
+import CARD_RULES_DATA from './cardRulesData.json'
 
 export const BANK_RULES = [
   { institution: '横浜銀行', classification: 'ATM', method: 'prefix', pattern: 'ｼﾞﾄﾞｳｷ*', category: 'auto' },
@@ -93,6 +95,17 @@ export const BANK_RULES = [
   { institution: 'ゆうちょ', classification: '（直前行と同じ）', method: 'inherit', pattern: '料金', category: 'auto' },
 ]
 
+// カード系（住友VISA・横浜VISA・楽天カード）ルール（CARD_RULES_DATA）は、カード名義
+// ヘッダー方式（住友VISAの智広様／恵美様の切替）に対応するため、holder制約
+// （'智広'|'恵美'|null）付きで持つ。「日付で判断」区分（利用日・区間等の文脈情報が
+// 必要なもの、22ルール）は自動判定できないため未収録＝該当摘要は既定ルールがあれば
+// そちらが適用され、無ければ確認要（候補提示）に回る。
+
+const ALL_RULES = [
+  ...BANK_RULES.map(r => ({ ...r, holder: null })),
+  ...CARD_RULES_DATA,
+]
+
 const DASH_CHARS = /[ー－\-−ｰ‐]/g
 
 // 摘要・条件文字列の正規化：半角/全角スペース除去 + 長音符・ダッシュ類を「ー」に統一
@@ -118,11 +131,18 @@ function matchesRule(rule, normalizedDesc) {
   return false
 }
 
-// 摘要1件を分類する。previousClassification は直前行継承ルール用（同一ファイル内、直前の行の確定分類）。
-// 戻り値: { status: 'auto'|'review'|'unmatched', classification: string|null, candidates: string[] }
-export function classifyDescription(institution, description, previousClassification) {
+// 実取引ではない行（カード名義ヘッダー行の表記ゆれ・海外利用の換算レート注記行など）を示す分類
+function isNonTransactionMarker(classification) {
+  return classification === '－' || classification === 'ー' || classification.includes('非仕訳対象')
+}
+
+// 摘要1件を分類する。
+//   previousClassification … 直前行継承ルール用（同一ファイル内、直前の行の確定分類）
+//   holder                 … カード名義ヘッダーの状態（住友VISA用。'智広'|'恵美'|null）
+// 戻り値: { status: 'auto'|'review'|'unmatched'|'exclude', classification: string|null, candidates: string[] }
+export function classifyDescription(institution, description, { previousClassification, holder } = {}) {
   const normalizedDesc = normalizeText(description)
-  const rules = BANK_RULES.filter(r => r.institution === institution)
+  const rules = ALL_RULES.filter(r => r.institution === institution && (r.holder == null || r.holder === holder))
 
   const inheritRule = rules.find(r => r.method === 'inherit' && normalizeText(r.pattern) === normalizedDesc)
   if (inheritRule) {
@@ -138,9 +158,14 @@ export function classifyDescription(institution, description, previousClassifica
     return { status: 'unmatched', classification: null, candidates: [] }
   }
 
-  const candidates = [...new Set(matched.map(r => r.classification))]
+  // 分類欄に「Ａ／Ｂ／Ｃ」のように複数候補が1行にまとめられているケースを展開する
+  const candidates = [...new Set(matched.flatMap(r => r.classification.split('／')))]
   if (candidates.length > 1 || matched.some(r => r.category === 'review')) {
     return { status: 'review', classification: null, candidates }
+  }
+
+  if (isNonTransactionMarker(candidates[0])) {
+    return { status: 'exclude', classification: candidates[0], candidates: [] }
   }
 
   // auto / special はどちらもこのアプリでは自動確定するが、special は要確認フラグを立てる
@@ -151,3 +176,11 @@ export function classifyDescription(institution, description, previousClassifica
     needsConfirmation: matched[0].category === 'special',
   }
 }
+
+// 全ルールに登場する分類の一覧（未マッチ行の手動選択肢用）。非取引マーカーは除外する。
+export const ALL_CLASSIFICATIONS = [...new Set(
+  ALL_RULES
+    .filter(r => r.method !== 'inherit')
+    .flatMap(r => r.classification.split('／'))
+    .filter(c => !isNonTransactionMarker(c))
+)].sort()
