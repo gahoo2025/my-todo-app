@@ -206,6 +206,18 @@ export default function TodoPage() {
             </span>
 
             <div className="flex items-center gap-0.5">
+              {/* 開発情報（全タブ共通）：アーキテクチャ構成図・機能関連図・DBモデル等のドキュメント一式を別タブで開く */}
+              <a
+                href={`${import.meta.env.BASE_URL}docs/architecture.html`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ios-icon-btn text-[#8E8E93]"
+                title="開発情報"
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h4m3 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </a>
               {/* カテゴリ管理（全タブ共通） */}
               <button onClick={() => setPage('category')} className="ios-icon-btn text-[#007AFF]" title="カテゴリ">
                 <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
