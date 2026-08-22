@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useJournalEntries, JOURNAL_INSTITUTIONS } from '../hooks/useJournalEntries'
 
@@ -11,21 +11,47 @@ function formatDate(s) {
   return `${y}/${m}/${d}`
 }
 
+// billing_month（YYYYMM）を「2026年7月」形式に整形
+function formatMonth(ym) {
+  if (!ym || ym.length !== 6) return ym ?? ''
+  return `${ym.slice(0, 4)}年${Number(ym.slice(4, 6))}月`
+}
+
 export default function KakeiboPage({ embedded }) {
   const { user } = useAuth()
   const { entries, loading } = useJournalEntries(user?.id)
   const [query, setQuery] = useState('')
   const [institution, setInstitution] = useState('all')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [selectedMonth, setSelectedMonth] = useState(null)
+
+  // データに実際に存在する支払い月（カードは請求月、銀行は取引月＝口座からの引き落とし月）を新しい順に列挙
+  // 一覧の絞り込み対象はこの列そのもの（billing_month）に統一しているため、
+  // カード（横浜VISA・住友VISA・楽天カード）は利用日ではなく支払い月で、銀行は従来どおり取引月で判定される
+  const availableMonths = useMemo(() => {
+    const set = new Set(entries.map(e => e.billing_month).filter(Boolean))
+    return [...set].sort((a, b) => b.localeCompare(a))
+  }, [entries])
+
+  // 初回ロード時・選択中の月がデータに存在しなくなった時に、最新の月へフォールバック
+  useEffect(() => {
+    if (availableMonths.length === 0) return
+    if (!selectedMonth || !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(availableMonths[0])
+    }
+  }, [availableMonths, selectedMonth])
+
+  const monthIndex = availableMonths.indexOf(selectedMonth)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return entries.filter(e => {
+      if (selectedMonth && e.billing_month !== selectedMonth) return false
       if (institution !== 'all' && e.institution !== institution) return false
       if (!q) return true
       return [e.description, e.classification, e.memo].filter(Boolean).join(' ').toLowerCase().includes(q)
     })
-  }, [entries, query, institution])
+  }, [entries, query, institution, selectedMonth])
 
   const summary = useMemo(() => {
     let out = 0
@@ -46,6 +72,41 @@ export default function KakeiboPage({ embedded }) {
 
   return (
     <div className={embedded ? 'space-y-3' : 'max-w-lg mx-auto px-4 pt-4 space-y-3'}>
+      {/* ── 年月選択 ── */}
+      {availableMonths.length > 0 && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleFilterChange(() => setSelectedMonth(availableMonths[monthIndex + 1]))}
+            disabled={monthIndex >= availableMonths.length - 1}
+            className="ios-icon-btn text-[#007AFF] disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="前の月"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <select
+            value={selectedMonth ?? ''}
+            onChange={e => handleFilterChange(() => setSelectedMonth(e.target.value))}
+            className="flex-1 text-center px-3 py-2 rounded-[10px] bg-white text-[15px] font-semibold text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)] focus:outline-none"
+          >
+            {availableMonths.map(m => (
+              <option key={m} value={m}>{formatMonth(m)}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => handleFilterChange(() => setSelectedMonth(availableMonths[monthIndex - 1]))}
+            disabled={monthIndex <= 0}
+            className="ios-icon-btn text-[#007AFF] disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="次の月"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* ── 検索・絞り込み ── */}
       <div className="sticky top-below-subtabs z-[4] -mx-4 px-4 pt-2 pb-2 bg-[#F2F2F7]/85 backdrop-blur-xl space-y-2">
         <input
