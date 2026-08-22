@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-const UNCLASSIFIED = '（未分類）'
 
 function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClass }) {
   if (rows.length === 0) return null
@@ -13,7 +12,7 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClas
         <table className="min-w-full text-[12px] tabular-nums">
           <thead>
             <tr className="border-t border-black/[0.05]">
-              <th className="sticky left-0 bg-white text-left font-medium text-[#8E8E93] px-3 py-2 whitespace-nowrap">分類</th>
+              <th className="sticky left-0 bg-white text-left font-medium text-[#8E8E93] px-3 py-2 whitespace-nowrap">取引先</th>
               {months.map(m => (
                 <th key={m} className="text-right font-medium text-[#8E8E93] px-2 py-2 whitespace-nowrap">{m}月</th>
               ))}
@@ -22,8 +21,8 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClas
           </thead>
           <tbody>
             {rows.map(row => (
-              <tr key={row.classification} className="border-t border-black/[0.04]">
-                <td className="sticky left-0 bg-white text-left text-[#1C1C1E] px-3 py-2 whitespace-nowrap">{row.classification}</td>
+              <tr key={row.institution} className="border-t border-black/[0.04]">
+                <td className="sticky left-0 bg-white text-left text-[#1C1C1E] px-3 py-2 whitespace-nowrap">{row.institution}</td>
                 {months.map(m => (
                   <td key={m} className="text-right text-[#1C1C1E] px-2 py-2 whitespace-nowrap">
                     {row.byMonth[m] ? yen.format(row.byMonth[m]) : '—'}
@@ -50,7 +49,7 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClas
   )
 }
 
-// 分類別・月別の年間収支：選んだ年の1年分を、分類（行）×月（列）のピボット表で出金/入金それぞれ表示する
+// 取引先別・月別の年間収支：選んだ年の1年分を、取引先（行）×月（列）のピボット表で出金/入金それぞれ表示する
 export default function AnnualClassificationSummary({ entries, loading }) {
   const [selectedYear, setSelectedYear] = useState(null)
 
@@ -68,22 +67,22 @@ export default function AnnualClassificationSummary({ entries, loading }) {
 
   const yearIndex = availableYears.indexOf(selectedYear)
 
-  // (方向) -> 分類 -> 月 -> 合計金額 に集計
+  // (方向) -> 取引先 -> 月 -> 合計金額 に集計
   const pivot = useMemo(() => {
     const build = direction => {
-      const byClassification = new Map()
+      const byInstitution = new Map()
       for (const e of entries) {
         if (e.direction !== direction) continue
         if (!selectedYear || e.billing_month?.slice(0, 4) !== selectedYear) continue
         const month = Number(e.billing_month.slice(4, 6))
-        const cls = e.classification || UNCLASSIFIED
-        if (!byClassification.has(cls)) byClassification.set(cls, { classification: cls, byMonth: {}, total: 0 })
-        const row = byClassification.get(cls)
+        const inst = e.institution
+        if (!byInstitution.has(inst)) byInstitution.set(inst, { institution: inst, byMonth: {}, total: 0 })
+        const row = byInstitution.get(inst)
         const amount = Number(e.amount) || 0
         row.byMonth[month] = (row.byMonth[month] || 0) + amount
         row.total += amount
       }
-      const rows = [...byClassification.values()].sort((a, b) => b.total - a.total)
+      const rows = [...byInstitution.values()].sort((a, b) => b.total - a.total)
       const totalsByMonth = {}
       let grandTotal = 0
       for (const row of rows) {
@@ -140,7 +139,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
       </div>
 
       <PivotTable
-        title="支出（分類別・月別）"
+        title="支出（取引先別・月別）"
         rows={pivot.out.rows}
         months={MONTHS}
         totalsByMonth={pivot.out.totalsByMonth}
@@ -148,7 +147,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         accentClass="text-[#1C1C1E]"
       />
       <PivotTable
-        title="収入（分類別・月別）"
+        title="収入（取引先別・月別）"
         rows={pivot.inn.rows}
         months={MONTHS}
         totalsByMonth={pivot.inn.totalsByMonth}
