@@ -107,6 +107,104 @@ alter table notes add column url text;
 
 書き込みは`service_role`キーを使ったサーバーサイド連携（`api/asset-category-sync.js`）で行うため、INSERT/UPDATE用のポリシーは不要です。使い方の詳細は`public/docs/chat-ingest.md`を参照してください。
 
+## おまけ: 家計簿の仕訳結果（journal_entries）
+
+横浜銀行・住友銀行・ゆうちょ・みずほ銀行・横浜VISA・住友VISA・楽天カードの過去の取引明細（分類済み）を保存するテーブルです。設計の詳細は`gahoo-company`リポジトリの`product/journal-entries-db-design.md`を参照してください。利用するにはSupabaseで以下のテーブルを作成してください（**2026-08-22時点、本番プロジェクトには適用済み**）。
+
+```sql
+create table journal_entries (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users,
+
+  institution text not null check (institution in (
+    '横浜銀行', '住友銀行', 'ゆうちょ', 'みずほ銀行',
+    '横浜VISA', '住友VISA', '楽天カード'
+  )),
+  card_holder text check (card_holder in ('智広', '恵美')),
+
+  transaction_date date not null,
+  billing_month text,
+
+  description text not null,
+  direction text not null check (direction in ('入金', '出金')),
+  amount numeric not null check (amount >= 0),
+  balance numeric,
+
+  classification text,
+  classification_source text not null default 'historical_import'
+    check (classification_source in ('historical_import', 'rule_auto', 'manual')),
+
+  memo text,
+  raw_detail jsonb,
+
+  source_file text not null default '仕訳１を行ったリスト.xlsx',
+  source_sheet text not null,
+  source_row int,
+  import_batch_id uuid,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  unique (user_id, source_sheet, source_row)
+);
+
+create index journal_entries_lookup_idx on journal_entries (user_id, institution, transaction_date);
+create index journal_entries_classification_idx on journal_entries (user_id, classification);
+
+alter table journal_entries enable row level security;
+
+create policy "Users can view their own journal entries"
+  on journal_entries for select
+  using (auth.uid() = user_id);
+
+create table journal_classification_map (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users,
+
+  institution_or_group text not null,
+  classification_1 text not null,
+  classification_2 text not null,
+  classification_3 text not null,
+  cashflow_direction text not null check (cashflow_direction in ('入金', '出金')),
+  related_group text,
+  status text not null default '既存' check (status in ('既存', '新規')),
+  note text,
+
+  created_at timestamptz not null default now(),
+
+  unique (user_id, institution_or_group, classification_1)
+);
+
+alter table journal_classification_map enable row level security;
+
+create policy "Users can view their own classification map"
+  on journal_classification_map for select
+  using (auth.uid() = user_id);
+```
+
+### 過去データの移行手順
+
+書き込みは`service_role`キーを使ったローカル実行スクリプト（`scripts/journal-entries/`）で行います。ローカルのExcel（`仕訳１を行ったリスト.xlsx`）を直接読み込むため、家計取引データがこのリポジトリにコミットされることはありません。
+
+```bash
+cd scripts/journal-entries
+pip install openpyxl
+
+export SUPABASE_URL=https://xxxx.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY=xxxxx   # Supabaseの service_role キー（絶対に公開しないこと）
+export INGEST_USER_ID=xxxxxxxx-xxxx-...  # 取り込み先のuser_id
+
+# 1) 過去の仕訳結果（journal_entries）
+python3 transform.py /path/to/仕訳１を行ったリスト.xlsx journal_entries.json
+python3 import.py journal_entries.json
+
+# 2) 分類1→2→3の展開ルール（journal_classification_map）
+python3 transform_classification_map.py /path/to/仕訳１を行ったリスト.xlsx journal_classification_map.json
+python3 import.py journal_classification_map.json --table journal_classification_map
+```
+
+`(user_id, source_sheet, source_row)` のunique制約でupsertするため、同じファイルを何度流しても重複投入されません。**2026-08-22時点、パイプラインの正しさは横浜銀行の実データ100件で検証済み**（日付の年推定・住友VISAのカード名義ヘッダー機構・みずほ銀行の列レイアウトの揺れ等、変換ロジックの詳細はスクリプト内コメントと`journal-entries-db-design.md`を参照）。残りのデータの投入は、Supabase認証情報を持つ環境（ローカルCLI等）で上記コマンドを実行してください。
+
 ## おまけ: テトリス 🎮
 
 ログイン不要で遊べるテトリスを同梱しています。依存ライブラリゼロの自己完結型 HTML（Canvas + 純粋 JS）です。

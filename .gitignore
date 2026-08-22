@@ -3,3 +3,6 @@ dist
 .env
 .env.local
 .DS_Store
+
+# journal_entries移行スクリプトの出力（個人の家計取引データを含むため絶対にコミットしない）
+scripts/journal-entries/*.json
