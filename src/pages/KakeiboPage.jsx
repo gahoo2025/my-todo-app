@@ -7,7 +7,7 @@ import AnnualClassificationSummary from '../components/AnnualClassificationSumma
 // サブ機能の定義（今後ここに追加していく）
 const SUB_FEATURES = [
   { id: 'monthly', label: '月別明細' },
-  { id: 'annual',  label: '取引先別年間収支' },
+  { id: 'annual',  label: '分類別年間収支' },
 ]
 
 export default function KakeiboPage({ embedded }) {
