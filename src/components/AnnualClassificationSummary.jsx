@@ -30,6 +30,15 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClas
             </tr>
           </thead>
           <tbody>
+            <tr className="border-t border-black/[0.08] bg-black/[0.02]">
+              <td className="sticky left-0 bg-[#FAFAFA] text-left font-semibold text-[#1C1C1E] px-3 py-2.5 whitespace-nowrap">合計</td>
+              <td className={`text-right font-bold px-3 py-2.5 whitespace-nowrap ${accentClass}`}>{yen.format(grandTotal)}</td>
+              {months.map(m => (
+                <td key={m} className="text-right font-semibold text-[#1C1C1E] px-2 py-2.5 whitespace-nowrap">
+                  {totalsByMonth[m] ? yen.format(totalsByMonth[m]) : '—'}
+                </td>
+              ))}
+            </tr>
             {rows.map(row => (
               <tr key={row.classification} className="border-t border-black/[0.04]">
                 <td className="sticky left-0 bg-white text-left text-[#1C1C1E] px-3 py-2 whitespace-nowrap">{row.classification}</td>
@@ -42,17 +51,6 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClas
               </tr>
             ))}
           </tbody>
-          <tfoot>
-            <tr className="border-t border-black/[0.08]">
-              <td className="sticky left-0 bg-white text-left font-semibold text-[#1C1C1E] px-3 py-2.5 whitespace-nowrap">合計</td>
-              <td className={`text-right font-bold px-3 py-2.5 whitespace-nowrap ${accentClass}`}>{yen.format(grandTotal)}</td>
-              {months.map(m => (
-                <td key={m} className="text-right font-semibold text-[#1C1C1E] px-2 py-2.5 whitespace-nowrap">
-                  {totalsByMonth[m] ? yen.format(totalsByMonth[m]) : '—'}
-                </td>
-              ))}
-            </tr>
-          </tfoot>
         </table>
       </div>
     </div>
