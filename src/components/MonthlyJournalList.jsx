@@ -68,7 +68,8 @@ export default function MonthlyJournalList({ entries, loading }) {
 
   return (
     <div className="space-y-3">
-      {/* ── 年月選択 ── */}
+      {/* ── 年月選択・検索・絞り込み・サマリー（縦スクロールしても上部に固定） ── */}
+      <div className="sticky top-below-subtabs z-[4] -mx-4 px-4 pt-2 pb-2 bg-[#F2F2F7]/85 backdrop-blur-xl space-y-2">
       {availableMonths.length > 0 && (
         <div className="flex items-center gap-2">
           <button
@@ -152,6 +153,7 @@ export default function MonthlyJournalList({ entries, loading }) {
           </div>
         </div>
       )}
+      </div>
 
       {/* ── 一覧 ── */}
       {loading ? (
