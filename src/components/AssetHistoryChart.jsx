@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { niceTicks, monthAlignedXTicks } from '../lib/chartTicks'
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -42,23 +43,21 @@ export default function AssetHistoryChart({ points }) {
       if (v > max) max = v
     }
     const pad = Math.max((max - min) * 0.08, 1)
-    const lo = min - pad
-    const hi = max + pad
+    // 金額なので、キリのいい単位（値が大きければ千万単位など）で目盛りを打つ
+    const { niceMin, niceMax, ticks } = niceTicks(min - pad, max + pad, 4)
+    const lo = niceMin
+    const hi = niceMax
     const w = 100
     const h = 100
     const step = w / (filtered.length - 1)
     const toY = v => h - ((v - lo) / (hi - lo)) * h
     const linePoints = filtered.map((p, i) => ({ x: i * step, y: toY(Number(p.value)) }))
-    return { linePoints, lo, hi }
+    const yTicks = ticks.filter(t => t >= lo && t <= hi).map(t => ({ value: t, y: toY(t) }))
+    return { linePoints, lo, hi, yTicks }
   }, [filtered])
 
-  // PC表示時のみ縦軸(金額)・横軸(日付)の目盛りを出す
-  const xTicks = useMemo(() => {
-    if (filtered.length < 2) return []
-    const n = Math.min(6, filtered.length)
-    const idx = Array.from({ length: n }, (_, i) => Math.round((i * (filtered.length - 1)) / (n - 1)))
-    return [...new Set(idx)].map(i => ({ pct: (i / (filtered.length - 1)) * 100, date: filtered[i].trade_date }))
-  }, [filtered])
+  // PC表示時のみ縦軸(金額)・横軸(日付)の目盛りを出す。横軸は等間隔ではなく、月初（範囲が長ければ年初）に揃える
+  const xTicks = useMemo(() => monthAlignedXTicks(filtered, 'trade_date', formatDate), [filtered])
 
   return (
     <div>
@@ -78,13 +77,34 @@ export default function AssetHistoryChart({ points }) {
       {chart ? (
         <>
           <div className="relative h-[140px] md:h-[300px] md:pl-16 md:pb-5">
-            {/* 縦軸（PCのみ） */}
-            <div className="hidden md:flex flex-col justify-between absolute left-0 top-0 bottom-5 w-14 text-[10px] text-[#8E8E93] text-right pr-2">
-              <span>{yen.format(chart.hi)}</span>
-              <span>{yen.format((chart.hi + chart.lo) / 2)}</span>
-              <span>{yen.format(chart.lo)}</span>
+            {/* 縦軸（PCのみ、キリのいい金額で目盛りを打つ） */}
+            <div className="hidden md:block absolute left-0 top-0 bottom-5 w-14 text-[10px] text-[#8E8E93] text-right pr-2">
+              {chart.yTicks.map(t => (
+                <span key={t.value} className="absolute right-2 -translate-y-1/2" style={{ top: `${t.y}%` }}>
+                  {yen.format(t.value)}
+                </span>
+              ))}
             </div>
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+              {/* 補助線（縦軸目盛りに対応する横線） */}
+              {chart.yTicks.map(t => (
+                <line
+                  key={t.value}
+                  x1="0" y1={Math.max(1, Math.min(99, t.y))} x2="100" y2={Math.max(1, Math.min(99, t.y))}
+                  stroke="#8E8E93" strokeOpacity="0.25" strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+              {/* 補助線（横軸＝月の区切りに対応する縦線） */}
+              {xTicks.map(t => (
+                <line
+                  key={t.date}
+                  x1={Math.max(1, Math.min(99, t.pct))} y1="0"
+                  x2={Math.max(1, Math.min(99, t.pct))} y2="100"
+                  stroke="#8E8E93" strokeOpacity="0.25" strokeWidth="1"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
               <polyline
                 fill="none"
                 stroke="#007AFF"
@@ -95,11 +115,11 @@ export default function AssetHistoryChart({ points }) {
                 points={chart.linePoints.map(c => `${c.x},${c.y}`).join(' ')}
               />
             </svg>
-            {/* 横軸（PCのみ） */}
+            {/* 横軸（PCのみ、月の区切りが分かるように月初・年初ラベルを表示） */}
             <div className="hidden md:block absolute left-16 right-0 bottom-0 h-5 text-[10px] text-[#8E8E93]">
               {xTicks.map(t => (
                 <span key={t.date} className="absolute -translate-x-1/2 top-0" style={{ left: `${t.pct}%` }}>
-                  {formatDate(t.date)}
+                  {t.label}
                 </span>
               ))}
             </div>
