@@ -2,8 +2,16 @@ import { useState, useMemo, useEffect } from 'react'
 import { JOURNAL_INSTITUTIONS } from '../hooks/useJournalEntries'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
-const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+// 年度＝4月始まり3月終わりで表示する
+const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
 const UNCLASSIFIED = '（未分類）'
+
+// billing_month（YYYYMM）が属する年度（4月始まり）を返す。1〜3月は前年の年度扱い
+function fiscalYearOf(billingMonth) {
+  const year = Number(billingMonth.slice(0, 4))
+  const month = Number(billingMonth.slice(4, 6))
+  return month >= 4 ? year : year - 1
+}
 
 function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClass }) {
   if (rows.length === 0) return null
@@ -57,8 +65,8 @@ export default function AnnualClassificationSummary({ entries, loading }) {
   const [institution, setInstitution] = useState('all')
 
   const availableYears = useMemo(() => {
-    const set = new Set(entries.map(e => e.billing_month?.slice(0, 4)).filter(Boolean))
-    return [...set].sort((a, b) => b.localeCompare(a))
+    const set = new Set(entries.filter(e => e.billing_month).map(e => fiscalYearOf(e.billing_month)))
+    return [...set].sort((a, b) => b - a).map(String)
   }, [entries])
 
   useEffect(() => {
@@ -76,7 +84,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
       const byClassification = new Map()
       for (const e of entries) {
         if (e.direction !== direction) continue
-        if (!selectedYear || e.billing_month?.slice(0, 4) !== selectedYear) continue
+        if (!e.billing_month || !selectedYear || String(fiscalYearOf(e.billing_month)) !== selectedYear) continue
         if (institution !== 'all' && e.institution !== institution) continue
         const month = Number(e.billing_month.slice(4, 6))
         const cls = e.classification || UNCLASSIFIED
@@ -90,7 +98,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
       const totalsByMonth = {}
       let grandTotal = 0
       for (const row of rows) {
-        for (const m of MONTHS) {
+        for (const m of FISCAL_MONTHS) {
           if (row.byMonth[m]) totalsByMonth[m] = (totalsByMonth[m] || 0) + row.byMonth[m]
         }
         grandTotal += row.total
@@ -127,7 +135,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
           className="flex-1 text-center px-3 py-2 rounded-[10px] bg-white text-[15px] font-semibold text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)] focus:outline-none"
         >
           {availableYears.map(y => (
-            <option key={y} value={y}>{y}年</option>
+            <option key={y} value={y}>{y}年度（{y}年4月〜{Number(y) + 1}年3月）</option>
           ))}
         </select>
         <button
@@ -168,7 +176,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
       <PivotTable
         title="支出（分類別・月別）"
         rows={pivot.out.rows}
-        months={MONTHS}
+        months={FISCAL_MONTHS}
         totalsByMonth={pivot.out.totalsByMonth}
         grandTotal={pivot.out.grandTotal}
         accentClass="text-[#1C1C1E]"
@@ -176,7 +184,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
       <PivotTable
         title="収入（分類別・月別）"
         rows={pivot.inn.rows}
-        months={MONTHS}
+        months={FISCAL_MONTHS}
         totalsByMonth={pivot.inn.totalsByMonth}
         grandTotal={pivot.inn.grandTotal}
         accentClass="text-[#248A3D]"
