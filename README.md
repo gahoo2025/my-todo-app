@@ -105,7 +105,7 @@ create policy "Users can view their own asset category history"
 alter table notes add column url text;
 ```
 
-書き込みは`service_role`キーを使ったサーバーサイド連携（`api/asset-category-sync.js`）で行うため、INSERT/UPDATE用のポリシーは不要です。使い方の詳細は`docs/chat-ingest.md`を参照してください。
+書き込みは`service_role`キーを使ったサーバーサイド連携（`api/asset-category-sync.js`）で行うため、INSERT/UPDATE用のポリシーは不要です。使い方の詳細は`public/docs/chat-ingest.md`を参照してください。
 
 ## おまけ: テトリス 🎮
 

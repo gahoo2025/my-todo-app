@@ -1,8 +1,18 @@
 {
   "$schema": "architecture-map/v1",
   "generated_at": "2026-08-12",
+  "updated_at": "2026-08-22 (assets_page_sub_features / shared_components / hooks / lib / supabase_tables / api_endpoints を2026-08時点のコードに合わせて追補)",
   "generated_by": "product department (gahoo-company) via Claude",
   "purpose": "TODOアプリの全体構造を機械可読な形でマッピングしたもの。新機能を担当する将来のエージェントは、コード全体を再探索する前にこのファイルを読むこと。",
+  "doc_map": {
+    "note": "人間/AI向けの視覚的なドキュメント一式（同フォルダ）。詳細粒度が必要な場合はこちらを参照。",
+    "architecture.html": "このファイルの人間向け版（全体マップ）",
+    "architecture-diagram.html": "①アーキテクチャ構成図（ホスティング・認証経路・外部データソース）",
+    "feature-map.html": "②機能関連図（タブ→画面→hook→テーブルの関連、機能横断の共有部品）",
+    "db-model.html": "③DBモデル（ER図。auth.users中心のスター構成＋テーブル間の直接的な関連）",
+    "db-tables.html": "④DBテーブル定義書（全テーブルの列レベル定義、確度付き）",
+    "loc-report.html": "⑤ソースコードステップ数（ディレクトリ・ファイル別行数）"
+  },
   "app": {
     "name": "My Todo App",
     "description": "カテゴリと期限付きタスク管理を中心に、カレンダー・メモ・ひらめき・目標(飲酒/体重/運動)・資産管理(家族資産・相場ログ・監視銘柄・銘柄リスト・指標データ)を統合した個人用ライフ管理PWA",
@@ -46,7 +56,7 @@
   ],
   "assets_page_sub_features": [
     { "id": "indices", "label": "指標データ", "component": "components/MarketIndexData.jsx", "hooks": ["hooks/useMarketIndices.js"], "notes": "日経平均・TOPIX・ドル円・VT・S&P500・NYダウ・ナスダック。api/import-market-index.js でGoogleスプレッドシート(公開CSV)から取り込み" },
-    { "id": "family", "label": "家族の資産", "component": "components/AssetHoldingsImport.jsx + inline FamilyAssetSummary in AssetsPage.jsx", "hooks": ["hooks/useAssetTotalsSummary.js", "hooks/useAssetHoldingsLatest.js", "hooks/useAssetTotalsHistory.js", "hooks/useAssetHoldingHistory.js"], "notes": "楽天証券CSV(assetbalanceall/assetbalanceINVST/stockposition)を取り込み。investment/holdings.md(gahoo-company)と同種のデータ。api/import-asset-holdings.js" },
+    { "id": "family", "label": "家族の資産", "component": "components/AssetHoldingsImport.jsx + inline FamilyAssetSummary in AssetsPage.jsx", "hooks": ["hooks/useAssetTotalsSummary.js", "hooks/useAssetHoldingsLatest.js", "hooks/useAssetTotalsHistory.js", "hooks/useAssetHoldingHistory.js", "hooks/useAssetYearlyTotals.js (2026-08追加)"], "charts": ["components/AssetHistoryChart.jsx (推移の折れ線、4文脈で共有)", "components/AssetYearlyTotalChart.jsx (年別・証券/現金/保険の積み上げ棒、2026-08追加)", "components/PortfolioAllocationChart.jsx (保有内訳ドーナツ)"], "notes": "楽天証券CSV(assetbalanceall/assetbalanceINVST/stockposition)を取り込み。investment/holdings.md(gahoo-company)と同種のデータ。api/import-asset-holdings.js。年別推移はasset_category_historyテーブル(api/asset-category-sync.js経由)から。" },
     { "id": "marketlog", "label": "マーケットログ", "component": "components/MarketLog.jsx", "hooks": ["hooks/useMarketLogs.js"], "lib": "lib/marketLogParser.js", "notes": "相場の実績/見通しをテキストから解析して記録。investment部署の週次相場チェックと同種の機能" },
     { "id": "watch", "label": "監視銘柄", "component": "components/WatchStocks.jsx", "hooks": ["hooks/useWatchStocks.js"], "notes": "watchlist-price-checkスキル・investment screening-framework.mdと関連" },
     { "id": "stocklist", "label": "銘柄リスト", "component": "components/StockListView.jsx", "hooks": ["hooks/useStockList.js", "hooks/useStockDirectorySearch.js"], "notes": "銘柄リスト.csv(fundamental-3layer-screeningスキルが更新するのと同じ概念のデータ)。api/import-stock-list.jsでGoogle Driveから取り込み" }
@@ -65,7 +75,9 @@
     { "file": "components/ToggleRow.jsx", "used_by": ["各種設定行の汎用トグルUI部品"] },
     { "file": "components/Markdown.jsx", "used_by": ["NotesPage.jsx", "MemoSection.jsx", "stock-analysisのmemo表示など"], "notes": "react-markdown + remark-gfmのラッパー" },
     { "file": "components/ExerciseTracker.jsx", "used_by": ["GoalsPage.jsx（運動サブ機能）"] },
-    { "file": "components/AssetHistoryChart.jsx", "used_by": ["AssetsPage.jsx"] },
+    { "file": "components/AssetHistoryChart.jsx", "used_by": ["AssetsPage.jsx（家族合計/個人別/証券会社別/個別銘柄の4文脈で共有）"] },
+    { "file": "components/AssetYearlyTotalChart.jsx", "used_by": ["AssetsPage.jsx（家族の資産・年別推移）"], "notes": "2026-08追加" },
+    { "file": "components/PortfolioAllocationChart.jsx", "used_by": ["AssetsPage.jsx（家族の資産・ポートフォリオ内訳）"] },
     { "file": "components/AssetHoldingsImport.jsx", "used_by": ["AssetsPage.jsx（家族の資産サブ機能）"] },
     { "file": "components/MarketIndexData.jsx", "used_by": ["AssetsPage.jsx（指標データサブ機能）"] },
     { "file": "components/MarketLog.jsx", "used_by": ["AssetsPage.jsx（マーケットログサブ機能）"] },
@@ -92,13 +104,16 @@
     { "file": "hooks/useAssetHoldingHistory.js", "wraps_table": "asset_holdings_history", "notes": "個別ポジションの時系列（person/broker/holding_type/symbol_codeで絞り込み）" },
     { "file": "hooks/useAssetTotalsHistory.js", "wraps_table": "asset_total_history" },
     { "file": "hooks/useAssetTotalsSummary.js", "wraps_table": "asset_total_history", "notes": "最新スナップショットのみ" },
+    { "file": "hooks/useAssetYearlyTotals.js", "wraps_table": "asset_category_history", "notes": "2026-08追加。年ごとの最終記録日1点を採用し、証券+現金+保険の年別推移を組み立てる" },
     { "file": "hooks/useAssetHoldingsImport.js", "wraps_table": null, "notes": "api/import-asset-holdings.js を叩くフロント側ロジック" },
     { "file": "hooks/useGoogleDriveLink.js", "wraps_table": null, "notes": "api/google-drive-status.js, api/google-oauth-callback.js と連携。Google Drive連携状態の取得" }
   ],
   "lib": [
     { "file": "lib/supabase.js", "notes": "Supabaseクライアント初期化（唯一のインスタンス）" },
     { "file": "lib/schedule.js", "notes": "日付/日時のinput要素用フォーマット変換ヘルパー" },
-    { "file": "lib/marketLogParser.js", "notes": "マーケットログのテキストを実績/見通し/銘柄コード/スコア/TODOに構造化パースする" }
+    { "file": "lib/marketLogParser.js", "notes": "マーケットログのテキストを実績/見通し/銘柄コード/スコア/TODOに構造化パースする" },
+    { "file": "lib/chartTicks.js", "notes": "2026-08追加。折れ線グラフの縦軸(キリのいい金額)・横軸(月初/年初区切り)の目盛り計算。AssetHistoryChartとMarketIndexDataで共用" },
+    { "file": "lib/portfolioClassify.js", "notes": "保有銘柄をカテゴリ(個別株/投信・地域別等)に分類・集計する。PortfolioAllocationChartが使用" }
   ],
   "supabase_tables": {
     "note": "厳密なDDLはSupabase側にあり、ここは各hookのselect/insertから推測した論理スキーマ。README.mdに明記のあるtasks/asset_summaryのみDDL既知。",
@@ -126,7 +141,8 @@
     "asset_holdings_history": { "known_columns": ["user_id", "person", "broker", "holding_type", "symbol_code", "symbol_name", "account_type", "quantity", "market_value", "unrealized_pl", "unrealized_pl_pct", "recorded_at"], "populated_by": "api/import-asset-holdings.js" },
     "asset_total_history": { "known_columns": ["user_id", "person", "broker", "total_value", "recorded_at"] },
     "asset_balances": { "known_columns": ["user_id", "kind", "amount", "as_of", "created_at"], "kind_values": ["stock", "fund"], "populated_by": "api/asset-balance.js", "ddl_known": false, "notes": "READMEのasset_summaryとは別テーブル。整理の余地あり（要確認）" },
-    "asset_summary": { "known_columns": ["user_id", "total", "by_person", "by_person_asset", "updated_at"], "ddl_known": true, "source": "README.md", "notes": "ローカルの別アプリ「資産管理アプリ」がservice_roleキーで書き込む想定のテーブル。asset_balances/asset_holdings_history/asset_total_historyとの関係が要整理" },
+    "asset_summary": { "known_columns": ["user_id", "total", "by_person", "by_person_asset", "updated_at"], "ddl_known": true, "source": "README.md", "notes": "ローカルの別アプリ「資産管理アプリ」がservice_roleキーで書き込む想定のテーブル。asset_balances/asset_holdings_history/asset_total_historyとの関係が要整理。2026-08-22時点、現行フロントのどこからも参照されておらずレガシーの可能性が高い（要確認）" },
+    "asset_category_history": { "known_columns": ["id", "user_id", "category", "as_of", "amount", "created_at", "updated_at"], "ddl_known": true, "source": "README.md", "check_constraint": "category in ('securities','cash','insurance')", "unique": "(user_id, category, as_of)", "populated_by": "api/asset-category-sync.js", "notes": "証券・現金・保険の内訳を長期間記録した年次スナップショット。useAssetYearlyTotals.js / AssetYearlyTotalChart.jsxが使用" },
     "google_drive_tokens": { "notes": "api/import-stock-list.js のコメントで言及。api/google-oauth-callback.jsが書き込み" }
   },
   "api_endpoints": [
@@ -136,7 +152,11 @@
     { "file": "api/import-market-index.js", "auth": "ログインユーザーのSupabase access_token", "methods": ["POST (推定)"], "purpose": "公開Googleスプレッドシート(CSV出力)から指標データを取り込み。maxDuration=60s" },
     { "file": "api/import-stock-list.js", "auth": "ログインユーザーのSupabase access_token", "methods": ["POST (推定)"], "purpose": "Google Driveの銘柄リスト.csvを取り込み。maxDuration=30s" },
     { "file": "api/google-drive-status.js", "auth": "ログインユーザーのSupabase access_token", "purpose": "Google Drive連携済みかどうかを返す" },
-    { "file": "api/google-oauth-callback.js", "auth": "state経由でSupabase access_tokenを受け渡し", "purpose": "GoogleのOAuth同意画面からのコールバック。refresh_tokenを保存" }
+    { "file": "api/google-oauth-callback.js", "auth": "state経由でSupabase access_tokenを受け渡し", "purpose": "GoogleのOAuth同意画面からのコールバック。refresh_tokenを保存" },
+    { "file": "api/asset-category-sync.js", "auth": "Bearer INGEST_TOKEN", "methods": ["GET", "POST"], "purpose": "証券・現金・保険の年次内訳(asset_category_history)を登録/取得。ローカルの資産管理Excelから反映", "added": "2026-08" },
+    { "file": "api/crypto-price.js", "auth": "Bearer INGEST_TOKEN", "methods": ["GET", "POST"], "purpose": "暗号資産(symbol='bitcoin'等)の日次価格をmarket_index_historyへ直接登録。bitcoin-csv-updateスキルと連携", "added": "2026-08" },
+    { "file": "api/market-log-sync.js", "auth": "Bearer INGEST_TOKEN", "methods": ["GET", "POST"], "purpose": "マーケットログ(実績/見通し/関連銘柄/TODO)をClaudeチャット等から直接登録。UI経由の登録(marketLogParser.js)と並行運用", "added": "2026-08" },
+    { "file": "api/stock-list-sync.js", "auth": "Bearer INGEST_TOKEN", "methods": ["GET", "POST"], "purpose": "3層フレームワークのスクリーニング結果(stock_master_list)を直接登録。fundamental-3layer-screeningスキルと連携", "added": "2026-08" }
   ],
   "cross_project_links": {
     "note": "gahoo-companyリポジトリのinvestment部署と、このアプリの資産タブ(assets)は同じ関心領域を扱っている。将来的にデータ連携・役割分担の整理が有効な可能性がある。",

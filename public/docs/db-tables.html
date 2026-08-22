@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>my-todo-app DBテーブル定義書</title>
+<link rel="stylesheet" href="_docstyle.css">
+<style>
+  .tbl-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+  .tbl-head { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  .tbl-head .name { font-size: 14px; font-weight: 700; font-family: monospace; }
+  .tbl-head .meta { font-size: 12px; color: var(--sub); }
+  .tbl-card table { border-radius: 0; }
+  .tbl-card table th, .tbl-card table td { font-size: 12.5px; }
+  .colname { font-family: monospace; }
+  .pk { color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="docnav">
+    <a href="architecture.html">全体マップ</a>
+    <a href="architecture-diagram.html">① 構成図</a>
+    <a href="feature-map.html">② 機能関連図</a>
+    <a href="db-model.html">③ DBモデル</a>
+    <a href="db-tables.html" class="current">④ DBテーブル定義書</a>
+    <a href="loc-report.html">⑤ コード行数</a>
+  </div>
+
+  <h1>④ DBテーブル定義書</h1>
+  <p class="lead">2026-08-22作成。Supabase（Postgres）の全テーブルを、列レベルで一覧化したもの。全テーブルに <code>user_id uuid references auth.users</code> があり、Row Level Securityで自分のデータのみ参照可能。</p>
+
+  <div class="note">
+    <b>確度の表記について：</b>
+    <span class="tag green">確定</span> = README.md等にCREATE TABLE文が明記されている
+    <span class="tag blue">コード確認</span> = hook/APIのinsert・select文にリテラルで列名が現れており、列の存在はほぼ確実（型は本体アプリ外＝Supabase側が正）
+    <span class="tag amber">推定</span> = UI項目や間接的な使われ方からの推測。新機能でテーブルを変更する前に、必ずSupabase側の実物スキーマで確認すること。
+  </div>
+
+  <h2>1. タスク・生活管理系</h2>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">tasks</span><span class="meta"><span class="tag green">確定（README.md）</span> populated_by: TodoPage.jsx（画面から直接CRUD）</span></div>
+    <table>
+      <tr><th>列名</th><th>型</th><th>説明</th></tr>
+      <tr><td class="colname pk">id</td><td>uuid</td><td>PK, default gen_random_uuid()</td></tr>
+      <tr><td class="colname">user_id</td><td>uuid</td><td>FK auth.users, not null</td></tr>
+      <tr><td class="colname">title</td><td>text</td><td>not null</td></tr>
+      <tr><td class="colname">category</td><td>text</td><td>not null, default 'その他'</td></tr>
+      <tr><td class="colname">due_date</td><td>date</td><td>期限（null可）</td></tr>
+      <tr><td class="colname">completed</td><td>boolean</td><td>not null, default false</td></tr>
+      <tr><td class="colname">created_at</td><td>timestamptz</td><td>default now()</td></tr>
+      <tr><td class="colname">position</td><td>?</td><td><span class="tag amber">推定</span> 並べ替え順（dnd-kit）</td></tr>
+      <tr><td class="colname">today_flag</td><td>boolean?</td><td><span class="tag amber">推定</span> 「今日」フラグ</td></tr>
+      <tr><td class="colname">deleted_at</td><td>timestamptz?</td><td><span class="tag amber">推定</span> 論理削除（trashページの判定に使用）</td></tr>
+    </table>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">subtasks</span><span class="meta"><span class="tag blue">コード確認</span> populated_by: SubtaskPanel.jsx</span></div>
+    <table>
+      <tr><th>列名</th><th>説明</th></tr>
+      <tr><td class="colname pk">id</td><td>PK</td></tr>
+      <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+      <tr><td class="colname">task_id</td><td>FK tasks.id</td></tr>
+      <tr><td class="colname">title</td><td>text</td></tr>
+      <tr><td class="colname">completed</td><td>boolean</td></tr>
+    </table>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">categories</span><span class="meta"><span class="tag blue">コード確認</span> populated_by: useCategories.js（初回に既定カテゴリを自動挿入）</span></div>
+    <table>
+      <tr><th>列名</th><th>説明</th></tr>
+      <tr><td class="colname pk">id</td><td>PK</td></tr>
+      <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+      <tr><td class="colname">name</td><td>text</td></tr>
+      <tr><td class="colname">position</td><td>並べ替え順（整数）</td></tr>
+    </table>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">events</span><span class="meta"><span class="tag amber">推定</span> populated_by: EventForm.jsx / useEvents.js</span></div>
+    <table>
+      <tr><th>列名</th><th>説明</th></tr>
+      <tr><td class="colname pk">id</td><td>PK</td></tr>
+      <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+      <tr><td class="colname">title</td><td>text</td></tr>
+      <tr><td class="colname">all_day</td><td>boolean（終日フラグ）</td></tr>
+      <tr><td class="colname">start_at</td><td>date または timestamptz（all_dayで表現が変わる）</td></tr>
+      <tr><td class="colname">end_at</td><td>同上（null可）</td></tr>
+      <tr><td class="colname">memo</td><td>text</td></tr>
+    </table>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">notes</span><span class="meta"><span class="tag blue">コード確認</span>（url列のみ<span class="tag green">確定</span>） populated_by: NotesPage.jsx</span></div>
+    <table>
+      <tr><th>列名</th><th>説明</th></tr>
+      <tr><td class="colname pk">id</td><td>PK</td></tr>
+      <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+      <tr><td class="colname">title</td><td>text, null可</td></tr>
+      <tr><td class="colname">url</td><td>text, null可（後日<code>alter table notes add column url text</code>で追加）</td></tr>
+      <tr><td class="colname">content</td><td>text（Markdown）, null可</td></tr>
+      <tr><td class="colname">color</td><td><span class="tag amber">推定</span> 付箋の色</td></tr>
+      <tr><td class="colname">pinned</td><td>boolean</td></tr>
+      <tr><td class="colname">category</td><td><span class="tag amber">推定</span></td></tr>
+    </table>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">sparks</span><span class="meta"><span class="tag blue">コード確認</span> populated_by: SparksPage.jsx</span></div>
+    <table>
+      <tr><th>列名</th><th>説明</th></tr>
+      <tr><td class="colname pk">id</td><td>PK</td></tr>
+      <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+      <tr><td class="colname">title</td><td>text, null可</td></tr>
+      <tr><td class="colname">content</td><td>text, null可</td></tr>
+      <tr><td class="colname">kind</td><td><span class="tag amber">推定</span> 種別</td></tr>
+      <tr><td class="colname">resolved</td><td>boolean</td></tr>
+    </table>
+  </div>
+
+  <h2>2. 目標・トラッカー系（プランタブ）</h2>
+
+  <div class="cols">
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">goals</span><span class="meta"><span class="tag blue">コード確認</span></span></div>
+      <table>
+        <tr><td class="colname pk">id</td><td>PK</td></tr>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">title</td><td>text</td></tr>
+        <tr><td class="colname">category</td><td>text, null可</td></tr>
+        <tr><td class="colname">updated_at</td><td>timestamptz（更新時に自動更新）</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">goal_actions</span><span class="meta"><span class="tag blue">コード確認</span></span></div>
+      <table>
+        <tr><td class="colname pk">id</td><td>PK</td></tr>
+        <tr><td class="colname">goal_id</td><td>FK goals.id</td></tr>
+        <tr><td class="colname">title</td><td>text</td></tr>
+        <tr><td class="colname">status</td><td>text（'active' 等）</td></tr>
+        <tr><td class="colname">due_date</td><td>date, null可</td></tr>
+        <tr><td class="colname">updated_at</td><td>timestamptz</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">drink_entries</span><span class="meta"><span class="tag blue">コード確認</span> 🍺</span></div>
+      <table>
+        <tr><td class="colname pk">id</td><td>PK</td></tr>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">entry_date</td><td>date</td></tr>
+        <tr><td class="colname">grams</td><td>numeric（純アルコール量g）</td></tr>
+        <tr><td class="colname">label</td><td>text（銘柄・種類等）</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">drink_goals</span><span class="meta"><span class="tag blue">コード確認</span> 1ユーザー1行（upsert）</span></div>
+      <table>
+        <tr><td class="colname pk">user_id</td><td>PK / FK auth.users</td></tr>
+        <tr><td class="colname">weekday_grams</td><td>numeric（平日の目安量g、既定20）</td></tr>
+        <tr><td class="colname">weekend_grams</td><td>numeric（休日の目安量g、既定40）</td></tr>
+        <tr><td class="colname">updated_at</td><td>timestamptz</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">weight_entries</span><span class="meta"><span class="tag blue">コード確認</span> ⚖️</span></div>
+      <table>
+        <tr><td class="colname pk">id</td><td>PK</td></tr>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">entry_date</td><td>date（<code>unique(user_id, entry_date)</code>相当。同日はupsert）</td></tr>
+        <tr><td class="colname">weight_kg</td><td>numeric</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">weight_goals</span><span class="meta"><span class="tag blue">コード確認</span> 1ユーザー1行（upsert）</span></div>
+      <table>
+        <tr><td class="colname pk">user_id</td><td>PK / FK auth.users</td></tr>
+        <tr><td class="colname">target_kg</td><td>numeric, null可</td></tr>
+        <tr><td class="colname">updated_at</td><td>timestamptz</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">exercise_menu_items</span><span class="meta"><span class="tag blue">コード確認</span> 🏃</span></div>
+      <table>
+        <tr><td class="colname pk">id</td><td>PK</td></tr>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">name</td><td>text</td></tr>
+        <tr><td class="colname">mode</td><td>text（'reps' | 'simple' 等）</td></tr>
+        <tr><td class="colname">target_reps / target_sets</td><td>integer, null可</td></tr>
+        <tr><td class="colname">target_value / unit</td><td>numeric / text, null可</td></tr>
+        <tr><td class="colname">position</td><td>並べ替え順</td></tr>
+        <tr><td class="colname">created_at</td><td>timestamptz</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">exercise_logs</span><span class="meta"><span class="tag blue">コード確認</span></span></div>
+      <table>
+        <tr><td class="colname pk">id</td><td>PK</td></tr>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">menu_item_id</td><td>FK exercise_menu_items.id, null可（自由記入時null）</td></tr>
+        <tr><td class="colname">name / mode</td><td>text</td></tr>
+        <tr><td class="colname">value / unit / reps / sets</td><td>numeric・text, null可</td></tr>
+        <tr><td class="colname">log_date</td><td>date</td></tr>
+        <tr><td class="colname">memo</td><td>text, null可</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2>3. 資産・相場系（資産タブ）</h2>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">market_index_history</span><span class="meta"><span class="tag blue">コード確認</span> populated_by: import-market-index.js / crypto-price.js</span></div>
+    <table>
+      <tr><th>列名</th><th>説明</th></tr>
+      <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+      <tr><td class="colname">symbol</td><td>text（日経平均・TOPIX・ドル円・VT・S&P500・NYダウ・ナスダック・'bitcoin' 等）</td></tr>
+      <tr><td class="colname">trade_date</td><td>date</td></tr>
+      <tr><td class="colname">value</td><td>numeric</td></tr>
+    </table>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">asset_holdings_history</span><span class="meta"><span class="tag blue">コード確認</span> populated_by: import-asset-holdings.js（楽天証券CSV）</span></div>
+    <table>
+      <tr><th>列名</th><th>説明</th></tr>
+      <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+      <tr><td class="colname">person</td><td>text（パパ・ママ・長女・次女・長男 等）</td></tr>
+      <tr><td class="colname">broker</td><td>text（証券会社名）</td></tr>
+      <tr><td class="colname">holding_type</td><td>text</td></tr>
+      <tr><td class="colname">symbol_code / symbol_name</td><td>text</td></tr>
+      <tr><td class="colname">account_type</td><td>text</td></tr>
+      <tr><td class="colname">quantity</td><td>numeric</td></tr>
+      <tr><td class="colname">market_value</td><td>numeric</td></tr>
+      <tr><td class="colname">unrealized_pl / unrealized_pl_pct</td><td>numeric, null可</td></tr>
+      <tr><td class="colname">recorded_at</td><td>timestamptz</td></tr>
+    </table>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">asset_total_history</span><span class="meta"><span class="tag blue">コード確認</span></span></div>
+    <table>
+      <tr><th>列名</th><th>説明</th></tr>
+      <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+      <tr><td class="colname">person</td><td>text</td></tr>
+      <tr><td class="colname">broker</td><td>text</td></tr>
+      <tr><td class="colname">total_value</td><td>numeric</td></tr>
+      <tr><td class="colname">recorded_at</td><td>timestamptz</td></tr>
+    </table>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">asset_category_history</span><span class="meta"><span class="tag green">確定（README.md）</span> populated_by: asset-category-sync.js</span></div>
+    <table>
+      <tr><th>列名</th><th>型</th><th>説明</th></tr>
+      <tr><td class="colname pk">id</td><td>bigint</td><td>PK, generated always as identity</td></tr>
+      <tr><td class="colname">user_id</td><td>uuid</td><td>FK auth.users, not null</td></tr>
+      <tr><td class="colname">category</td><td>text</td><td>not null, check in ('securities','cash','insurance')</td></tr>
+      <tr><td class="colname">as_of</td><td>date</td><td>not null（年次スナップショット日）</td></tr>
+      <tr><td class="colname">amount</td><td>numeric</td><td>not null</td></tr>
+      <tr><td class="colname">created_at / updated_at</td><td>timestamptz</td><td>not null, default now()</td></tr>
+      <tr><td colspan="3" style="color:var(--sub)">unique(user_id, category, as_of)</td></tr>
+    </table>
+  </div>
+
+  <div class="cols">
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">watch_stocks</span><span class="meta"><span class="tag blue">コード確認</span></span></div>
+      <table>
+        <tr><td class="colname pk">id</td><td>PK</td></tr>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">code / name</td><td>text（銘柄コード・名称）</td></tr>
+        <tr><td class="colname">target_price_min / _max</td><td>numeric, null可</td></tr>
+        <tr><td class="colname">memo</td><td>text, null可</td></tr>
+        <tr><td class="colname">updated_at</td><td>timestamptz</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">stock_master_list</span><span class="meta"><span class="tag blue">コード確認</span> populated_by: import-stock-list.js / stock-list-sync.js</span></div>
+      <table>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">symbol_code / symbol_name</td><td>text</td></tr>
+        <tr><td class="colname">layer1 / layer2</td><td>3層フレームワークのスコア・判定</td></tr>
+        <tr><td class="colname">latest_price</td><td>numeric</td></tr>
+        <tr><td class="colname">除外</td><td><span class="tag amber">推定</span> 銘柄リスト.csv由来の列名がそのまま使われている可能性</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">stock_analyses</span><span class="meta"><span class="tag amber">推定</span>（README記載の一部のみ確認）populated_by: stock-analysis.js</span></div>
+      <table>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">title</td><td>text</td></tr>
+        <tr><td class="colname">memo</td><td>text（Markdown）</td></tr>
+        <tr><td class="colname">analyzed_on</td><td>date</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">google_drive_tokens</span><span class="meta"><span class="tag blue">コード確認</span> populated_by: google-oauth-callback.js</span></div>
+      <table>
+        <tr><td class="colname pk">user_id</td><td>PK / FK auth.users</td></tr>
+        <tr><td class="colname">refresh_token</td><td>text</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">market_log_entries</span><span class="meta"><span class="tag blue">コード確認</span></span></div>
+      <table>
+        <tr><td class="colname pk">id</td><td>PK</td></tr>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">entry_at</td><td>timestamptz</td></tr>
+        <tr><td class="colname">actual / outlook</td><td>text, null可</td></tr>
+        <tr><td class="colname">raw_text</td><td>text, null可（元の貼り付けテキスト）</td></tr>
+        <tr><td class="colname">period</td><td>text（'daily' 等、既定daily）</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">market_log_stocks</span><span class="meta"><span class="tag blue">コード確認</span></span></div>
+      <table>
+        <tr><td class="colname">log_id</td><td>FK market_log_entries.id</td></tr>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">block / name / code / score</td><td>関連銘柄の情報</td></tr>
+        <tr><td class="colname">position</td><td>並び順</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">market_log_todos</span><span class="meta"><span class="tag blue">コード確認</span></span></div>
+      <table>
+        <tr><td class="colname">log_id</td><td>FK market_log_entries.id</td></tr>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">content</td><td>text</td></tr>
+        <tr><td class="colname">done</td><td>boolean</td></tr>
+        <tr><td class="colname">position</td><td>並び順</td></tr>
+      </table>
+    </div>
+    <div class="tbl-card">
+      <div class="tbl-head"><span class="name">asset_balances</span><span class="meta"><span class="tag amber">推定・レガシー疑い</span> populated_by: asset-balance.js</span></div>
+      <table>
+        <tr><td class="colname">user_id</td><td>FK auth.users</td></tr>
+        <tr><td class="colname">kind</td><td>text（'stock' | 'fund'）</td></tr>
+        <tr><td class="colname">amount</td><td>numeric</td></tr>
+        <tr><td class="colname">as_of</td><td>date</td></tr>
+        <tr><td class="colname">created_at</td><td>timestamptz</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head"><span class="name">asset_summary</span><span class="meta"><span class="tag green">確定（README.md）</span> <span class="tag amber">現在フロントから未参照＝レガシーの可能性（要確認）</span></span></div>
+    <table>
+      <tr><th>列名</th><th>型</th><th>説明</th></tr>
+      <tr><td class="colname pk">user_id</td><td>uuid</td><td>PK, FK auth.users</td></tr>
+      <tr><td class="colname">total</td><td>numeric</td><td>not null（純資産合計）</td></tr>
+      <tr><td class="colname">by_person</td><td>jsonb</td><td>not null</td></tr>
+      <tr><td class="colname">by_person_asset</td><td>jsonb</td><td>null可（後日追加列）</td></tr>
+      <tr><td class="colname">updated_at</td><td>timestamptz</td><td>not null, default now()</td></tr>
+    </table>
+    <p style="font-size:12px;color:var(--sub);padding:0 16px 12px;margin:0">
+      ローカルの別アプリ「資産管理アプリ」がservice_roleキーで書き込む想定のテーブル。INSERT/UPDATEポリシーは無く、このアプリ側はSELECTのみ。
+      現行UI（FamilyAssetSummary）は<code>asset_holdings_history</code>/<code>asset_total_history</code>/<code>asset_category_history</code>を使っており、本テーブルは参照されていない。
+    </p>
+  </div>
+
+  <footer>gahoo-company / product部署が管理。テーブルを追加・変更したら本ファイルを更新すること（追記・修正はこのファイルへの上書き編集でよい＝gahoo-company側の「追記のみ」ルールはこのリポジトリには適用されない）。</footer>
+</div>
+</body>
+</html>
