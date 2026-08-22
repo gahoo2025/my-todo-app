@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>my-todo-app 機能関連図</title>
+<link rel="stylesheet" href="_docstyle.css">
+<style>
+  .fcard { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px 16px; margin-bottom: 14px; }
+  .fcard h3 { margin: 0 0 10px; font-size: 14px; color: var(--text); }
+  .fcard .flow { margin: 6px 0; }
+  .fcard .note-s { font-size: 12px; color: var(--sub); margin: 6px 0 0; }
+  .shared-badge { display:inline-block; font-size:10px; padding:1px 6px; border-radius:6px; background:var(--purple-bg); color:var(--purple); margin-left:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="docnav">
+    <a href="architecture.html">全体マップ</a>
+    <a href="architecture-diagram.html">① 構成図</a>
+    <a href="feature-map.html" class="current">② 機能関連図</a>
+    <a href="db-model.html">③ DBモデル</a>
+    <a href="db-tables.html">④ DBテーブル定義書</a>
+    <a href="loc-report.html">⑤ コード行数</a>
+  </div>
+
+  <h1>② 機能関連図</h1>
+  <p class="lead">2026-08-22作成。各画面（タブ／ページ）が、どのコンポーネント・hook・Supabaseテーブルを使っているか、また機能をまたいで何が共有されているかを図示する。<br>
+  凡例：<span class="tag blue">画面</span> <span class="tag">コンポーネント</span> <span class="tag amber">hook</span> <span class="tag green">テーブル</span></p>
+
+  <h2>入口〜タブ構成</h2>
+  <div class="vflow">
+    <div class="vrow"><div class="fbox accent"><div class="t">main.jsx → App.jsx</div><div class="s">useAuth でセッション確認</div></div></div>
+    <div class="vconn">↓ 未ログイン／ログイン済みで分岐</div>
+    <div class="vrow">
+      <div class="fbox"><div class="t">LoginPage</div></div>
+      <div class="fbox accent"><div class="t">TodoPage（本体）</div><div class="s">useState('tab')で6タブを手動切り替え<br>（react-router-domは未使用）</div></div>
+    </div>
+  </div>
+
+  <div class="flow" style="margin-top:18px">
+    <div class="box accent">タスク</div>
+    <div class="box accent">カレンダー</div>
+    <div class="box accent">メモ</div>
+    <div class="box accent">ひらめき</div>
+    <div class="box accent">プラン</div>
+    <div class="box accent">資産</div>
+  </div>
+  <p class="note-s">タブ以外の画面：<code>history</code>（完了履歴）・<code>trash</code>（ゴミ箱）・<code>category</code>（カテゴリ管理）— いずれもタスクタブ／共通ヘッダーのアイコンから開く。</p>
+
+  <h2>タブ別の関連図</h2>
+
+  <div class="fcard">
+    <h3>🗂 タスク</h3>
+    <div class="flow">
+      <div class="box accent">TodoPage.jsx</div><span class="arrow">→</span>
+      <div class="box">TaskForm / TaskList / TaskItem</div><span class="arrow">→</span>
+      <div class="box">EditTaskModal<span class="shared-badge">共有</span></div><span class="arrow">→</span>
+      <div class="box">SubtaskPanel / MemoSection</div>
+    </div>
+    <div class="flow">
+      <div class="box amber">useCategories</div>
+      <span class="arrow">→</span>
+      <div class="box green">tasks</div><div class="box green">subtasks</div><div class="box green">categories</div>
+    </div>
+    <p class="note-s">history（<code>completed=true</code>）・trash（<code>deleted_at</code>あり）はどちらも<code>tasks</code>テーブルの別ビュー。EditTaskModalはカレンダータブとも共有。</p>
+  </div>
+
+  <div class="fcard">
+    <h3>📅 カレンダー</h3>
+    <div class="flow">
+      <div class="box">CalendarView.jsx</div><span class="arrow">→</span>
+      <div class="box">DayScheduleView.jsx</div><span class="arrow">→</span>
+      <div class="box">EventForm.jsx</div>
+    </div>
+    <div class="flow">
+      <div class="box amber">useEvents</div>
+      <span class="arrow">→</span>
+      <div class="box green">events</div>
+      <span class="arrow" style="margin-left:14px">＋</span>
+      <div class="box">tasks（期限日）<span class="shared-badge">共有</span></div>
+      <span class="arrow">→</span>
+      <div class="box">EditTaskModal<span class="shared-badge">共有</span></div>
+    </div>
+    <p class="note-s">月表示はtasksの期限日とeventsの両方を重ねて表示。日タップでDayScheduleView→タスクはEditTaskModalへ、予定はEventFormへ。</p>
+  </div>
+
+  <div class="fcard">
+    <h3>📝 メモ</h3>
+    <div class="flow">
+      <div class="box accent">NotesPage.jsx</div><span class="arrow">→</span>
+      <div class="box">Markdown.jsx<span class="shared-badge">共有</span></div>
+      <span class="arrow">→</span>
+      <div class="box amber">useNotes</div>
+      <span class="arrow">→</span>
+      <div class="box green">notes</div>
+    </div>
+    <p class="note-s">Markdown.jsx（react-markdown + remark-gfmラッパー）はMemoSection（タスクメモ）でも共有。</p>
+  </div>
+
+  <div class="fcard">
+    <h3>💡 ひらめき</h3>
+    <div class="flow">
+      <div class="box accent">SparksPage.jsx</div><span class="arrow">→</span>
+      <div class="box amber">useSparks</div><span class="arrow">→</span>
+      <div class="box green">sparks</div>
+    </div>
+  </div>
+
+  <div class="fcard">
+    <h3>🎯 プラン（GoalsPage）— 4つのサブ機能を内包する複合ページ</h3>
+    <div class="flow">
+      <div class="box">目標</div><span class="arrow">→</span>
+      <div class="box amber">useGoals / useGoalActions</div><span class="arrow">→</span>
+      <div class="box green">goals</div><div class="box green">goal_actions</div>
+    </div>
+    <div class="flow">
+      <div class="box">🍺 飲酒（DrinkTracker, GoalsPage内蔵）</div><span class="arrow">→</span>
+      <div class="box amber">useDrinkTracker</div><span class="arrow">→</span>
+      <div class="box green">drink_entries</div><div class="box green">drink_goals</div>
+    </div>
+    <div class="flow">
+      <div class="box">⚖️ 体重（WeightTracker, GoalsPage内蔵）</div><span class="arrow">→</span>
+      <div class="box amber">useWeightTracker</div><span class="arrow">→</span>
+      <div class="box green">weight_entries</div><div class="box green">weight_goals</div>
+    </div>
+    <div class="flow">
+      <div class="box">🏃 運動</div><span class="arrow">→</span>
+      <div class="box">ExerciseTracker.jsx</div><span class="arrow">→</span>
+      <div class="box amber">useExerciseTracker</div><span class="arrow">→</span>
+      <div class="box green">exercise_menu_items</div><div class="box green">exercise_logs</div>
+    </div>
+    <p class="note-s">goal_actionsは<code>goal_id</code>でgoalsに従属。exercise_logsは<code>menu_item_id</code>でexercise_menu_itemsに（任意で）従属。</p>
+  </div>
+
+  <div class="fcard">
+    <h3>💰 資産（AssetsPage）— 5つのサブ機能。gahoo-company / investment部署と関心領域が重複</h3>
+    <div class="flow">
+      <div class="box">指標データ</div><span class="arrow">→</span>
+      <div class="box">MarketIndexData.jsx</div><span class="arrow">→</span>
+      <div class="box amber">useMarketIndices</div><span class="arrow">→</span>
+      <div class="box green">market_index_history</div>
+    </div>
+    <div class="flow">
+      <div class="box">家族の資産</div><span class="arrow">→</span>
+      <div class="box">AssetHoldingsImport / FamilyAssetSummary（AssetsPage内蔵）</div>
+    </div>
+    <div class="flow" style="margin-left:24px">
+      <div class="box amber">useAssetTotalsSummary</div>
+      <div class="box amber">useAssetHoldingsLatest</div>
+      <div class="box amber">useAssetTotalsHistory</div>
+      <div class="box amber">useAssetHoldingHistory</div>
+      <div class="box amber">useAssetYearlyTotals</div>
+    </div>
+    <div class="flow" style="margin-left:24px">
+      <span class="arrow">→</span>
+      <div class="box green">asset_holdings_history</div>
+      <div class="box green">asset_total_history</div>
+      <div class="box green">asset_category_history</div>
+    </div>
+    <div class="flow" style="margin-left:24px">
+      <span class="arrow">表示に使用 →</span>
+      <div class="box">AssetHistoryChart<span class="shared-badge">4系統で共有</span></div>
+      <div class="box">AssetYearlyTotalChart</div>
+      <div class="box">PortfolioAllocationChart</div>
+    </div>
+    <div class="flow">
+      <div class="box">マーケットログ</div><span class="arrow">→</span>
+      <div class="box">MarketLog.jsx</div><span class="arrow">→</span>
+      <div class="box">lib/marketLogParser.js</div><span class="arrow">→</span>
+      <div class="box amber">useMarketLogs</div><span class="arrow">→</span>
+      <div class="box green">market_log_entries</div><div class="box green">market_log_stocks</div><div class="box green">market_log_todos</div>
+    </div>
+    <div class="flow">
+      <div class="box">監視銘柄</div><span class="arrow">→</span>
+      <div class="box">WatchStocks.jsx</div><span class="arrow">→</span>
+      <div class="box amber">useWatchStocks</div><span class="arrow">→</span>
+      <div class="box green">watch_stocks</div>
+    </div>
+    <div class="flow">
+      <div class="box">銘柄リスト</div><span class="arrow">→</span>
+      <div class="box">StockListView.jsx</div><span class="arrow">→</span>
+      <div class="box amber">useStockList</div><span class="arrow">→</span>
+      <div class="box green">stock_master_list</div>
+    </div>
+    <p class="note-s">
+      <b>AssetHistoryChart（折れ線）</b>は「家族合計」「個人別」「証券会社別」「個別銘柄」の4種類の推移で共通利用。
+      内部の目盛り計算（<code>lib/chartTicks.js</code>）はMarketIndexDataの折れ線グラフとも共有（2026-08-22の軸改修で共通化）。<br>
+      <b>useStockDirectorySearch</b>（銘柄名サジェスト）は<code>stock_analyses</code>・<code>market_log_stocks</code>を横断検索し、マーケットログ入力時などで利用。<br>
+      <b>useGoogleDriveLink</b>（Google Drive連携状態）は「銘柄リスト」「指標データ」双方の取り込みボタンから参照される。
+    </p>
+  </div>
+
+  <h2>タブをまたいで共有されるコンポーネント／ロジック</h2>
+  <table>
+    <tr><th>共有物</th><th>使われている機能</th></tr>
+    <tr><td><code>EditTaskModal.jsx</code></td><td>タスクタブ・カレンダータブ</td></tr>
+    <tr><td><code>Markdown.jsx</code></td><td>メモタブ・タスクのMemoSection</td></tr>
+    <tr><td><code>AssetHistoryChart.jsx</code></td><td>資産タブ内の「家族の資産」サブ機能で4文脈（家族合計/個人別/証券会社別/個別銘柄）共有</td></tr>
+    <tr><td><code>lib/chartTicks.js</code>（軸目盛り計算）</td><td>AssetHistoryChart・MarketIndexDataの折れ線グラフ</td></tr>
+    <tr><td><code>ToggleRow.jsx</code></td><td>各種設定行の汎用トグルUI（複数画面）</td></tr>
+    <tr><td><code>ScheduleFields.jsx</code></td><td>TaskForm・EditTaskModalの期限入力欄</td></tr>
+    <tr><td><code>useGoogleDriveLink.js</code></td><td>資産タブの「指標データ」「銘柄リスト」双方の取り込み機能</td></tr>
+  </table>
+
+  <footer>gahoo-company / product部署が管理。新しい画面・hookを追加したら本ファイルも更新すること。</footer>
+</div>
+</body>
+</html>

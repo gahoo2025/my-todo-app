@@ -1,0 +1,54 @@
+/* my-todo-app / docs 共通スタイル。architecture.html の配色・トーンを踏襲し、各ドキュメントで共用する。 */
+:root {
+  --bg: #f5f5f7; --card: #ffffff; --text: #1c1c1e; --sub: #6b7280;
+  --border: #e5e7eb; --accent: #007aff; --accent-bg: #eaf3ff;
+  --green: #248a3d; --green-bg: #eafbf0; --amber: #b45309; --amber-bg: #fff7e6;
+  --purple: #6d28d9; --purple-bg: #f3ecfe; --pink: #be185d; --pink-bg: #fdecf3;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+  line-height: 1.6; padding: 24px 16px 80px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+.lead { color: var(--sub); font-size: 14px; margin-bottom: 20px; }
+h2 { font-size: 16px; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+h3 { font-size: 14px; margin: 20px 0 8px; color: var(--sub); }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--card); border-radius: 12px; overflow: hidden; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: #fafafa; font-weight: 600; color: var(--sub); font-size: 12px; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+code { background: #eef0f2; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; margin-right: 4px; white-space: nowrap; }
+.tag.blue { background: var(--accent-bg); color: var(--accent); }
+.tag.green { background: var(--green-bg); color: var(--green); }
+.tag.amber { background: var(--amber-bg); color: var(--amber); }
+.tag.purple { background: var(--purple-bg); color: var(--purple); }
+.tag.pink { background: var(--pink-bg); color: var(--pink); }
+.flow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+.box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 13px; text-align: center; min-width: 90px; }
+.box.accent { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.arrow { color: var(--sub); font-size: 16px; }
+.note { background: var(--amber-bg); border: 1px solid #f5d99a; border-radius: 10px; padding: 12px 14px; font-size: 13px; color: #7a4d00; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
+footer { margin-top: 50px; color: var(--sub); font-size: 12px; text-align: center; }
+.docnav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.docnav a { font-size: 12px; padding: 6px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); color: var(--text); text-decoration: none; }
+.docnav a.current { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
+.docnav a:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 縦積みフローチャート（構成図で使用） */
+.vflow { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+.vrow { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+.vconn { display: flex; justify-content: center; align-items: center; height: 30px; color: var(--sub); font-size: 12px; text-align: center; }
+.vconn .line { position: relative; width: 0; }
+.fbox { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; font-size: 13px; text-align: center; min-width: 140px; }
+.fbox .t { font-weight: 700; }
+.fbox .s { color: var(--sub); font-size: 11px; margin-top: 3px; }
+.fbox.accent { border-color: var(--accent); }
+.fbox.green { border-color: var(--green); }
+.fbox.amber { border-color: var(--amber); }

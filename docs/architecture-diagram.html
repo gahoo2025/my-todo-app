@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>my-todo-app アーキテクチャ構成図</title>
+<link rel="stylesheet" href="_docstyle.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="docnav">
+    <a href="architecture.html">全体マップ</a>
+    <a href="architecture-diagram.html" class="current">① 構成図</a>
+    <a href="feature-map.html">② 機能関連図</a>
+    <a href="db-model.html">③ DBモデル</a>
+    <a href="db-tables.html">④ DBテーブル定義書</a>
+    <a href="loc-report.html">⑤ コード行数</a>
+  </div>
+
+  <h1>① アーキテクチャ構成図</h1>
+  <p class="lead">2026-08-22作成。my-todo-appの実行時の構成要素（フロントエンド／バックエンド／外部データ連携）と、それぞれの間で何が・どの認証方式でやり取りされるかを図示する。</p>
+
+  <h2>全体構成</h2>
+  <div class="vflow">
+    <div class="vrow">
+      <div class="fbox accent"><div class="t">👤 ユーザー（ブラウザ / インストール済みPWA）</div></div>
+    </div>
+    <div class="vconn">↓ 静的ファイル取得（HTTPS）</div>
+    <div class="vrow">
+      <div class="fbox"><div class="t">GitHub Pages</div><div class="s">React 19 + Vite 8 製 SPA（静的ビルド成果物）<br><code>.github/workflows/deploy-pages.yml</code>：main push で自動デプロイ</div></div>
+    </div>
+    <div class="vconn">↓ ブラウザ上で実行される React アプリが、以下2系統のバックエンドへ直接アクセスする</div>
+    <div class="vrow">
+      <div class="fbox green"><div class="t">Supabase</div><div class="s">Postgres + Auth + Row Level Security<br>Supabase JS Client（<code>lib/supabase.js</code>）から<br>anonキー＋ログインJWTで直接CRUD</div></div>
+      <div class="fbox amber"><div class="t">Vercel Serverless Functions<br><code>api/*.js</code></div><div class="s">SPAとは別デプロイ先<br>（GitHub Pagesワークフローの対象外）</div></div>
+    </div>
+    <div class="vrow">
+      <div style="width:220px"></div>
+      <div class="vconn" style="height:auto;padding-top:4px">↓ <code>SUPABASE_SERVICE_ROLE_KEY</code>でRLSをバイパスして書き込み</div>
+    </div>
+    <div class="vrow">
+      <div style="width:220px"></div>
+      <div class="fbox green" style="border-style:dashed"><div class="t">Supabase（同上）</div><div class="s">api/*.js はservice_roleキーで直接テーブルを操作</div></div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:20px">
+    <b>デプロイは2系統に分かれる：</b> フロントエンド（静的SPA）は GitHub Pages。<code>api/*.js</code>（Vercel Serverless Functions）は<b>GitHub Pagesのワークフローではデプロイされない</b>ため、別途Vercelプロジェクトを本リポジトリに紐付ける必要がある。
+  </div>
+
+  <h2>api/*.js への2種類のアクセス経路</h2>
+  <p style="font-size:13px;color:var(--sub);margin-top:-4px">同じ Vercel Functions 群でも、エンドポイントごとに認証方式が異なる。</p>
+  <div class="cols">
+    <div class="card">
+      <p style="margin:0 0 8px"><span class="tag blue">① SPAから（ログインユーザーのaccess_token）</span></p>
+      <p style="font-size:13px;margin:0 0 8px">画面のボタン操作から、ログイン中ユーザーのSupabase access_tokenを<code>Authorization: Bearer</code>で送る。</p>
+      <table>
+        <tr><td><code>import-asset-holdings.js</code></td><td>楽天証券CSVの取り込み</td></tr>
+        <tr><td><code>import-market-index.js</code></td><td>指標データ（公開スプレッドシートCSV）の取り込み</td></tr>
+        <tr><td><code>import-stock-list.js</code></td><td>Google Driveの銘柄リスト.csvの取り込み</td></tr>
+        <tr><td><code>google-drive-status.js</code></td><td>Googleドライブ連携状態の取得</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <p style="margin:0 0 8px"><span class="tag amber">② 外部・ローカル環境から（共有シークレット INGEST_TOKEN）</span></p>
+      <p style="font-size:13px;margin:0 0 8px">ローカルCLI・Claudeチャットからcurl等で直接POST。ブラウザを介さずデータをDBへ反映する運用（<code>docs/chat-ingest.md</code>）。</p>
+      <table>
+        <tr><td><code>stock-analysis.js</code></td><td>銘柄分析メモの登録</td></tr>
+        <tr><td><code>asset-balance.js</code></td><td>株式/投信の残高登録</td></tr>
+        <tr><td><code>asset-category-sync.js</code></td><td>証券・現金・保険の年次内訳登録</td></tr>
+        <tr><td><code>crypto-price.js</code></td><td>暗号資産の日次価格登録</td></tr>
+        <tr><td><code>market-log-sync.js</code></td><td>マーケットログの登録</td></tr>
+        <tr><td><code>stock-list-sync.js</code></td><td>銘柄スクリーニング結果の登録</td></tr>
+      </table>
+    </div>
+  </div>
+  <p style="font-size:13px;color:var(--sub)">
+    <code>google-oauth-callback.js</code>のみ例外的に、Googleの同意画面からのリダイレクトを直接受ける（<code>state</code>パラメータにSupabase access_tokenを載せて渡す方式）。
+  </p>
+
+  <h2>外部データソース一覧</h2>
+  <p style="font-size:13px;color:var(--sub);margin-top:-4px">上記②の経路でDBに流し込まれる、アプリ外部のデータの出どころ。</p>
+  <table>
+    <tr><th>データソース</th><th>取り込み方式</th><th>関連エンドポイント / 画面</th><th>gahoo-company側の対応物</th></tr>
+    <tr><td>楽天証券CSV（手動DLしてアップロード）</td><td>SPA画面から直接アップロード</td><td><code>import-asset-holdings.js</code></td><td><code>investment/holdings.md</code></td></tr>
+    <tr><td>Googleスプレッドシート（公開CSV出力）</td><td>SPA画面の「取り込む」ボタン</td><td><code>import-market-index.js</code></td><td>—（日経平均・S&P500等の指標データ）</td></tr>
+    <tr><td>Google Drive上の銘柄リスト.csv</td><td>SPA画面の「取り込む」ボタン（要OAuth連携）</td><td><code>import-stock-list.js</code></td><td>fundamental-3layer-screeningスキルの出力ファイル</td></tr>
+    <tr><td>ローカルCLI / Claudeチャット（curl）</td><td>INGEST_TOKENでの直接POST</td><td>stock-analysis / asset-balance / asset-category-sync / crypto-price / market-log-sync / stock-list-sync</td><td>investment部署の各スキル（bitcoin-csv-update・fundamental-3layer-screening・market-log-syncスキル等）</td></tr>
+    <tr><td>ローカルの資産管理Excel（WORK6等）</td><td><code>asset-category-sync.js</code>経由でcurl投入</td><td><code>asset-category-sync.js</code></td><td>証券・現金・保険の長期年次推移</td></tr>
+  </table>
+
+  <h2>フロントエンド技術スタック</h2>
+  <div class="flow">
+    <div class="box">React 19</div>
+    <div class="box">Vite 8</div>
+    <div class="box">Tailwind CSS v4</div>
+    <div class="box">@dnd-kit（並べ替え）</div>
+    <div class="box">react-markdown + remark-gfm</div>
+    <div class="box">vite-plugin-pwa</div>
+    <div class="box" style="opacity:.6">react-router-dom（導入済・未使用）</div>
+  </div>
+
+  <h2>環境変数</h2>
+  <div class="cols">
+    <div>
+      <h3>フロントエンド（GitHub Pagesビルド時に埋め込み）</h3>
+      <table>
+        <tr><td><code>VITE_SUPABASE_URL</code></td></tr>
+        <tr><td><code>VITE_SUPABASE_ANON_KEY</code></td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>api/*.js（Vercelプロジェクト設定）</h3>
+      <table>
+        <tr><td><code>SUPABASE_URL</code></td></tr>
+        <tr><td><code>SUPABASE_ANON_KEY</code></td></tr>
+        <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td></tr>
+        <tr><td><code>INGEST_TOKEN</code> / <code>INGEST_USER_ID</code></td></tr>
+        <tr><td><code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <footer>gahoo-company / product部署が管理。ソースの実装が変わったら本ファイルも合わせて更新すること。</footer>
+</div>
+</body>
+</html>
