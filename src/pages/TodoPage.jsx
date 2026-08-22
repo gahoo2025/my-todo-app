@@ -440,9 +440,7 @@ export default function TodoPage() {
 
         {/* ── 家計簿タブ ── */}
         {tab === 'kakeibo' && (
-          <main className="max-w-lg md:max-w-3xl mx-auto px-4 py-4 pb-28 md:pb-10">
-            <KakeiboPage embedded />
-          </main>
+          <KakeiboPage embedded />
         )}
       </div>
 
