@@ -15,34 +15,34 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClas
           <thead>
             <tr className="border-t border-black/[0.05]">
               <th className="sticky left-0 bg-white text-left font-medium text-[#8E8E93] px-3 py-2 whitespace-nowrap">分類</th>
+              <th className="text-right font-semibold text-[#1C1C1E] px-3 py-2 whitespace-nowrap">年合計</th>
               {months.map(m => (
                 <th key={m} className="text-right font-medium text-[#8E8E93] px-2 py-2 whitespace-nowrap">{m}月</th>
               ))}
-              <th className="text-right font-semibold text-[#1C1C1E] px-3 py-2 whitespace-nowrap">年合計</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(row => (
               <tr key={row.classification} className="border-t border-black/[0.04]">
                 <td className="sticky left-0 bg-white text-left text-[#1C1C1E] px-3 py-2 whitespace-nowrap">{row.classification}</td>
+                <td className={`text-right font-semibold px-3 py-2 whitespace-nowrap ${accentClass}`}>{yen.format(row.total)}</td>
                 {months.map(m => (
                   <td key={m} className="text-right text-[#1C1C1E] px-2 py-2 whitespace-nowrap">
                     {row.byMonth[m] ? yen.format(row.byMonth[m]) : '—'}
                   </td>
                 ))}
-                <td className={`text-right font-semibold px-3 py-2 whitespace-nowrap ${accentClass}`}>{yen.format(row.total)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="border-t border-black/[0.08]">
               <td className="sticky left-0 bg-white text-left font-semibold text-[#1C1C1E] px-3 py-2.5 whitespace-nowrap">合計</td>
+              <td className={`text-right font-bold px-3 py-2.5 whitespace-nowrap ${accentClass}`}>{yen.format(grandTotal)}</td>
               {months.map(m => (
                 <td key={m} className="text-right font-semibold text-[#1C1C1E] px-2 py-2.5 whitespace-nowrap">
                   {totalsByMonth[m] ? yen.format(totalsByMonth[m]) : '—'}
                 </td>
               ))}
-              <td className={`text-right font-bold px-3 py-2.5 whitespace-nowrap ${accentClass}`}>{yen.format(grandTotal)}</td>
             </tr>
           </tfoot>
         </table>
