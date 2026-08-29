@@ -184,3 +184,70 @@ export const ALL_CLASSIFICATIONS = [...new Set(
     .flatMap(r => r.classification.split('／'))
     .filter(c => !isNonTransactionMarker(c))
 )].sort()
+
+// ── イベント期間による分類上書き ─────────────────────────────────────────
+//
+// 元のExcel（仕訳１を行ったリスト.xlsx）では、店名パターンだけでなく「特定の出来事の
+// 期間かどうか」で分類を上書きしていた（例：横浜VISAの「ＥＴＣ首都高」は通常「ETC」だが、
+// 旅行期間中の同じ摘要は「ETC娯楽」。住友VISAでは「セブン－イレブン」等の日用品店も、
+// 旅行期間中は「イベント」に上書きされている）。旅行・お出かけに限らず、ピアノの発表会・
+// 空手の試合・散髪など、**日付が分かれば分類できる出来事全般**が対象になり得る（2026-08-29、
+// 本人より汎用化の指示）。しかし店名パターンのみで判定するこのルールエンジンには、この
+// 「期間による上書き」が実装されていなかった（同日、GW旅行のETC明細が「娯楽」にならな
+// かった件で発覚。過去分は本番DBを手動修正済み）。
+//
+// 今後の取り込みで同じ漏れが起きないよう、ここに出来事の期間を追記していくと、
+// classifyDescriptionの結果に対して自動で上書きが適用される（BankStatementImport経由の
+// 新規取り込み時のみ。既にDBに入っている過去データは対象外＝手動修正が必要）。
+//
+// 使い方：出来事が終わったら、以下の配列に1件追記する（旅行のような複数日の期間でも、
+// 発表会・試合・散髪のような単日の出来事でも、dateFrom=dateToにすればよい）。
+//   { name: '説明（任意）', dateFrom: 'YYYY-MM-DD', dateTo: 'YYYY-MM-DD',
+//     overrides: { 取引先名: '上書き後の分類', ... } }
+// overridesに列挙されていない取引先はこの期間の対象外（上書きしない）。
+//
+// 過去分（本番DBは手動修正済み）も、期間の記録として・将来同じデータが再取り込みされた
+// 場合の一貫性のためにここへ登録しておく。
+export const EVENT_PERIODS = [
+  { name: '2026年GW岡山旅行', dateFrom: '2026-05-03', dateTo: '2026-05-06',
+    overrides: { '横浜VISA': 'ETC娯楽', '住友VISA': 'イベント' } },
+  { name: '2026年5月 ソレイユの丘（三浦半島）お出かけ', dateFrom: '2026-05-17', dateTo: '2026-05-17',
+    overrides: { '横浜VISA': 'ETC娯楽', '住友VISA': 'イベント' } },
+  { name: '2026年4月19日お出かけ', dateFrom: '2026-04-19', dateTo: '2026-04-19',
+    overrides: { '横浜VISA': 'ETC娯楽' } },
+]
+
+// 期間による上書きの対象外とする分類（給与・固定費・ローン・保険・習い事の月謝など、
+// イベント期間中であってもそのイベントとは無関係に発生する定期的な取引は上書きしない）。
+// 2026-08-29時点の実データ観察（旅行期間中でも Amazon Downloads のサブスク課金や
+// 自宅近くの日用品店は「イベント」に上書きされていなかった）に基づく。ピアノ・空手等の
+// 月謝そのもの（発表会・試合当日にたまたま引き落とされた通常の月謝）もここに含める。
+const EVENT_OVERRIDE_EXEMPT = new Set([
+  '給与', '賞与', '住宅ローン', '保険', '地震保険', '自動車保険', 'NHK', '携帯電話',
+  '電気', '電気購入', '水道', 'ガス', '浄水', '学童', '塾', 'スイミング', 'テニス',
+  '空手', '習字', '習い事', 'ピアノ', '児童手当', '利息', '税金', '固定資産税', '自動車税',
+  '移動（出金）', '移動（入金）', 'サブスク', '車購入', '車メンテ', '車検', '矯正歯科',
+  '現金出金', '現金入金', 'ATM', '見守り',
+])
+
+// classifyDescriptionの結果に、イベント期間による上書きを適用する。
+//   institution      … 取引先名
+//   transactionDate  … 'YYYY-MM-DD'（利用日。billing_monthではなく実際の取引日で判定する）
+//   result           … classifyDescriptionの戻り値
+// 戻り値: 上書き後の結果（元のresultと同じ形。対象外なら引数のresultをそのまま返す）
+export function applyEventPeriodOverride(institution, transactionDate, result) {
+  if (!transactionDate || result.status === 'exclude') return result
+  const period = EVENT_PERIODS.find(p =>
+    transactionDate >= p.dateFrom && transactionDate <= p.dateTo && p.overrides[institution]
+  )
+  if (!period) return result
+  if (result.classification && EVENT_OVERRIDE_EXEMPT.has(result.classification)) return result
+
+  const overrideClassification = period.overrides[institution]
+  return {
+    status: 'auto',
+    classification: overrideClassification,
+    candidates: [overrideClassification],
+    needsConfirmation: false,
+  }
+}

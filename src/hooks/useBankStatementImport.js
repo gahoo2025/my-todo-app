@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseBankStatement, billingMonthFromFilename } from '../lib/bankStatementParser'
-import { classifyDescription, ALL_CLASSIFICATIONS } from '../lib/journalRules'
+import { classifyDescription, applyEventPeriodOverride, ALL_CLASSIFICATIONS } from '../lib/journalRules'
 
 const CARD_INSTITUTIONS = new Set(['住友VISA', '横浜VISA', '楽天カード'])
 
@@ -138,7 +138,9 @@ export function useBankStatementImport(userId, onImported) {
       const classifiedAll = parsedRows.map(row => {
         const key = `${row.institution}|${row.source_file}`
         const prev = previousByInstitutionFile[key]
-        const result = classifyDescription(row.institution, row.description, { previousClassification: prev, holder: row.holder })
+        const classified = classifyDescription(row.institution, row.description, { previousClassification: prev, holder: row.holder })
+        // イベント期間（EVENT_PERIODS）に該当する場合、店名パターンによる分類を上書きする
+        const result = applyEventPeriodOverride(row.institution, row.transaction_date, classified)
         if (result.classification) previousByInstitutionFile[key] = result.classification
         return { ...row, ...result }
       })

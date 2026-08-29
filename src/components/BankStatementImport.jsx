@@ -1,8 +1,50 @@
 import { useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useBankStatementImport, isFolderPickerSupported } from '../hooks/useBankStatementImport'
+import { EVENT_PERIODS } from '../lib/journalRules'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
+
+function formatPeriodDate(s) {
+  const [y, m, d] = s.split('-').map(Number)
+  return `${y}/${m}/${d}`
+}
+
+// 登録済みのイベント期間（EVENT_PERIODS）の一覧表示。旅行・お出かけに限らず、
+// ピアノの発表会・空手の試合・散髪など日付で分類できる出来事全般が対象。
+// 新規インポート時にどの期間・取引先が自動で分類上書きされるかを、コードを
+// 見なくても確認できるようにする。
+function EventPeriodsList() {
+  if (EVENT_PERIODS.length === 0) return null
+  return (
+    <div className="ios-card px-4 py-4">
+      <p className="text-[13px] font-semibold text-[#1C1C1E] mb-1">登録済みのイベント期間</p>
+      <p className="text-[12px] text-[#8E8E93] mb-3">
+        以下の期間中の取引は、新規インポート時に取引先ごとの分類へ自動で上書きされます（既存データには影響しません）。
+      </p>
+      <div className="space-y-2.5">
+        {EVENT_PERIODS.map((p, i) => (
+          <div key={i} className="rounded-xl bg-black/[0.03] px-3 py-2.5">
+            <p className="text-[13px] font-medium text-[#1C1C1E]">{p.name}</p>
+            <p className="text-[12px] text-[#8E8E93] mt-0.5">
+              {formatPeriodDate(p.dateFrom)} 〜 {formatPeriodDate(p.dateTo)}
+            </p>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {Object.entries(p.overrides).map(([institution, classification]) => (
+                <span
+                  key={institution}
+                  className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-[#007AFF]/10 text-[#007AFF]"
+                >
+                  {institution} → {classification}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function BankStatementImport({ onImported }) {
   const { user } = useAuth()
@@ -29,6 +71,8 @@ export default function BankStatementImport({ onImported }) {
 
   return (
     <div className="space-y-3">
+      <EventPeriodsList />
+
       <div className="ios-card px-4 py-4">
         <p className="text-[13px] font-semibold text-[#1C1C1E] mb-2">明細インポート</p>
         <p className="text-[12px] text-[#8E8E93] mb-3">
