@@ -210,6 +210,8 @@ export const LEISURE_PERIODS = [
     overrides: { '横浜VISA': 'ETC娯楽', '住友VISA': 'イベント' } },
   { name: '2026年5月 ソレイユの丘（三浦半島）お出かけ', dateFrom: '2026-05-17', dateTo: '2026-05-17',
     overrides: { '横浜VISA': 'ETC娯楽', '住友VISA': 'イベント' } },
+  { name: '2026年4月19日お出かけ', dateFrom: '2026-04-19', dateTo: '2026-04-19',
+    overrides: { '横浜VISA': 'ETC娯楽' } },
 ]
 
 // 期間による上書きの対象外とする分類（給与・固定費・ローン・保険・習い事の月謝など、
