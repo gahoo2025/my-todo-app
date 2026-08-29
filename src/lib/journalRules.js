@@ -202,11 +202,14 @@ export const ALL_CLASSIFICATIONS = [...new Set(
 //   { name: '説明（任意）', dateFrom: 'YYYY-MM-DD', dateTo: 'YYYY-MM-DD',
 //     overrides: { 取引先名: '上書き後の分類', ... } }
 // overridesに列挙されていない取引先はこの期間の対象外（上書きしない）。
+//
+// 過去分（本番DBは手動修正済み）も、期間の記録として・将来同じデータが再取り込みされた
+// 場合の一貫性のためにここへ登録しておく。
 export const LEISURE_PERIODS = [
-  // 例（2026年GW・岡山/瀬戸内旅行。この分は本番DBを直接修正済みのため、次の取り込みでは
-  // 実質適用対象が無いが、書式のサンプルとして残す）：
-  // { name: '2026年GW岡山旅行', dateFrom: '2026-05-03', dateTo: '2026-05-06',
-  //   overrides: { '横浜VISA': 'ETC娯楽', '住友VISA': 'イベント' } },
+  { name: '2026年GW岡山旅行', dateFrom: '2026-05-03', dateTo: '2026-05-06',
+    overrides: { '横浜VISA': 'ETC娯楽', '住友VISA': 'イベント' } },
+  { name: '2026年5月 ソレイユの丘（三浦半島）お出かけ', dateFrom: '2026-05-17', dateTo: '2026-05-17',
+    overrides: { '横浜VISA': 'ETC娯楽', '住友VISA': 'イベント' } },
 ]
 
 // 期間による上書きの対象外とする分類（給与・固定費・ローン・保険・習い事の月謝など、
