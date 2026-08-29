@@ -12,11 +12,11 @@ const UNMAPPED = '（未対応）'
 // 取引先「すべて」表示時、銀行取引先側の「カード利用額の引き落とし」1行（分類１が
 // カード取引先名そのもの）は、カード取引先側の明細（食費・ETC等）と同じお金を指して
 // おり合算すると二重計上になる。内訳としては表示するが、合計（年合計・月合計）には
-// 含めない。行はグレー表示にする（2026-08-29、本人の指示）。
-// 分類１のときだけ判定できる（分類２／３はjournal_classification_map側でこれらを「－」
-// に対応付けているが、「－」はSuicaチャージ・ATM等の他の資金移動系にも使われる共有の
-// マーカーのため、ここでは分類１に限定する。分類２／３表示時にこの二重計上が再び
-// 表れる点は既知の制限）。
+// 含めない。分類１表示では該当行をグレー表示にする（2026-08-29、本人の指示）。
+// 実データで確認済み：この2文字列は横浜銀行・みずほ銀行の「カード名」分類でのみ使われ、
+// 他の意味で使われることはない（例：住友銀行は同じ趣旨の行を「住友カード」という別の
+// 分類名で持つが、これはjournal_classification_mapで「雑費とも仕事」という実支出に
+// 正しく対応付けられており、二重計上ではないため対象に含めない）。
 const EXCLUDED_FROM_TOTAL = new Set(['横浜VISA', '住友VISA', '楽天カード'])
 
 // 「合計（移動を除く）」行用：支出テーブルでは「移動（出金）」、収入テーブルでは
@@ -24,9 +24,18 @@ const EXCLUDED_FROM_TOTAL = new Set(['横浜VISA', '住友VISA', '楽天カー�
 // 実質的な支出・収入ではないため、口座間送金を除いた実質的な収支を見せる（2026-08-29、
 // 本人の指示）。カード引き落とし行の除外と違い、取引先を1つに絞り込んでいても常に適用する
 // （移動は取引先をまたいでいなくても「実質的な支出ではない」という性質が変わらないため）。
-// カード引き落とし行の除外と同様、分類１のときだけ判定できる（分類２／３では
-// journal_classification_map側でこれらも「－」に対応付けられ、他の資金移動系と区別できない）。
 const TRANSFER_CLASSIFICATION = { '出金': '移動（出金）', '入金': '移動（入金）' }
+
+// 上記2つの除外判定は、必ず「変換前の生の分類１の値」に対して行う（resolveClassification
+// で分類２／３に変換した後の値では判定しない）。分類２／３では、カード引き落とし行・
+// 移動（出金／入金）に加えてATM・現金出金・Suicaチャージ等、他の複数の分類１の値が
+// journal_classification_map側で同じ「－」という1つの表示ラベルに集約されてしまうため、
+// 変換後の値だけでは「二重計上の対象」と「対象外」を区別できない（2026-08-29、
+// 分類２／３表示時に二重計上が再発する問題として発覚・修正）。
+// 生の分類１で判定することで、どの表示レベルを選んでも合計の対象になる取引が変わらない
+// ようにする。ただし表示上のグレー行＋「（合計に含まず）」の注記は、分類１表示のときだけ
+// 意味を持つ（分類２／３では「－」行の中に除外対象・対象外が混在するため、行単位では
+// 印を付けない。内訳表示自体は変更しない）。
 
 const LEVELS = [
   { id: '1', label: '分類１' },
@@ -137,39 +146,38 @@ export default function AnnualClassificationSummary({ entries, loading }) {
   // (方向) -> 分類 -> 月 -> 合計金額 に集計（取引先で絞り込んだ範囲内で）
   const pivot = useMemo(() => {
     const build = direction => {
-      const transferClassification = level === '1' ? TRANSFER_CLASSIFICATION[direction] : null
+      const transferClassification = TRANSFER_CLASSIFICATION[direction]
       const byClassification = new Map()
+      const totalsByMonth = {}
+      const totalsByMonthExclTransfer = {}
+      let grandTotal = 0
+      let grandTotalExclTransfer = 0
       for (const e of entries) {
         if (e.direction !== direction) continue
         if (!e.billing_month || !selectedYear || String(fiscalYearOf(e.billing_month)) !== selectedYear) continue
         if (institution !== 'all' && e.institution !== institution) continue
         const month = Number(e.billing_month.slice(4, 6))
-        const cls = (e.classification && resolveClassification(level, e.institution, e.classification, classificationMap)) || UNCLASSIFIED
+        const rawCls = e.classification
+        const cls = (rawCls && resolveClassification(level, e.institution, rawCls, classificationMap)) || UNCLASSIFIED
         if (!byClassification.has(cls)) byClassification.set(cls, { classification: cls, byMonth: {}, total: 0 })
         const row = byClassification.get(cls)
         const amount = Number(e.amount) || 0
         row.byMonth[month] = (row.byMonth[month] || 0) + amount
         row.total += amount
+
+        // 「合計」「合計（移動を除く）」は、表示レベルに関わらず常に変換前の生の分類１で
+        // 判定する（分類２／３では複数の分類１が同じ「－」に集約されるため、変換後の値では
+        // 判定できない）
+        // 特定の1取引先に絞り込んでいるときは二重計上が起きないため除外しない
+        if (institution === 'all' && rawCls && EXCLUDED_FROM_TOTAL.has(rawCls)) continue
+        totalsByMonth[month] = (totalsByMonth[month] || 0) + amount
+        grandTotal += amount
+        // 移動（出金）／移動（入金）は取引先の絞り込みに関わらず常に除く
+        if (rawCls === transferClassification) continue
+        totalsByMonthExclTransfer[month] = (totalsByMonthExclTransfer[month] || 0) + amount
+        grandTotalExclTransfer += amount
       }
       const rows = [...byClassification.values()].sort((a, b) => b.total - a.total)
-      const totalsByMonth = {}
-      const totalsByMonthExclTransfer = {}
-      let grandTotal = 0
-      let grandTotalExclTransfer = 0
-      for (const row of rows) {
-        // 特定の1取引先に絞り込んでいるときは二重計上が起きないため除外しない
-        if (institution === 'all' && EXCLUDED_FROM_TOTAL.has(row.classification)) continue
-        for (const m of FISCAL_MONTHS) {
-          if (row.byMonth[m]) totalsByMonth[m] = (totalsByMonth[m] || 0) + row.byMonth[m]
-        }
-        grandTotal += row.total
-        // 移動（出金）／移動（入金）は取引先の絞り込みに関わらず常に除く
-        if (row.classification === transferClassification) continue
-        for (const m of FISCAL_MONTHS) {
-          if (row.byMonth[m]) totalsByMonthExclTransfer[m] = (totalsByMonthExclTransfer[m] || 0) + row.byMonth[m]
-        }
-        grandTotalExclTransfer += row.total
-      }
       return { rows, totalsByMonth, grandTotal, totalsByMonthExclTransfer, grandTotalExclTransfer }
     }
     return { out: build('出金'), inn: build('入金') }
