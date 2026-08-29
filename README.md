@@ -205,6 +205,35 @@ python3 import.py journal_classification_map.json --table journal_classification
 
 `(user_id, source_sheet, source_row)` のunique制約でupsertするため、同じファイルを何度流しても重複投入されません。**2026-08-22時点、パイプラインの正しさは横浜銀行の実データ100件で検証済み**（日付の年推定・住友VISAのカード名義ヘッダー機構・みずほ銀行の列レイアウトの揺れ等、変換ロジックの詳細はスクリプト内コメントと`journal-entries-db-design.md`を参照）。残りのデータの投入は、Supabase認証情報を持つ環境（ローカルCLI等）で上記コマンドを実行してください。
 
+### イベント期間による分類上書き（journal_event_periods）
+
+旅行・お出かけに限らず、ピアノの発表会・空手の試合・散髪など、日付が分かれば分類できる出来事について、期間・取引先を指定すれば新規インポート時に分類を自動で上書きできる仕組みです（元のExcelでは店名パターンではなく期間で人力の上書きが行われていたため、2026-08-29に追加）。「明細インポート」画面から登録・削除できます。利用するにはSupabaseで以下のテーブルを作成してください（**2026-08-29時点、本番プロジェクトには適用済み**）。
+
+```sql
+create table journal_event_periods (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users,
+  name text not null,
+  date_from date not null,
+  date_to date not null,
+  overrides jsonb not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (date_to >= date_from)
+);
+
+create index journal_event_periods_lookup_idx on journal_event_periods (user_id, date_from, date_to);
+
+alter table journal_event_periods enable row level security;
+
+create policy "Users can manage their own event periods"
+  on journal_event_periods for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+```
+
+`overrides`は`{"取引先名": "上書き後の分類", ...}`の形。上書きの対象外とする分類（給与・固定費・ローン・保険・習い事の月謝など）は`src/lib/journalRules.js`の`EVENT_OVERRIDE_EXEMPT`にハードコードされている（コードの変更が必要）。
+
 ## おまけ: テトリス 🎮
 
 ログイン不要で遊べるテトリスを同梱しています。依存ライブラリゼロの自己完結型 HTML（Canvas + 純粋 JS）です。
