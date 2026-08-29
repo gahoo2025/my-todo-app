@@ -19,6 +19,15 @@ const UNMAPPED = '（未対応）'
 // 表れる点は既知の制限）。
 const EXCLUDED_FROM_TOTAL = new Set(['横浜VISA', '住友VISA', '楽天カード'])
 
+// 「合計（移動を除く）」行用：支出テーブルでは「移動（出金）」、収入テーブルでは
+// 「移動（入金）」を除く。これらは自分名義の別口座・証券口座等への資金移動であって
+// 実質的な支出・収入ではないため、口座間送金を除いた実質的な収支を見せる（2026-08-29、
+// 本人の指示）。カード引き落とし行の除外と違い、取引先を1つに絞り込んでいても常に適用する
+// （移動は取引先をまたいでいなくても「実質的な支出ではない」という性質が変わらないため）。
+// カード引き落とし行の除外と同様、分類１のときだけ判定できる（分類２／３では
+// journal_classification_map側でこれらも「－」に対応付けられ、他の資金移動系と区別できない）。
+const TRANSFER_CLASSIFICATION = { '出金': '移動（出金）', '入金': '移動（入金）' }
+
 const LEVELS = [
   { id: '1', label: '分類１' },
   { id: '2', label: '分類２' },
@@ -42,7 +51,7 @@ function fiscalYearOf(billingMonth) {
   return month >= 4 ? year : year - 1
 }
 
-function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClass, showExcludedStyle }) {
+function PivotTable({ title, rows, months, totalsByMonth, grandTotal, totalsByMonthExclTransfer, grandTotalExclTransfer, accentClass, showExcludedStyle }) {
   if (rows.length === 0) return null
   return (
     <div className="ios-card p-0 overflow-hidden">
@@ -65,6 +74,15 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClas
               {months.map(m => (
                 <td key={m} className="text-right font-semibold text-[#1C1C1E] px-2 py-2.5 whitespace-nowrap">
                   {totalsByMonth[m] ? yen.format(totalsByMonth[m]) : '—'}
+                </td>
+              ))}
+            </tr>
+            <tr className="border-t border-black/[0.08] bg-black/[0.02]">
+              <td className="sticky left-0 bg-[#FAFAFA] text-left font-semibold text-[#1C1C1E] px-3 py-2.5 whitespace-nowrap">合計（移動を除く）</td>
+              <td className={`text-right font-bold px-3 py-2.5 whitespace-nowrap ${accentClass}`}>{yen.format(grandTotalExclTransfer)}</td>
+              {months.map(m => (
+                <td key={m} className="text-right font-semibold text-[#1C1C1E] px-2 py-2.5 whitespace-nowrap">
+                  {totalsByMonthExclTransfer[m] ? yen.format(totalsByMonthExclTransfer[m]) : '—'}
                 </td>
               ))}
             </tr>
@@ -119,6 +137,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
   // (方向) -> 分類 -> 月 -> 合計金額 に集計（取引先で絞り込んだ範囲内で）
   const pivot = useMemo(() => {
     const build = direction => {
+      const transferClassification = level === '1' ? TRANSFER_CLASSIFICATION[direction] : null
       const byClassification = new Map()
       for (const e of entries) {
         if (e.direction !== direction) continue
@@ -134,7 +153,9 @@ export default function AnnualClassificationSummary({ entries, loading }) {
       }
       const rows = [...byClassification.values()].sort((a, b) => b.total - a.total)
       const totalsByMonth = {}
+      const totalsByMonthExclTransfer = {}
       let grandTotal = 0
+      let grandTotalExclTransfer = 0
       for (const row of rows) {
         // 特定の1取引先に絞り込んでいるときは二重計上が起きないため除外しない
         if (institution === 'all' && EXCLUDED_FROM_TOTAL.has(row.classification)) continue
@@ -142,8 +163,14 @@ export default function AnnualClassificationSummary({ entries, loading }) {
           if (row.byMonth[m]) totalsByMonth[m] = (totalsByMonth[m] || 0) + row.byMonth[m]
         }
         grandTotal += row.total
+        // 移動（出金）／移動（入金）は取引先の絞り込みに関わらず常に除く
+        if (row.classification === transferClassification) continue
+        for (const m of FISCAL_MONTHS) {
+          if (row.byMonth[m]) totalsByMonthExclTransfer[m] = (totalsByMonthExclTransfer[m] || 0) + row.byMonth[m]
+        }
+        grandTotalExclTransfer += row.total
       }
-      return { rows, totalsByMonth, grandTotal }
+      return { rows, totalsByMonth, grandTotal, totalsByMonthExclTransfer, grandTotalExclTransfer }
     }
     return { out: build('出金'), inn: build('入金') }
   }, [entries, selectedYear, institution, level, classificationMap])
@@ -234,6 +261,8 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         months={FISCAL_MONTHS}
         totalsByMonth={pivot.out.totalsByMonth}
         grandTotal={pivot.out.grandTotal}
+        totalsByMonthExclTransfer={pivot.out.totalsByMonthExclTransfer}
+        grandTotalExclTransfer={pivot.out.grandTotalExclTransfer}
         accentClass="text-[#1C1C1E]"
         showExcludedStyle={institution === 'all'}
       />
@@ -243,6 +272,8 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         months={FISCAL_MONTHS}
         totalsByMonth={pivot.inn.totalsByMonth}
         grandTotal={pivot.inn.grandTotal}
+        totalsByMonthExclTransfer={pivot.inn.totalsByMonthExclTransfer}
+        grandTotalExclTransfer={pivot.inn.grandTotalExclTransfer}
         accentClass="text-[#248A3D]"
         showExcludedStyle={institution === 'all'}
       />
