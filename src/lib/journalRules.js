@@ -196,26 +196,17 @@ export const ALL_CLASSIFICATIONS = [...new Set(
 // 「期間による上書き」が実装されていなかった（同日、GW旅行のETC明細が「娯楽」にならな
 // かった件で発覚。過去分は本番DBを手動修正済み）。
 //
-// 今後の取り込みで同じ漏れが起きないよう、ここに出来事の期間を追記していくと、
-// classifyDescriptionの結果に対して自動で上書きが適用される（BankStatementImport経由の
-// 新規取り込み時のみ。既にDBに入っている過去データは対象外＝手動修正が必要）。
+// 今後の取り込みで同じ漏れが起きないよう、登録済みのイベント期間（Supabaseの
+// journal_event_periods テーブル、useEventPeriodsフックで取得）をclassifyDescriptionの
+// 結果に適用する（BankStatementImport経由の新規取り込み時のみ。既にDBに入っている
+// journal_entries側の過去データは対象外＝手動修正が必要）。
 //
-// 使い方：出来事が終わったら、以下の配列に1件追記する（旅行のような複数日の期間でも、
-// 発表会・試合・散髪のような単日の出来事でも、dateFrom=dateToにすればよい）。
-//   { name: '説明（任意）', dateFrom: 'YYYY-MM-DD', dateTo: 'YYYY-MM-DD',
+// 期間の登録・編集は「明細インポート」画面から行う（2026-08-29、journal_event_periods
+// テーブルを新設してUI化。旅行のような複数日の期間でも、発表会・試合・散髪のような
+// 単日の出来事でも、dateFrom=dateToにすればよい）。1件の形は：
+//   { name: '説明', dateFrom: 'YYYY-MM-DD', dateTo: 'YYYY-MM-DD',
 //     overrides: { 取引先名: '上書き後の分類', ... } }
 // overridesに列挙されていない取引先はこの期間の対象外（上書きしない）。
-//
-// 過去分（本番DBは手動修正済み）も、期間の記録として・将来同じデータが再取り込みされた
-// 場合の一貫性のためにここへ登録しておく。
-export const EVENT_PERIODS = [
-  { name: '2026年GW岡山旅行', dateFrom: '2026-05-03', dateTo: '2026-05-06',
-    overrides: { '横浜VISA': 'ETC娯楽', '住友VISA': 'イベント' } },
-  { name: '2026年5月 ソレイユの丘（三浦半島）お出かけ', dateFrom: '2026-05-17', dateTo: '2026-05-17',
-    overrides: { '横浜VISA': 'ETC娯楽', '住友VISA': 'イベント' } },
-  { name: '2026年4月19日お出かけ', dateFrom: '2026-04-19', dateTo: '2026-04-19',
-    overrides: { '横浜VISA': 'ETC娯楽' } },
-]
 
 // 期間による上書きの対象外とする分類（給与・固定費・ローン・保険・習い事の月謝など、
 // イベント期間中であってもそのイベントとは無関係に発生する定期的な取引は上書きしない）。
@@ -234,10 +225,12 @@ const EVENT_OVERRIDE_EXEMPT = new Set([
 //   institution      … 取引先名
 //   transactionDate  … 'YYYY-MM-DD'（利用日。billing_monthではなく実際の取引日で判定する）
 //   result           … classifyDescriptionの戻り値
+//   eventPeriods     … useEventPeriodsフックで取得した登録済みイベント期間の配列
+//                       （[{ name, dateFrom, dateTo, overrides }, ...]）
 // 戻り値: 上書き後の結果（元のresultと同じ形。対象外なら引数のresultをそのまま返す）
-export function applyEventPeriodOverride(institution, transactionDate, result) {
+export function applyEventPeriodOverride(institution, transactionDate, result, eventPeriods) {
   if (!transactionDate || result.status === 'exclude') return result
-  const period = EVENT_PERIODS.find(p =>
+  const period = (eventPeriods || []).find(p =>
     transactionDate >= p.dateFrom && transactionDate <= p.dateTo && p.overrides[institution]
   )
   if (!period) return result

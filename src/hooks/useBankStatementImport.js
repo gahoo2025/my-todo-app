@@ -67,7 +67,7 @@ function dupKey(institution, date, direction, amount) {
   return `${institution}|${date}|${direction}|${Number(amount)}`
 }
 
-export function useBankStatementImport(userId, onImported) {
+export function useBankStatementImport(userId, onImported, eventPeriods) {
   const [folderName, setFolderName] = useState(null)
   const [scanning, setScanning] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -140,7 +140,7 @@ export function useBankStatementImport(userId, onImported) {
         const prev = previousByInstitutionFile[key]
         const classified = classifyDescription(row.institution, row.description, { previousClassification: prev, holder: row.holder })
         // イベント期間（EVENT_PERIODS）に該当する場合、店名パターンによる分類を上書きする
-        const result = applyEventPeriodOverride(row.institution, row.transaction_date, classified)
+        const result = applyEventPeriodOverride(row.institution, row.transaction_date, classified, eventPeriods)
         if (result.classification) previousByInstitutionFile[key] = result.classification
         return { ...row, ...result }
       })
