@@ -9,6 +9,16 @@ const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
 const UNCLASSIFIED = '（未分類）'
 const UNMAPPED = '（未対応）'
 
+// 取引先「すべて」表示時、銀行取引先側の「カード利用額の引き落とし」1行（分類１が
+// カード取引先名そのもの）は、カード取引先側の明細（食費・ETC等）と同じお金を指して
+// おり合算すると二重計上になる。内訳としては表示するが、合計（年合計・月合計）には
+// 含めない。行はグレー表示にする（2026-08-29、本人の指示）。
+// 分類１のときだけ判定できる（分類２／３はjournal_classification_map側でこれらを「－」
+// に対応付けているが、「－」はSuicaチャージ・ATM等の他の資金移動系にも使われる共有の
+// マーカーのため、ここでは分類１に限定する。分類２／３表示時にこの二重計上が再び
+// 表れる点は既知の制限）。
+const EXCLUDED_FROM_TOTAL = new Set(['横浜VISA', '住友VISA', '楽天カード'])
+
 const LEVELS = [
   { id: '1', label: '分類１' },
   { id: '2', label: '分類２' },
@@ -32,7 +42,7 @@ function fiscalYearOf(billingMonth) {
   return month >= 4 ? year : year - 1
 }
 
-function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClass }) {
+function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClass, showExcludedStyle }) {
   if (rows.length === 0) return null
   return (
     <div className="ios-card p-0 overflow-hidden">
@@ -58,17 +68,25 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClas
                 </td>
               ))}
             </tr>
-            {rows.map(row => (
-              <tr key={row.classification} className="border-t border-black/[0.04]">
-                <td className="sticky left-0 bg-white text-left text-[#1C1C1E] px-3 py-2 whitespace-nowrap">{row.classification}</td>
-                <td className={`text-right font-semibold px-3 py-2 whitespace-nowrap ${accentClass}`}>{yen.format(row.total)}</td>
-                {months.map(m => (
-                  <td key={m} className="text-right text-[#1C1C1E] px-2 py-2 whitespace-nowrap">
-                    {row.byMonth[m] ? yen.format(row.byMonth[m]) : '—'}
+            {rows.map(row => {
+              const excluded = showExcludedStyle && EXCLUDED_FROM_TOTAL.has(row.classification)
+              return (
+                <tr key={row.classification} className="border-t border-black/[0.04]">
+                  <td className={`sticky left-0 bg-white text-left px-3 py-2 whitespace-nowrap ${excluded ? 'text-[#AEAEB2]' : 'text-[#1C1C1E]'}`}>
+                    {row.classification}
+                    {excluded && <span className="ml-1 text-[10px]">（合計に含まず）</span>}
                   </td>
-                ))}
-              </tr>
-            ))}
+                  <td className={`text-right px-3 py-2 whitespace-nowrap ${excluded ? 'text-[#AEAEB2]' : `font-semibold ${accentClass}`}`}>
+                    {yen.format(row.total)}
+                  </td>
+                  {months.map(m => (
+                    <td key={m} className={`text-right px-2 py-2 whitespace-nowrap ${excluded ? 'text-[#C7C7CC]' : 'text-[#1C1C1E]'}`}>
+                      {row.byMonth[m] ? yen.format(row.byMonth[m]) : '—'}
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -118,6 +136,8 @@ export default function AnnualClassificationSummary({ entries, loading }) {
       const totalsByMonth = {}
       let grandTotal = 0
       for (const row of rows) {
+        // 特定の1取引先に絞り込んでいるときは二重計上が起きないため除外しない
+        if (institution === 'all' && EXCLUDED_FROM_TOTAL.has(row.classification)) continue
         for (const m of FISCAL_MONTHS) {
           if (row.byMonth[m]) totalsByMonth[m] = (totalsByMonth[m] || 0) + row.byMonth[m]
         }
@@ -215,6 +235,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         totalsByMonth={pivot.out.totalsByMonth}
         grandTotal={pivot.out.grandTotal}
         accentClass="text-[#1C1C1E]"
+        showExcludedStyle={institution === 'all'}
       />
       <PivotTable
         title="収入（分類別・月別）"
@@ -223,6 +244,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         totalsByMonth={pivot.inn.totalsByMonth}
         grandTotal={pivot.inn.grandTotal}
         accentClass="text-[#248A3D]"
+        showExcludedStyle={institution === 'all'}
       />
     </div>
   )
