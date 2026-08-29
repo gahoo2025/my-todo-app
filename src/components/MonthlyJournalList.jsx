@@ -52,6 +52,10 @@ function EntryCard({ e }) {
 // 取引先「すべて」表示：1取引先ぶんの、仕訳１分類ごとの集計表。
 // 分類行タップで、その分類配下の個別明細をアコーディオンで展開する（複数同時展開可）。
 function InstitutionClassificationTable({ institution, rows, expanded, onToggleRow }) {
+  const totalCount = rows.reduce((sum, row) => sum + row.count, 0)
+  const totalOut = rows.reduce((sum, row) => sum + row.out, 0)
+  const totalInn = rows.reduce((sum, row) => sum + row.inn, 0)
+
   return (
     <div className="ios-card p-0 overflow-hidden">
       <p className="px-4 pt-3.5 pb-2 text-[13px] font-semibold text-[#1C1C1E]">{institution}</p>
@@ -66,6 +70,16 @@ function InstitutionClassificationTable({ institution, rows, expanded, onToggleR
             </tr>
           </thead>
           <tbody>
+            <tr className="border-t border-black/[0.08] bg-black/[0.02]">
+              <td className="text-left font-semibold text-[#1C1C1E] px-3 py-2.5 whitespace-nowrap">合計</td>
+              <td className="text-right font-semibold text-[#1C1C1E] px-2 py-2.5 whitespace-nowrap">{totalCount}件</td>
+              <td className="text-right font-bold text-[#1C1C1E] px-3 py-2.5 whitespace-nowrap">
+                {totalOut ? yen.format(totalOut) : '—'}
+              </td>
+              <td className="text-right font-bold text-[#248A3D] px-3 py-2.5 whitespace-nowrap">
+                {totalInn ? yen.format(totalInn) : '—'}
+              </td>
+            </tr>
             {rows.map(row => {
               const key = `${institution}|${row.classification}`
               const isOpen = expanded.has(key)
