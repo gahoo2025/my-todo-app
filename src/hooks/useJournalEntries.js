@@ -5,6 +5,10 @@ export const JOURNAL_INSTITUTIONS = [
   '横浜銀行', '住友銀行', 'ゆうちょ', 'みずほ銀行', '横浜VISA', '住友VISA', '楽天カード',
 ]
 
+// カード取引先（銀行取引先側に「カード利用額の引き落とし」として同額が別途1行計上されているため、
+// 取引先横断の出金合計に含めると二重計上になる）
+export const CARD_INSTITUTIONS = ['横浜VISA', '住友VISA', '楽天カード']
+
 // journal_entries（家計簿の一次仕訳結果）を全件取得する。
 // 3,000件超あるため asset_holdings_history 等と同じ .range() ページングで全件取得し、
 // 絞り込み・検索はクライアント側（useMemo）で行う。
