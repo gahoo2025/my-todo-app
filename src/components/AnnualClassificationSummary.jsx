@@ -1,10 +1,29 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useAuth } from '../hooks/useAuth'
 import { JOURNAL_INSTITUTIONS } from '../hooks/useJournalEntries'
+import { useJournalClassificationMap } from '../hooks/useJournalClassificationMap'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
 // 年度＝4月始まり3月終わりで表示する
 const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
 const UNCLASSIFIED = '（未分類）'
+const UNMAPPED = '（未対応）'
+
+const LEVELS = [
+  { id: '1', label: '分類１' },
+  { id: '2', label: '分類２' },
+  { id: '3', label: '分類３' },
+]
+
+// レベル１のときは分類１をそのまま返す（現行ロジックと完全に同じ結果になる恒等変換）。
+// レベル２／３のときは journal_classification_map で分類１→分類２／３に変換する。
+// マッピングが無い場合は「（未対応）」として可視化する。
+function resolveClassification(level, institution, classification1, classificationMap) {
+  if (level === '1') return classification1
+  const entry = classificationMap.get(`${institution}|${classification1}`)
+  if (!entry) return UNMAPPED
+  return level === '2' ? entry.classification_2 : entry.classification_3
+}
 
 // billing_month（YYYYMM）が属する年度（4月始まり）を返す。1〜3月は前年の年度扱い
 function fiscalYearOf(billingMonth) {
@@ -59,8 +78,11 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, accentClas
 
 // 分類別・月別の年間収支：選んだ年・取引先の範囲を、分類（行）×月（列）のピボット表で出金/入金それぞれ表示する
 export default function AnnualClassificationSummary({ entries, loading }) {
+  const { user } = useAuth()
+  const { map: classificationMap, loading: mapLoading } = useJournalClassificationMap(user?.id)
   const [selectedYear, setSelectedYear] = useState(null)
   const [institution, setInstitution] = useState('all')
+  const [level, setLevel] = useState('1')
 
   const availableYears = useMemo(() => {
     const set = new Set(entries.filter(e => e.billing_month).map(e => fiscalYearOf(e.billing_month)))
@@ -85,7 +107,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         if (!e.billing_month || !selectedYear || String(fiscalYearOf(e.billing_month)) !== selectedYear) continue
         if (institution !== 'all' && e.institution !== institution) continue
         const month = Number(e.billing_month.slice(4, 6))
-        const cls = e.classification || UNCLASSIFIED
+        const cls = (e.classification && resolveClassification(level, e.institution, e.classification, classificationMap)) || UNCLASSIFIED
         if (!byClassification.has(cls)) byClassification.set(cls, { classification: cls, byMonth: {}, total: 0 })
         const row = byClassification.get(cls)
         const amount = Number(e.amount) || 0
@@ -104,9 +126,9 @@ export default function AnnualClassificationSummary({ entries, loading }) {
       return { rows, totalsByMonth, grandTotal }
     }
     return { out: build('出金'), inn: build('入金') }
-  }, [entries, selectedYear, institution])
+  }, [entries, selectedYear, institution, level, classificationMap])
 
-  if (loading) {
+  if (loading || mapLoading) {
     return <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">読み込み中…</p>
   }
   if (availableYears.length === 0) {
@@ -115,6 +137,21 @@ export default function AnnualClassificationSummary({ entries, loading }) {
 
   return (
     <div className="space-y-3">
+      {/* ── 分類レベル切替 ── */}
+      <div className="flex gap-1.5">
+        {LEVELS.map(l => (
+          <button
+            key={l.id}
+            onClick={() => setLevel(l.id)}
+            className={`flex-1 h-8 rounded-full text-[13px] font-medium transition-colors ${
+              level === l.id ? 'bg-[#1C1C1E] text-white' : 'bg-white text-[#1C1C1E] shadow-[0_1px_2px_rgba(0,0,0,0.06)]'
+            }`}
+          >
+            {l.label}
+          </button>
+        ))}
+      </div>
+
       {/* ── 年選択 ── */}
       <div className="flex items-center gap-2">
         <button
