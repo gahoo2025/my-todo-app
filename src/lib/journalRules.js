@@ -1,7 +1,7 @@
 // 仕訳１（一次仕訳）ルールエンジン
 //
 // 仕訳ルール_統合版.xlsx（535ルール）のうち、銀行系4取引先（横浜銀行・住友銀行・
-// ゆうちょ・みずほ銀行、74ルール）＋カード系3取引先（住友VISA・横浜VISA・楽天カード、
+// ゆうちょ・みずほ銀行、74ルール）＋カード系3取引先（住友VISA・横浜VISA・楽天カードえみ、
 // 437ルール）を対象とする。
 //
 // 自動仕訳区分：
@@ -83,7 +83,7 @@ export const BANK_RULES = [
   { institution: 'ゆうちょ', classification: '利息', method: 'exact', pattern: '受取利子', category: 'auto' },
   { institution: 'ゆうちょ', classification: '利息', method: 'exact', pattern: '利子', category: 'auto' },
   { institution: 'ゆうちょ', classification: '税金', method: 'exact', pattern: '税金', category: 'auto' },
-  { institution: 'みずほ銀行', classification: '楽天カード', method: 'exact', pattern: 'ラクテンカードサービス', category: 'auto' },
+  { institution: 'みずほ銀行', classification: '楽天カードえみ', method: 'exact', pattern: 'ラクテンカードサービス', category: 'auto' },
   { institution: 'みずほ銀行', classification: 'PayPay', method: 'exact', pattern: 'ＰＡＹＰＡＹ', category: 'auto' },
   { institution: 'みずほ銀行', classification: 'PayPay', method: 'exact', pattern: 'ペイペイ', category: 'auto' },
   { institution: 'みずほ銀行', classification: 'LinePay', method: 'exact', pattern: 'ラインペイ（カ', category: 'auto' },
@@ -95,7 +95,7 @@ export const BANK_RULES = [
   { institution: 'ゆうちょ', classification: '（直前行と同じ）', method: 'inherit', pattern: '料金', category: 'auto' },
 ]
 
-// カード系（住友VISA・横浜VISA・楽天カード）ルール（CARD_RULES_DATA）は、カード名義
+// カード系（住友VISA・横浜VISA・楽天カードえみ）ルール（CARD_RULES_DATA）は、カード名義
 // ヘッダー方式（住友VISAの智広様／恵美様の切替）に対応するため、holder制約
 // （'智広'|'恵美'|null）付きで持つ。「日付で判断」区分（利用日・区間等の文脈情報が
 // 必要なもの、22ルール）は自動判定できないため未収録＝該当摘要は既定ルールがあれば

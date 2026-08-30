@@ -121,7 +121,7 @@ function InstitutionClassificationTable({ institution, rows, expanded, onToggleR
 }
 
 // 月別明細：仕訳結果を年月（billing_month）で絞り込んで一覧表示する
-// billing_monthはカード（横浜VISA・住友VISA・楽天カード）は支払い月、銀行は取引月を保持しているため、
+// billing_monthはカード（横浜VISA・住友VISA・楽天カードえみ）は支払い月、銀行は取引月を保持しているため、
 // この1列で絞り込むだけで「カードは利用日でなく支払い月」という運用がそのまま成立する
 export default function MonthlyJournalList({ entries, loading }) {
   const [query, setQuery] = useState('')
@@ -163,7 +163,7 @@ export default function MonthlyJournalList({ entries, loading }) {
     let out = 0
     let inn = 0
     for (const e of filtered) {
-      // 取引先「すべて」表示のときのみ、カード取引先（横浜VISA・住友VISA・楽天カード）を出金合計から除く。
+      // 取引先「すべて」表示のときのみ、カード取引先（横浜VISA・住友VISA・楽天カードえみ）を出金合計から除く。
       // カード取引先の利用額は、銀行取引先側に「カード利用額の引き落とし」として同額が別途1行
       // 計上されているため、単純合算すると二重計上になるため。
       const excludedFromOut = institution === 'all' && CARD_INSTITUTIONS.includes(e.institution)

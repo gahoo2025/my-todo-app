@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { parseBankStatement, billingMonthFromFilename } from '../lib/bankStatementParser'
 import { classifyDescription, applyEventPeriodOverride, ALL_CLASSIFICATIONS } from '../lib/journalRules'
 
-const CARD_INSTITUTIONS = new Set(['住友VISA', '横浜VISA', '楽天カード'])
+const CARD_INSTITUTIONS = new Set(['住友VISA', '横浜VISA', '楽天カードえみ'])
 
 const DB_NAME = 'bank-statement-import-folder'
 const STORE = 'handles'
