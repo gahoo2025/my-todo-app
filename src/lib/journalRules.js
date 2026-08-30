@@ -23,7 +23,7 @@ export const BANK_RULES = [
   { institution: '横浜銀行', classification: 'ATM', method: 'exact', pattern: 'ｾﾌﾞﾝ(ｾﾌﾞﾝBK)', category: 'auto' },
   { institution: '横浜銀行', classification: 'ATM', method: 'exact', pattern: 'ﾃｽｳﾘﾖｳ(ｾﾌﾞﾝBK)', category: 'auto' },
   { institution: '横浜銀行', classification: '横浜VISA', method: 'exact', pattern: 'BC', category: 'auto' },
-  { institution: '横浜銀行', classification: '楽天カード', method: 'wildcard', pattern: 'ｸﾚｼﾞﾂﾄ*ﾗｸﾃﾝｶーﾄﾞｻーﾋﾞｽ', category: 'auto' },
+  { institution: '横浜銀行', classification: '楽天証券積立', method: 'wildcard', pattern: 'ｸﾚｼﾞﾂﾄ*ﾗｸﾃﾝｶーﾄﾞｻーﾋﾞｽ', category: 'auto' },
   { institution: '横浜銀行', classification: '住友VISA', method: 'wildcard', pattern: 'ｸﾚｼﾞﾂﾄ*ﾐﾂｲｽﾐﾄﾓｶーﾄﾞ(ｶ', category: 'auto' },
   { institution: '横浜銀行', classification: '電気', method: 'prefix', pattern: '電気料*', category: 'auto' },
   { institution: '横浜銀行', classification: '水道', method: 'prefix', pattern: '水道料*', category: 'auto' },
