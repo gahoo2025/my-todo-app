@@ -13,11 +13,17 @@ const UNMAPPED = '（未対応）'
 // カード取引先名そのもの）は、カード取引先側の明細（食費・ETC等）と同じお金を指して
 // おり合算すると二重計上になる。内訳としては表示するが、合計（年合計・月合計）には
 // 含めない。分類１表示では該当行をグレー表示にする（2026-08-29、本人の指示）。
-// 実データで確認済み：この2文字列は横浜銀行・みずほ銀行の「カード名」分類でのみ使われ、
-// 他の意味で使われることはない（例：住友銀行は同じ趣旨の行を「住友カード」という別の
-// 分類名で持つが、これはjournal_classification_mapで「雑費とも仕事」という実支出に
-// 正しく対応付けられており、二重計上ではないため対象に含めない）。
-const EXCLUDED_FROM_TOTAL = new Set(['横浜VISA', '住友VISA', '楽天カード'])
+//
+// 判定は必ず「取引先（institution）＋分類１」の組み合わせで行う。分類名の文字列
+// だけで判定してはいけない：実データで確認済みの通り、同じ「楽天カード」という
+// 分類名でも、みずほ銀行の行は本物の楽天カード引き落としで二重計上の対象だが、
+// 横浜銀行の行は楽天カードの明細とは無関係の別の取引（journal_classification_map
+// 上も「投資」に対応付けられており、他のカード引き落とし行の「－」とは扱いが違う）
+// で、対象に含めてはいけない（2026-08-29、本人の指摘で発覚。当初は分類名だけで
+// 判定しており、横浜銀行分を誤って合計から除外し、月別明細の合計とズレていた）。
+// 同様に住友銀行の「住友カード」という類似の分類名も、journal_classification_map
+// で「雑費とも仕事」という実支出に対応付けられており、二重計上ではないため対象外。
+const CARD_SETTLEMENT_PAIRS = new Set(['横浜銀行|横浜VISA', '横浜銀行|住友VISA', 'みずほ銀行|楽天カード'])
 
 // 「合計（移動を除く）」行用：支出テーブルでは「移動（出金）」、収入テーブルでは
 // 「移動（入金）」を除く。これらは自分名義の別口座・証券口座等への資金移動であって
@@ -96,18 +102,26 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, totalsByMo
               ))}
             </tr>
             {rows.map(row => {
-              const excluded = showExcludedStyle && EXCLUDED_FROM_TOTAL.has(row.classification)
+              // ある分類名の行が、複数の取引先にまたがって存在する場合（例：「楽天カード」が
+              // みずほ銀行と横浜銀行の両方にある）、そのうち一部の取引先分だけが二重計上の
+              // 対象ということがあり得る（CARD_SETTLEMENT_PAIRS参照）。そのため行単位では
+              // 「全額除外」「一部除外」「除外なし」の3通りを区別して表示する。
+              const fullyExcluded = showExcludedStyle && row.excludedTotal > 0 && row.excludedTotal === row.total
+              const partiallyExcluded = showExcludedStyle && row.excludedTotal > 0 && row.excludedTotal < row.total
               return (
                 <tr key={row.classification} className="border-t border-black/[0.04]">
-                  <td className={`sticky left-0 bg-white text-left px-3 py-2 whitespace-nowrap ${excluded ? 'text-[#AEAEB2]' : 'text-[#1C1C1E]'}`}>
+                  <td className={`sticky left-0 bg-white text-left px-3 py-2 whitespace-nowrap ${fullyExcluded ? 'text-[#AEAEB2]' : 'text-[#1C1C1E]'}`}>
                     {row.classification}
-                    {excluded && <span className="ml-1 text-[10px]">（合計に含まず）</span>}
+                    {fullyExcluded && <span className="ml-1 text-[10px]">（合計に含まず）</span>}
+                    {partiallyExcluded && (
+                      <span className="ml-1 text-[10px] text-[#AEAEB2]">（うち{yen.format(row.excludedTotal)}円は合計に含まず）</span>
+                    )}
                   </td>
-                  <td className={`text-right px-3 py-2 whitespace-nowrap ${excluded ? 'text-[#AEAEB2]' : `font-semibold ${accentClass}`}`}>
+                  <td className={`text-right px-3 py-2 whitespace-nowrap ${fullyExcluded ? 'text-[#AEAEB2]' : `font-semibold ${accentClass}`}`}>
                     {yen.format(row.total)}
                   </td>
                   {months.map(m => (
-                    <td key={m} className={`text-right px-2 py-2 whitespace-nowrap ${excluded ? 'text-[#C7C7CC]' : 'text-[#1C1C1E]'}`}>
+                    <td key={m} className={`text-right px-2 py-2 whitespace-nowrap ${fullyExcluded ? 'text-[#C7C7CC]' : 'text-[#1C1C1E]'}`}>
                       {row.byMonth[m] ? yen.format(row.byMonth[m]) : '—'}
                     </td>
                   ))}
@@ -159,17 +173,24 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         const month = Number(e.billing_month.slice(4, 6))
         const rawCls = e.classification
         const cls = (rawCls && resolveClassification(level, e.institution, rawCls, classificationMap)) || UNCLASSIFIED
-        if (!byClassification.has(cls)) byClassification.set(cls, { classification: cls, byMonth: {}, total: 0 })
+        if (!byClassification.has(cls)) {
+          byClassification.set(cls, { classification: cls, byMonth: {}, total: 0, excludedTotal: 0 })
+        }
         const row = byClassification.get(cls)
         const amount = Number(e.amount) || 0
         row.byMonth[month] = (row.byMonth[month] || 0) + amount
         row.total += amount
 
-        // 「合計」「合計（移動を除く）」は、表示レベルに関わらず常に変換前の生の分類１で
-        // 判定する（分類２／３では複数の分類１が同じ「－」に集約されるため、変換後の値では
-        // 判定できない）
+        // 「合計」「合計（移動を除く）」は、表示レベルに関わらず常に変換前の生の分類１で、
+        // かつ必ず取引先とセットで判定する（分類２／３では複数の分類１が同じ「－」に
+        // 集約されるため、変換後の値だけでは判定できない。分類名だけでも判定できない
+        // ことは上記CARD_SETTLEMENT_PAIRSのコメントの通り）
         // 特定の1取引先に絞り込んでいるときは二重計上が起きないため除外しない
-        if (institution === 'all' && rawCls && EXCLUDED_FROM_TOTAL.has(rawCls)) continue
+        const isCardSettlementDup = institution === 'all' && rawCls && CARD_SETTLEMENT_PAIRS.has(`${e.institution}|${rawCls}`)
+        if (isCardSettlementDup) {
+          row.excludedTotal += amount
+          continue
+        }
         totalsByMonth[month] = (totalsByMonth[month] || 0) + amount
         grandTotal += amount
         // 移動（出金）／移動（入金）は取引先の絞り込みに関わらず常に除く
