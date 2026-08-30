@@ -10,12 +10,21 @@ const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
 const UNCLASSIFIED = '（未分類）'
 const UNMAPPED = '（未対応）'
 
-// 「合計」「合計（移動を除く）」の除外判定（カード引き落とし二重計上・口座間移動）は
-// src/lib/journalTotals.js に共通化してある。分類別年間収支と収支推移グラフ
-// （FiscalYearBalanceChart）の数値が食い違わないよう、両方から同じロジックを使う
-// （2026-08-30）。判定は必ず「変換前の生の分類１の値」に対して行う点は変わらない
-// （resolveClassificationで分類２／３に変換した後の値では判定しない。理由は
-// journalTotals.js内のコメント参照）。
+// カード引き落とし二重計上の判定（src/lib/journalTotals.jsに共通化）の扱いは、
+// 分類レベルによって変える（2026-08-30、本人指示）：
+//   分類１ … 二重計上の明細行そのもの（横浜VISA・住友VISA・楽天カードえみ）は
+//            分類１の値そのままなので、行として表示はするがグレー表示＋
+//            「合計に含まず」の注記を付け、合計には含めない（監査用に見えるようにする）。
+//   分類２／３ … 複数の分類１が同じ「－」等の1つのラベルに集約されるため、二重計上分を
+//            行に含めると「一部だけ合計に含まれない」という分かりにくい表示になる
+//            （実例：分類２「－」の中に、ATM・現金出金等の正当な「－」と、二重計上の
+//            カード引き落とし行が混在してしまっていた）。そのため分類２／３では、
+//            二重計上分は集計対象（行にも合計にも）に一切含めない。
+// 「合計（移動を除く）」用の口座間移動の除外は、分類別年間収支と収支推移グラフ
+// （FiscalYearBalanceChart）で数値が食い違わないよう、判定ロジック自体は
+// src/lib/journalTotals.js に共通化してある。判定は必ず「変換前の生の分類１の値」に
+// 対して行う（resolveClassificationで分類２／３に変換した後の値では判定しない。
+// 理由はjournalTotals.js内のコメント参照）。
 
 const LEVELS = [
   { id: '1', label: '分類１' },
@@ -69,11 +78,13 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, totalsByMo
               ))}
             </tr>
             {rows.map(row => {
-              // ある分類名の行が、複数の取引先にまたがって存在する場合、そのうち一部の
-              // 取引先分だけが二重計上の対象ということがあり得る（CARD_SETTLEMENT_PAIRS
-              // 参照。2026-08-30、「楽天カード」問題を機に「楽天カードえみ」に改名したため
-              // 現在該当ケースは無いが、同様のことが今後起こり得るため仕組みは残してある）。
-              // そのため行単位では「全額除外」「一部除外」「除外なし」の3通りを区別して表示する。
+              // excludedTotalは分類１表示のときだけ入る（分類２／３では二重計上分は
+              // そもそも行の集計に含めていない。build()参照）。ある分類名の行が、複数の
+              // 取引先にまたがって存在する場合、そのうち一部の取引先分だけが二重計上の
+              // 対象ということがあり得る（CARD_SETTLEMENT_PAIRS参照。2026-08-30、
+              // 「楽天カード」問題を機に「楽天カードえみ」に改名したため現在該当ケースは
+              // 無いが、同様のことが今後起こり得るため仕組みは残してある）。そのため
+              // 行単位では「全額除外」「一部除外」「除外なし」の3通りを区別して表示する。
               const fullyExcluded = showExcludedStyle && row.excludedTotal > 0 && row.excludedTotal === row.total
               const partiallyExcluded = showExcludedStyle && row.excludedTotal > 0 && row.excludedTotal < row.total
               return (
@@ -137,8 +148,17 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         if (e.direction !== direction) continue
         if (!e.billing_month || !selectedYear || String(fiscalYearOf(e.billing_month)) !== selectedYear) continue
         if (institution !== 'all' && e.institution !== institution) continue
-        const month = Number(e.billing_month.slice(4, 6))
         const rawCls = e.classification
+        // 「合計」「合計（移動を除く）」は、表示レベルに関わらず常に変換前の生の分類１で、
+        // かつ必ず取引先とセットで判定する（分類２／３では複数の分類１が同じ「－」に
+        // 集約されるため、変換後の値だけでは判定できない。分類名だけでも判定できない
+        // ことは上記CARD_SETTLEMENT_PAIRSのコメントの通り）
+        // 特定の1取引先に絞り込んでいるときは二重計上が起きないため除外しない
+        const isDup = isCardSettlementDup(e.institution, rawCls, institution)
+        // 分類２／３では、二重計上の明細行は集計対象（行・合計とも）に一切含めない
+        // （分類１でだけ行として表示し、監査できるようにする。上記コメント参照）
+        if (isDup && level !== '1') continue
+        const month = Number(e.billing_month.slice(4, 6))
         const cls = (rawCls && resolveClassification(level, e.institution, rawCls, classificationMap)) || UNCLASSIFIED
         if (!byClassification.has(cls)) {
           byClassification.set(cls, { classification: cls, byMonth: {}, total: 0, excludedTotal: 0 })
@@ -148,12 +168,7 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         row.byMonth[month] = (row.byMonth[month] || 0) + amount
         row.total += amount
 
-        // 「合計」「合計（移動を除く）」は、表示レベルに関わらず常に変換前の生の分類１で、
-        // かつ必ず取引先とセットで判定する（分類２／３では複数の分類１が同じ「－」に
-        // 集約されるため、変換後の値だけでは判定できない。分類名だけでも判定できない
-        // ことは上記CARD_SETTLEMENT_PAIRSのコメントの通り）
-        // 特定の1取引先に絞り込んでいるときは二重計上が起きないため除外しない
-        if (isCardSettlementDup(e.institution, rawCls, institution)) {
+        if (isDup) {
           row.excludedTotal += amount
           continue
         }
