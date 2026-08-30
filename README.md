@@ -109,7 +109,7 @@ alter table notes add column url text;
 
 ## おまけ: 家計簿の仕訳結果（journal_entries）
 
-横浜銀行・住友銀行・ゆうちょ・みずほ銀行・横浜VISA・住友VISA・楽天カードの過去の取引明細（分類済み）を保存するテーブルです。設計の詳細は`gahoo-company`リポジトリの`product/journal-entries-db-design.md`を参照してください。利用するにはSupabaseで以下のテーブルを作成してください（**2026-08-22時点、本番プロジェクトには適用済み**）。
+横浜銀行・住友銀行・ゆうちょ・みずほ銀行・横浜VISA・住友VISA・楽天カードえみの過去の取引明細（分類済み）を保存するテーブルです。設計の詳細は`gahoo-company`リポジトリの`product/journal-entries-db-design.md`を参照してください。利用するにはSupabaseで以下のテーブルを作成してください（**2026-08-22時点、本番プロジェクトには適用済み**。2026-08-30、恵美様名義の楽天カードであることを明確にするため`楽天カード`→`楽天カードえみ`に改名し、今後智広様名義のカードを扱う可能性を見込んで`楽天カード`も引き続き許容値に残している）。
 
 ```sql
 create table journal_entries (
@@ -118,7 +118,7 @@ create table journal_entries (
 
   institution text not null check (institution in (
     '横浜銀行', '住友銀行', 'ゆうちょ', 'みずほ銀行',
-    '横浜VISA', '住友VISA', '楽天カード'
+    '横浜VISA', '住友VISA', '楽天カード', '楽天カードえみ'
   )),
   card_holder text check (card_holder in ('智広', '恵美')),
 

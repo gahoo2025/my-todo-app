@@ -2,12 +2,15 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 
 export const JOURNAL_INSTITUTIONS = [
-  '横浜銀行', '住友銀行', 'ゆうちょ', 'みずほ銀行', '横浜VISA', '住友VISA', '楽天カード',
+  '横浜銀行', '住友銀行', 'ゆうちょ', 'みずほ銀行', '横浜VISA', '住友VISA', '楽天カードえみ',
 ]
 
 // カード取引先（銀行取引先側に「カード利用額の引き落とし」として同額が別途1行計上されているため、
 // 取引先横断の出金合計に含めると二重計上になる）
-export const CARD_INSTITUTIONS = ['横浜VISA', '住友VISA', '楽天カード']
+// 「楽天カードえみ」＝恵美様名義の楽天カード（みずほ銀行から引き落とし）。横浜銀行の
+// 「楽天カード」分類（ご本人の投信積立用の別カード）とは無関係の別物のため対象外
+// （2026-08-30、本人の指示で「楽天カード」→「楽天カードえみ」に名称変更）
+export const CARD_INSTITUTIONS = ['横浜VISA', '住友VISA', '楽天カードえみ']
 
 // journal_entries（家計簿の一次仕訳結果）を全件取得する。
 // 3,000件超あるため asset_holdings_history 等と同じ .range() ページングで全件取得し、

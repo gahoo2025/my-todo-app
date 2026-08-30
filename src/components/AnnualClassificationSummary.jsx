@@ -69,10 +69,11 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, totalsByMo
               ))}
             </tr>
             {rows.map(row => {
-              // ある分類名の行が、複数の取引先にまたがって存在する場合（例：「楽天カード」が
-              // みずほ銀行と横浜銀行の両方にある）、そのうち一部の取引先分だけが二重計上の
-              // 対象ということがあり得る（CARD_SETTLEMENT_PAIRS参照）。そのため行単位では
-              // 「全額除外」「一部除外」「除外なし」の3通りを区別して表示する。
+              // ある分類名の行が、複数の取引先にまたがって存在する場合、そのうち一部の
+              // 取引先分だけが二重計上の対象ということがあり得る（CARD_SETTLEMENT_PAIRS
+              // 参照。2026-08-30、「楽天カード」問題を機に「楽天カードえみ」に改名したため
+              // 現在該当ケースは無いが、同様のことが今後起こり得るため仕組みは残してある）。
+              // そのため行単位では「全額除外」「一部除外」「除外なし」の3通りを区別して表示する。
               const fullyExcluded = showExcludedStyle && row.excludedTotal > 0 && row.excludedTotal === row.total
               const partiallyExcluded = showExcludedStyle && row.excludedTotal > 0 && row.excludedTotal < row.total
               return (

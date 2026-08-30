@@ -1,9 +1,9 @@
 // 銀行系（横浜銀行・住友銀行・ゆうちょ・みずほ銀行）およびカード系
-// （住友VISA・横浜VISA・楽天カード）の明細CSVの取引先自動判別・パース処理。
+// （住友VISA・横浜VISA・楽天カードえみ）の明細CSVの取引先自動判別・パース処理。
 //
 // 銀行系4行はShift-JIS（CP932）エンコードのプレーンCSV/準CSV。
 // 住友VISA・横浜VISAもShift-JISだが、カード名義（智広様／恵美様）の切替を示す
-// 「セクションヘッダー行」と明細行が混在する。楽天カードのみUTF-8（BOM付き）。
+// 「セクションヘッダー行」と明細行が混在する。楽天カードえみのみUTF-8（BOM付き）。
 // 仕様は「仕訳ルール_統合版.xlsx」の「生CSV取り込み仕様」シートに基づく（実データ検証済み）。
 
 function parseCsvLine(line) {
@@ -93,7 +93,7 @@ export function detectInstitution(rawText) {
   if (head.includes('お取り扱い内容')) return '住友銀行'
   if (head.includes('入出金明細ＩＤ') || head.includes('お客さま口座番号')) return 'ゆうちょ'
   if (head.includes('明細通番') || (head.includes('お引出金額') && head.includes('お預入金額'))) return 'みずほ銀行'
-  if (head.includes('利用店名・商品名') || (head.includes('支払総額') && head.includes('繰越残高'))) return '楽天カード'
+  if (head.includes('利用店名・商品名') || (head.includes('支払総額') && head.includes('繰越残高'))) return '楽天カードえみ'
   const cardHeader = findCardHeaderLine(splitLines(head))
   if (cardHeader) {
     const cardName = cardHeader[2] || ''

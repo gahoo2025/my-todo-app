@@ -230,7 +230,7 @@ export default function BankStatementImport({ onImported }) {
       <div className="ios-card px-4 py-4">
         <p className="text-[13px] font-semibold text-[#1C1C1E] mb-2">明細インポート</p>
         <p className="text-[12px] text-[#8E8E93] mb-3">
-          横浜銀行・住友銀行・ゆうちょ・みずほ銀行・住友VISA・横浜VISA・楽天カードのCSV明細が
+          横浜銀行・住友銀行・ゆうちょ・みずほ銀行・住友VISA・横浜VISA・楽天カードえみのCSV明細が
           入ったフォルダを選択してください。複数ファイルをまとめて取り込めます。取引先はファイルの
           内容から自動判別します。
         </p>
