@@ -3,12 +3,14 @@ import { useAuth } from '../hooks/useAuth'
 import { useJournalEntries } from '../hooks/useJournalEntries'
 import MonthlyJournalList from '../components/MonthlyJournalList'
 import AnnualClassificationSummary from '../components/AnnualClassificationSummary'
+import FiscalYearBalanceChart from '../components/FiscalYearBalanceChart'
 import BankStatementImport from '../components/BankStatementImport'
 
 // サブ機能の定義（今後ここに追加していく）
 const SUB_FEATURES = [
   { id: 'monthly', label: '月別明細' },
   { id: 'annual',  label: '分類別年間収支' },
+  { id: 'balance', label: '収支推移' },
   { id: 'import',  label: '明細インポート' },
 ]
 
@@ -39,6 +41,7 @@ export default function KakeiboPage({ embedded }) {
       <div className="mt-3">
         {sub === 'monthly' && <MonthlyJournalList entries={entries} loading={loading} />}
         {sub === 'annual' && <AnnualClassificationSummary entries={entries} loading={loading} />}
+        {sub === 'balance' && <FiscalYearBalanceChart entries={entries} loading={loading} />}
         {sub === 'import' && <BankStatementImport onImported={refetch} />}
       </div>
     </>

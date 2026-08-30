@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { JOURNAL_INSTITUTIONS } from '../hooks/useJournalEntries'
 import { useJournalClassificationMap } from '../hooks/useJournalClassificationMap'
+import { fiscalYearOf, isCardSettlementDup, isTransfer } from '../lib/journalTotals'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
 // 年度＝4月始まり3月終わりで表示する
@@ -9,39 +10,12 @@ const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
 const UNCLASSIFIED = '（未分類）'
 const UNMAPPED = '（未対応）'
 
-// 取引先「すべて」表示時、銀行取引先側の「カード利用額の引き落とし」1行（分類１が
-// カード取引先名そのもの）は、カード取引先側の明細（食費・ETC等）と同じお金を指して
-// おり合算すると二重計上になる。内訳としては表示するが、合計（年合計・月合計）には
-// 含めない。分類１表示では該当行をグレー表示にする（2026-08-29、本人の指示）。
-//
-// 判定は必ず「取引先（institution）＋分類１」の組み合わせで行う。分類名の文字列
-// だけで判定してはいけない：実データで確認済みの通り、同じ「楽天カード」という
-// 分類名でも、みずほ銀行の行は本物の楽天カード引き落としで二重計上の対象だが、
-// 横浜銀行の行は楽天カードの明細とは無関係の別の取引（journal_classification_map
-// 上も「投資」に対応付けられており、他のカード引き落とし行の「－」とは扱いが違う）
-// で、対象に含めてはいけない（2026-08-29、本人の指摘で発覚。当初は分類名だけで
-// 判定しており、横浜銀行分を誤って合計から除外し、月別明細の合計とズレていた）。
-// 同様に住友銀行の「住友カード」という類似の分類名も、journal_classification_map
-// で「雑費とも仕事」という実支出に対応付けられており、二重計上ではないため対象外。
-const CARD_SETTLEMENT_PAIRS = new Set(['横浜銀行|横浜VISA', '横浜銀行|住友VISA', 'みずほ銀行|楽天カード'])
-
-// 「合計（移動を除く）」行用：支出テーブルでは「移動（出金）」、収入テーブルでは
-// 「移動（入金）」を除く。これらは自分名義の別口座・証券口座等への資金移動であって
-// 実質的な支出・収入ではないため、口座間送金を除いた実質的な収支を見せる（2026-08-29、
-// 本人の指示）。カード引き落とし行の除外と違い、取引先を1つに絞り込んでいても常に適用する
-// （移動は取引先をまたいでいなくても「実質的な支出ではない」という性質が変わらないため）。
-const TRANSFER_CLASSIFICATION = { '出金': '移動（出金）', '入金': '移動（入金）' }
-
-// 上記2つの除外判定は、必ず「変換前の生の分類１の値」に対して行う（resolveClassification
-// で分類２／３に変換した後の値では判定しない）。分類２／３では、カード引き落とし行・
-// 移動（出金／入金）に加えてATM・現金出金・Suicaチャージ等、他の複数の分類１の値が
-// journal_classification_map側で同じ「－」という1つの表示ラベルに集約されてしまうため、
-// 変換後の値だけでは「二重計上の対象」と「対象外」を区別できない（2026-08-29、
-// 分類２／３表示時に二重計上が再発する問題として発覚・修正）。
-// 生の分類１で判定することで、どの表示レベルを選んでも合計の対象になる取引が変わらない
-// ようにする。ただし表示上のグレー行＋「（合計に含まず）」の注記は、分類１表示のときだけ
-// 意味を持つ（分類２／３では「－」行の中に除外対象・対象外が混在するため、行単位では
-// 印を付けない。内訳表示自体は変更しない）。
+// 「合計」「合計（移動を除く）」の除外判定（カード引き落とし二重計上・口座間移動）は
+// src/lib/journalTotals.js に共通化してある。分類別年間収支と収支推移グラフ
+// （FiscalYearBalanceChart）の数値が食い違わないよう、両方から同じロジックを使う
+// （2026-08-30）。判定は必ず「変換前の生の分類１の値」に対して行う点は変わらない
+// （resolveClassificationで分類２／３に変換した後の値では判定しない。理由は
+// journalTotals.js内のコメント参照）。
 
 const LEVELS = [
   { id: '1', label: '分類１' },
@@ -57,13 +31,6 @@ function resolveClassification(level, institution, classification1, classificati
   const entry = classificationMap.get(`${institution}|${classification1}`)
   if (!entry) return UNMAPPED
   return level === '2' ? entry.classification_2 : entry.classification_3
-}
-
-// billing_month（YYYYMM）が属する年度（4月始まり）を返す。1〜3月は前年の年度扱い
-function fiscalYearOf(billingMonth) {
-  const year = Number(billingMonth.slice(0, 4))
-  const month = Number(billingMonth.slice(4, 6))
-  return month >= 4 ? year : year - 1
 }
 
 function PivotTable({ title, rows, months, totalsByMonth, grandTotal, totalsByMonthExclTransfer, grandTotalExclTransfer, accentClass, showExcludedStyle }) {
@@ -160,7 +127,6 @@ export default function AnnualClassificationSummary({ entries, loading }) {
   // (方向) -> 分類 -> 月 -> 合計金額 に集計（取引先で絞り込んだ範囲内で）
   const pivot = useMemo(() => {
     const build = direction => {
-      const transferClassification = TRANSFER_CLASSIFICATION[direction]
       const byClassification = new Map()
       const totalsByMonth = {}
       const totalsByMonthExclTransfer = {}
@@ -186,15 +152,14 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         // 集約されるため、変換後の値だけでは判定できない。分類名だけでも判定できない
         // ことは上記CARD_SETTLEMENT_PAIRSのコメントの通り）
         // 特定の1取引先に絞り込んでいるときは二重計上が起きないため除外しない
-        const isCardSettlementDup = institution === 'all' && rawCls && CARD_SETTLEMENT_PAIRS.has(`${e.institution}|${rawCls}`)
-        if (isCardSettlementDup) {
+        if (isCardSettlementDup(e.institution, rawCls, institution)) {
           row.excludedTotal += amount
           continue
         }
         totalsByMonth[month] = (totalsByMonth[month] || 0) + amount
         grandTotal += amount
         // 移動（出金）／移動（入金）は取引先の絞り込みに関わらず常に除く
-        if (rawCls === transferClassification) continue
+        if (isTransfer(direction, rawCls)) continue
         totalsByMonthExclTransfer[month] = (totalsByMonthExclTransfer[month] || 0) + amount
         grandTotalExclTransfer += amount
       }
