@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useBankStatementImport, isFolderPickerSupported } from '../hooks/useBankStatementImport'
 import { useEventPeriods } from '../hooks/useEventPeriods'
+import { useOverrideTemplates } from '../hooks/useOverrideTemplates'
 import { JOURNAL_INSTITUTIONS } from '../hooks/useJournalEntries'
 import { ALL_CLASSIFICATIONS } from '../lib/journalRules'
 
@@ -16,11 +17,79 @@ function emptyOverrideRow() {
   return { institution: JOURNAL_INSTITUTIONS[0], classification: '' }
 }
 
+// 上書き行（取引先→分類）のテンプレート選択・保存・削除UI。
+// 2026-09-13、本人より「娯楽イベントの度に同じ組み合わせを手入力するのが手間」との
+// 指摘を受けて新設。テンプレートはあくまで上書き行の初期値候補であり、適用後も
+// 通常通り編集・行の追加削除ができる（固定ではない）。
+function OverrideTemplatePicker({ templates, loading, rows, onApply, onSave, onDelete }) {
+  const [newName, setNewName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const validRows = rows.filter(r => r.institution && r.classification.trim())
+
+  async function handleSave() {
+    if (!newName.trim() || validRows.length === 0) return
+    const overrides = {}
+    for (const r of validRows) overrides[r.institution] = r.classification.trim()
+    setSaving(true)
+    try {
+      await onSave({ name: newName.trim(), overrides })
+      setNewName('')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[12px] text-[#8E8E93]">テンプレート（クリックで上書き行に反映）</p>
+      <div className="flex flex-wrap gap-1.5">
+        {loading ? (
+          <span className="text-[12px] text-[#AEAEB2]">読み込み中…</span>
+        ) : templates.length === 0 ? (
+          <span className="text-[12px] text-[#AEAEB2]">まだテンプレートはありません</span>
+        ) : (
+          templates.map(t => (
+            <span key={t.id} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-[#007AFF]/10">
+              <button onClick={() => onApply(t)} className="text-[12px] font-medium text-[#007AFF]">
+                {t.name}
+              </button>
+              <button
+                onClick={() => onDelete(t.id)}
+                aria-label={`テンプレート「${t.name}」を削除`}
+                className="text-[#FF3B30] text-[12px] px-0.5"
+              >
+                ×
+              </button>
+            </span>
+          ))
+        )}
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          placeholder="現在の上書き行を名前を付けて保存"
+          className="flex-1 px-3 py-2 rounded-[10px] bg-white text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none"
+        />
+        <button
+          onClick={handleSave}
+          disabled={saving || !newName.trim() || validRows.length === 0}
+          className="px-3 py-2 rounded-[10px] bg-black/[0.06] text-[#1C1C1E] text-[13px] font-medium active:opacity-70 disabled:opacity-40"
+        >
+          保存
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // イベント期間（journal_event_periods）の登録フォーム＋一覧表示。
 // 旅行・お出かけに限らず、ピアノの発表会・空手の試合・散髪など日付で分類できる
 // 出来事全般を、画面から登録・削除できるようにする（2026-08-29、本人の指示で
 // journalRules.js内のハードコードからDBテーブル化）。
-function EventPeriodsPanel({ periods, loading, onAdd, onDelete }) {
+function EventPeriodsPanel({ userId, periods, loading, onAdd, onDelete }) {
+  const { templates, loading: templatesLoading, addTemplate, deleteTemplate } = useOverrideTemplates(userId)
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -39,6 +108,13 @@ function EventPeriodsPanel({ periods, loading, onAdd, onDelete }) {
 
   function updateRow(i, patch) {
     setRows(prev => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)))
+  }
+
+  function applyTemplate(template) {
+    const entries = Object.entries(template.overrides)
+    setRows(entries.length > 0
+      ? entries.map(([institution, classification]) => ({ institution, classification }))
+      : [emptyOverrideRow()])
   }
 
   async function handleSubmit() {
@@ -107,6 +183,15 @@ function EventPeriodsPanel({ periods, loading, onAdd, onDelete }) {
             />
           </div>
           <p className="text-[11px] text-[#AEAEB2]">単日の出来事は開始日・終了日を同じ日にしてください。</p>
+
+          <OverrideTemplatePicker
+            templates={templates}
+            loading={templatesLoading}
+            rows={rows}
+            onApply={applyTemplate}
+            onSave={addTemplate}
+            onDelete={deleteTemplate}
+          />
 
           <datalist id="classification-options">
             {ALL_CLASSIFICATIONS.map(c => <option key={c} value={c} />)}
@@ -225,7 +310,7 @@ export default function BankStatementImport({ onImported }) {
 
   return (
     <div className="space-y-3">
-      <EventPeriodsPanel periods={periods} loading={periodsLoading} onAdd={addPeriod} onDelete={deletePeriod} />
+      <EventPeriodsPanel userId={user?.id} periods={periods} loading={periodsLoading} onAdd={addPeriod} onDelete={deletePeriod} />
 
       <div className="ios-card px-4 py-4">
         <p className="text-[13px] font-semibold text-[#1C1C1E] mb-2">明細インポート</p>
