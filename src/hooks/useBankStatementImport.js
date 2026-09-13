@@ -200,12 +200,14 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
     }
   }
 
-  // 確認キューの先頭1件に分類を確定する（未選択のままスキップする場合は classification に null を渡す）
-  function resolveQueueItem(classification) {
+  // 確認キューの先頭1件に分類を確定する（未選択のままスキップする場合は classification に null を渡す）。
+  // memo は確認要画面で入力された自由記述メモ（未入力なら null）。
+  function resolveQueueItem(classification, memo = '') {
+    const manualMemo = memo && memo.trim() ? memo.trim() : null
     setQueue(prev => {
       if (prev.length === 0) return prev
       const [first, ...rest] = prev
-      setReadyRows(r => [...r, { ...first, classification, classification_source_override: 'manual' }])
+      setReadyRows(r => [...r, { ...first, classification, classification_source_override: 'manual', manual_memo: manualMemo }])
       return rest
     })
   }
@@ -227,7 +229,7 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
         balance: r.balance,
         classification: r.classification,
         classification_source: r.classification_source_override || 'rule_auto',
-        memo: r.needsConfirmation ? '（要確認：自動仕訳の再確認対象）' : null,
+        memo: r.manual_memo ?? (r.needsConfirmation ? '（要確認：自動仕訳の再確認対象）' : null),
         source_file: r.source_file,
       }))
       const chunkSize = 500

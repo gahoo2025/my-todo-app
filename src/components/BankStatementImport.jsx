@@ -199,6 +199,49 @@ function EventPeriodsPanel({ periods, loading, onAdd, onDelete }) {
   )
 }
 
+// スキャン結果（自動仕訳＋要確認、重複スキップ除く）の全件一覧。確認専用（ここからの分類変更は不可）。
+function ScanDetailList({ readyRows, queue }) {
+  const [show, setShow] = useState(false)
+  const queueSet = new Set(queue)
+  const allRows = [...readyRows, ...queue].sort((a, b) => a.transaction_date.localeCompare(b.transaction_date))
+
+  if (allRows.length === 0) return null
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => setShow(v => !v)}
+        className="text-[12px] font-medium text-[#007AFF]"
+      >
+        {show ? '明細一覧を閉じる' : `明細一覧を表示（${allRows.length}件）`}
+      </button>
+      {show && (
+        <div className="mt-2 max-h-96 overflow-y-auto rounded-xl bg-black/[0.03] divide-y divide-black/[0.06]">
+          {allRows.map((row, i) => {
+            const needsReview = queueSet.has(row)
+            return (
+              <div key={i} className="px-3 py-2">
+                <div className="flex items-center justify-between gap-2 text-[11px] text-[#8E8E93]">
+                  <span>{row.institution}{row.holder ? `（${row.holder}）` : ''}・{row.transaction_date}</span>
+                  <span className="tabular-nums flex-shrink-0">{row.direction} {yen.format(row.amount)}円</span>
+                </div>
+                <p className="text-[13px] text-[#1C1C1E] mt-0.5">{row.description || '（摘要なし）'}</p>
+                <p className="text-[11px] mt-0.5">
+                  {needsReview ? (
+                    <span className="text-[#FF9500]">要確認</span>
+                  ) : (
+                    <span className="text-[#248A3D]">{row.classification || '未分類'}</span>
+                  )}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function BankStatementImport({ onImported }) {
   const { user } = useAuth()
   const { periods, loading: periodsLoading, addPeriod, deletePeriod } = useEventPeriods(user?.id)
@@ -207,8 +250,14 @@ export default function BankStatementImport({ onImported }) {
     unmatchedFiles, readyRows, queue, duplicateCount, scanResult, importResult,
     restoreFolder, pickFolder, scan, resolveQueueItem, importReady,
   } = useBankStatementImport(user?.id, onImported, periods)
+  const [memoInput, setMemoInput] = useState('')
 
   useEffect(() => { restoreFolder() }, [restoreFolder])
+
+  function handleResolve(classification) {
+    resolveQueueItem(classification, memoInput)
+    setMemoInput('')
+  }
 
   if (!isFolderPickerSupported()) {
     return (
@@ -268,6 +317,8 @@ export default function BankStatementImport({ onImported }) {
             </p>
           </div>
         )}
+
+        <ScanDetailList readyRows={readyRows} queue={queue} />
       </div>
 
       {current && (
@@ -284,18 +335,25 @@ export default function BankStatementImport({ onImported }) {
               {current.direction} {yen.format(current.amount)}円
             </p>
           </div>
+          <input
+            type="text"
+            value={memoInput}
+            onChange={e => setMemoInput(e.target.value)}
+            placeholder="メモ（任意）"
+            className="w-full px-3 py-2 rounded-[10px] bg-black/[0.03] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none mb-2"
+          />
           <div className="flex flex-wrap gap-2">
             {current.candidates.map(c => (
               <button
                 key={c}
-                onClick={() => resolveQueueItem(c)}
+                onClick={() => handleResolve(c)}
                 className="px-3 py-1.5 rounded-full bg-[#007AFF]/10 text-[#007AFF] text-[13px] font-medium active:opacity-60"
               >
                 {c}
               </button>
             ))}
             <button
-              onClick={() => resolveQueueItem(null)}
+              onClick={() => handleResolve(null)}
               className="px-3 py-1.5 rounded-full bg-black/[0.06] text-[#8E8E93] text-[13px] font-medium active:opacity-60"
             >
               未分類のまま保存
