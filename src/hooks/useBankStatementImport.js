@@ -67,16 +67,39 @@ function dupKey(institution, date, direction, amount) {
   return `${institution}|${date}|${direction}|${Number(amount)}`
 }
 
+// 1件分の明細（scan()やresolveQueueItemが扱う中間形式）をjournal_entriesのinsert用行に変換する。
+// 自動仕訳・手動確定（確認要キュー）の両方から共通で使う（2026-09-19、全件即時保存化で切り出し）。
+function buildEntryRow(userId, r) {
+  return {
+    user_id: userId,
+    institution: r.institution,
+    card_holder: r.institution === '住友VISA' ? r.holder : null,
+    transaction_date: r.transaction_date,
+    billing_month: billingMonthFor(r.institution, r.transaction_date, r.source_file),
+    description: r.description,
+    direction: r.direction,
+    amount: r.amount,
+    balance: r.balance,
+    classification: r.classification,
+    classification_source: r.classification_source_override || 'rule_auto',
+    memo: r.manual_memo ?? (r.needsConfirmation ? '（要確認：自動仕訳の再確認対象）' : null),
+    source_file: r.source_file,
+  }
+}
+
 export function useBankStatementImport(userId, onImported, eventPeriods) {
   const [folderName, setFolderName] = useState(null)
   const [scanning, setScanning] = useState(false)
-  const [importing, setImporting] = useState(false)
   const [unmatchedFiles, setUnmatchedFiles] = useState([]) // 取引先を判別できなかったファイル名
-  const [readyRows, setReadyRows] = useState([]) // 自動確定済み（インポート待ち）
+  const [readyRows, setReadyRows] = useState([]) // 保存済み（自動仕訳・確認要とも確定後はここに積む。165件一覧の表示用）
+  const [pendingAutoRows, setPendingAutoRows] = useState([]) // 自動保存に失敗し、再試行待ちの自動仕訳分
   const [queue, setQueue] = useState([]) // 確認要（1件ずつ選択させる）
   const [duplicateCount, setDuplicateCount] = useState(0)
   const [scanResult, setScanResult] = useState(null)
-  const [importResult, setImportResult] = useState(null)
+  const [autoSaveError, setAutoSaveError] = useState(null)
+  const [autoSaving, setAutoSaving] = useState(false)
+  const [queueError, setQueueError] = useState(null)
+  const [resolvingItem, setResolvingItem] = useState(false)
 
   const restoreFolder = useCallback(async () => {
     try {
@@ -99,10 +122,35 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
   function resetScan() {
     setUnmatchedFiles([])
     setReadyRows([])
+    setPendingAutoRows([])
     setQueue([])
     setDuplicateCount(0)
     setScanResult(null)
-    setImportResult(null)
+    setAutoSaveError(null)
+  }
+
+  // 自動仕訳分をその場でjournal_entriesへ保存する（scan()末尾、および失敗時の再試行から呼ぶ）。
+  async function saveAutoRows(rows) {
+    if (!userId || rows.length === 0) return
+    setAutoSaving(true)
+    setAutoSaveError(null)
+    try {
+      const dbRows = rows.map(r => buildEntryRow(userId, r))
+      const chunkSize = 500
+      for (let i = 0; i < dbRows.length; i += chunkSize) {
+        const chunk = dbRows.slice(i, i + chunkSize)
+        const { error } = await supabase.from('journal_entries').insert(chunk)
+        if (error) throw error
+      }
+      setPendingAutoRows([])
+      setReadyRows(r => [...r, ...rows])
+      onImported?.()
+    } catch (err) {
+      setPendingAutoRows(rows)
+      setAutoSaveError(`${err?.name ?? 'Error'}: ${err?.message ?? String(err)}`)
+    } finally {
+      setAutoSaving(false)
+    }
   }
 
   async function scan() {
@@ -191,68 +239,46 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
       }
 
       setUnmatchedFiles(unmatched)
-      setReadyRows(ready)
       setQueue(needsReview)
       setDuplicateCount(dupCount)
       setScanResult({ totalFiles: unmatched.length + institutions.length, institutions, total: classified.length, ready: ready.length, review: needsReview.length, duplicates: dupCount, excluded: excludedCount })
+      // 自動仕訳分はスキャン直後にその場で保存する（2026-09-19、途中終了時のやり直しを
+      // 無くすため「インポート」ボタンを廃止し、確認要キューと同様に即時保存化）
+      await saveAutoRows(ready)
     } finally {
       setScanning(false)
     }
   }
 
-  // 確認キューの先頭1件に分類を確定する（未選択のままスキップする場合は classification に null を渡す）。
+  // 確認キューの先頭1件に分類を確定し、その場でjournal_entriesへ保存する
+  // （未選択のままスキップする場合は classification に null を渡す）。
   // memo は確認要画面で入力された自由記述メモ（未入力なら null）。
-  function resolveQueueItem(classification, memo = '') {
+  // 保存に失敗した場合はキューから外さず、次回呼び出し時に再試行できるようにする。
+  async function resolveQueueItem(classification, memo = '') {
+    if (queue.length === 0) return
     const manualMemo = memo && memo.trim() ? memo.trim() : null
-    setQueue(prev => {
-      if (prev.length === 0) return prev
-      const [first, ...rest] = prev
-      setReadyRows(r => [...r, { ...first, classification, classification_source_override: 'manual', manual_memo: manualMemo }])
-      return rest
-    })
-  }
+    const first = { ...queue[0], classification, classification_source_override: 'manual', manual_memo: manualMemo }
 
-  async function importReady() {
-    if (!userId || readyRows.length === 0) return
-    setImporting(true)
-    setImportResult(null)
+    setResolvingItem(true)
+    setQueueError(null)
     try {
-      const rows = readyRows.map(r => ({
-        user_id: userId,
-        institution: r.institution,
-        card_holder: r.institution === '住友VISA' ? r.holder : null,
-        transaction_date: r.transaction_date,
-        billing_month: billingMonthFor(r.institution, r.transaction_date, r.source_file),
-        description: r.description,
-        direction: r.direction,
-        amount: r.amount,
-        balance: r.balance,
-        classification: r.classification,
-        classification_source: r.classification_source_override || 'rule_auto',
-        memo: r.manual_memo ?? (r.needsConfirmation ? '（要確認：自動仕訳の再確認対象）' : null),
-        source_file: r.source_file,
-      }))
-      const chunkSize = 500
-      let inserted = 0
-      for (let i = 0; i < rows.length; i += chunkSize) {
-        const chunk = rows.slice(i, i + chunkSize)
-        const { error } = await supabase.from('journal_entries').insert(chunk)
-        if (error) throw error
-        inserted += chunk.length
-      }
-      setImportResult({ success: true, inserted })
-      setReadyRows([])
+      const { error } = await supabase.from('journal_entries').insert([buildEntryRow(userId, first)])
+      if (error) throw error
+      setQueue(prev => prev.slice(1))
+      setReadyRows(r => [...r, first])
       onImported?.()
     } catch (err) {
-      setImportResult({ error: `${err?.name ?? 'Error'}: ${err?.message ?? String(err)}` })
+      setQueueError(`${err?.name ?? 'Error'}: ${err?.message ?? String(err)}`)
     } finally {
-      setImporting(false)
+      setResolvingItem(false)
     }
   }
 
   return {
-    folderName, scanning, importing,
-    unmatchedFiles, readyRows, queue, duplicateCount, scanResult, importResult,
-    restoreFolder, pickFolder, scan, resolveQueueItem, importReady,
+    folderName, scanning,
+    unmatchedFiles, readyRows, queue, duplicateCount, scanResult,
+    autoSaveError, autoSaving, queueError, resolvingItem,
+    restoreFolder, pickFolder, scan, resolveQueueItem,
+    retryAutoSave: () => saveAutoRows(pendingAutoRows),
   }
 }
