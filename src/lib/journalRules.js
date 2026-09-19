@@ -185,6 +185,18 @@ export const ALL_CLASSIFICATIONS = [...new Set(
     .filter(c => !isNonTransactionMarker(c))
 )].sort()
 
+// 指定した取引先（institution）に紐づく分類の一覧。確認要画面で「その他」を押した際、
+// 摘要固有の候補（classifyDescriptionのcandidates）だけでなく、その取引先で過去に
+// 使われた分類全体から選べるようにするため（2026-09-19、本人の指示で新設）。
+export function classificationsForInstitution(institution) {
+  return [...new Set(
+    ALL_RULES
+      .filter(r => r.institution === institution && r.method !== 'inherit')
+      .flatMap(r => r.classification.split('／'))
+      .filter(c => !isNonTransactionMarker(c))
+  )].sort()
+}
+
 // ── イベント期間による分類上書き ─────────────────────────────────────────
 //
 // 元のExcel（仕訳１を行ったリスト.xlsx）では、店名パターンだけでなく「特定の出来事の
