@@ -5,6 +5,7 @@ import MonthlyJournalList from '../components/MonthlyJournalList'
 import AnnualClassificationSummary from '../components/AnnualClassificationSummary'
 import FiscalYearBalanceChart from '../components/FiscalYearBalanceChart'
 import BankStatementImport from '../components/BankStatementImport'
+import PendingJournalEntries from '../components/PendingJournalEntries'
 import EventPeriodsPage from '../components/EventPeriodsPage'
 
 // サブ機能の定義（今後ここに追加していく）
@@ -13,6 +14,7 @@ const SUB_FEATURES = [
   { id: 'annual',  label: '分類別年間収支' },
   { id: 'balance', label: '収支推移' },
   { id: 'import',  label: '明細インポート' },
+  { id: 'pending', label: '未仕訳' },
   { id: 'events',  label: 'イベント登録' },
 ]
 
@@ -45,6 +47,7 @@ export default function KakeiboPage({ embedded }) {
         {sub === 'annual' && <AnnualClassificationSummary entries={entries} loading={loading} />}
         {sub === 'balance' && <FiscalYearBalanceChart entries={entries} loading={loading} />}
         {sub === 'import' && <BankStatementImport onImported={refetch} />}
+        {sub === 'pending' && <PendingJournalEntries onImported={refetch} />}
         {sub === 'events' && <EventPeriodsPage />}
       </div>
     </>
