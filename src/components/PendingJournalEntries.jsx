@@ -3,7 +3,8 @@ import { useAuth } from '../hooks/useAuth'
 import { useBankStatementImport } from '../hooks/useBankStatementImport'
 import { useJournalClassificationMap } from '../hooks/useJournalClassificationMap'
 import { useEventPeriods } from '../hooks/useEventPeriods'
-import { ALL_CLASSIFICATIONS, classificationsForInstitution } from '../lib/journalRules'
+import { useCustomRules } from '../hooks/useCustomRules'
+import { ALL_CLASSIFICATIONS, classificationsForInstitution, classifyDescription } from '../lib/journalRules'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
 
@@ -47,9 +48,14 @@ function candidatesForStage(item, stage) {
 }
 
 // 選択中の1件を確定するための、メモ入力＋分類候補ボタンのパネル（行タップで展開する部分）。
-function ResolvePanel({ item, classificationMap, resolving, queueError, onResolve }) {
+// canLearnRule（既存535件ルールに一切マッチしない摘要のときのみtrue）の場合、「次回から
+// 自動仕訳する」チェックボックスを表示する（2026-09-20、本人の指示：「未仕訳を仕訳する際、
+// 今後は自動仕訳に登録できる仕組みが欲しい」）。PayPay等、あえて毎回確認が必要な設計の
+// 摘要（review状態）ではチェックしても効果が無く紛らわしいため、その場合は表示しない。
+function ResolvePanel({ item, classificationMap, resolving, queueError, canLearnRule, onResolve }) {
   const [memoInput, setMemoInput] = useState('')
   const [otherStage, setOtherStage] = useState(0)
+  const [saveAsRule, setSaveAsRule] = useState(false)
 
   const { shown, hasMore } = candidatesForStage(item, otherStage)
 
@@ -63,6 +69,17 @@ function ResolvePanel({ item, classificationMap, resolving, queueError, onResolv
         disabled={resolving}
         className="w-full px-3 py-2 rounded-[10px] bg-white text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] focus:outline-none mb-2 disabled:opacity-60"
       />
+      {canLearnRule && (
+        <label className="flex items-center gap-1.5 mb-2 text-[12px] text-[#8E8E93]">
+          <input
+            type="checkbox"
+            checked={saveAsRule}
+            onChange={e => setSaveAsRule(e.target.checked)}
+            disabled={resolving}
+          />
+          次回から自動仕訳する（同じ摘要が来たら自動でこの分類にする）
+        </label>
+      )}
       <div className="flex flex-wrap gap-2">
         {shown.map(c => (
           <CandidateButton
@@ -71,7 +88,7 @@ function ResolvePanel({ item, classificationMap, resolving, queueError, onResolv
             institution={item.institution}
             classificationMap={classificationMap}
             disabled={resolving}
-            onClick={() => onResolve(c, memoInput)}
+            onClick={() => onResolve(c, memoInput, saveAsRule)}
           />
         ))}
         {hasMore && (
@@ -84,7 +101,7 @@ function ResolvePanel({ item, classificationMap, resolving, queueError, onResolv
           </button>
         )}
         <button
-          onClick={() => onResolve(null, memoInput)}
+          onClick={() => onResolve(null, memoInput, false)}
           disabled={resolving}
           className="px-3 py-1.5 rounded-full bg-black/[0.06] text-[#8E8E93] text-[13px] font-medium active:opacity-60 disabled:opacity-40"
         >
@@ -111,6 +128,7 @@ export default function PendingJournalEntries({ onImported }) {
   const { queue, queueError, resolvingPendingId, resolveQueueItem } = useBankStatementImport(user?.id, onImported)
   const { map: classificationMap } = useJournalClassificationMap(user?.id)
   const { periods: eventPeriods } = useEventPeriods(user?.id)
+  const { addRule: addCustomRule } = useCustomRules(user?.id)
   const [selectedId, setSelectedId] = useState(null)
 
   // キューが更新されて選択中の項目が無くなった場合（確定済み等）は選択を解除する
@@ -131,8 +149,16 @@ export default function PendingJournalEntries({ onImported }) {
     return { count: queue.length, out, inn }
   }, [queue])
 
-  async function handleResolve(pendingId, classification, memo) {
-    await resolveQueueItem(pendingId, classification, memo)
+  async function handleResolve(item, classification, memo, saveAsRule) {
+    if (saveAsRule && classification) {
+      await addCustomRule({
+        institution: item.institution,
+        holder: item.holder,
+        pattern: item.description,
+        classification,
+      })
+    }
+    await resolveQueueItem(item.pendingId, classification, memo)
   }
 
   return (
@@ -173,6 +199,7 @@ export default function PendingJournalEntries({ onImported }) {
             const isOpen = selectedId === item.pendingId
             const isResolving = resolvingPendingId === item.pendingId
             const matchedEvents = eventsOnDate(eventPeriods, item.transaction_date)
+            const canLearnRule = classifyDescription(item.institution, item.description, { holder: item.holder }).status === 'unmatched'
             return (
               <div key={item.pendingId}>
                 <button
@@ -212,7 +239,8 @@ export default function PendingJournalEntries({ onImported }) {
                     classificationMap={classificationMap}
                     resolving={isResolving}
                     queueError={isResolving ? queueError : null}
-                    onResolve={(classification, memo) => handleResolve(item.pendingId, classification, memo)}
+                    canLearnRule={canLearnRule}
+                    onResolve={(classification, memo, saveAsRule) => handleResolve(item, classification, memo, saveAsRule)}
                   />
                 )}
               </div>

@@ -256,3 +256,45 @@ export function applyEventPeriodOverride(institution, transactionDate, result, e
     needsConfirmation: false,
   }
 }
+
+// ── ユーザー登録の学習ルール（未仕訳の仕訳結果を自動仕訳に反映） ──────────────
+//
+// 2026-09-20、本人の指示：「未仕訳を仕訳する際、今後は自動仕訳に登録できる仕組みが
+// 欲しい」。未仕訳（PendingJournalEntries）で1件を仕訳確定する際、「次回から自動仕訳
+// する」を選ぶと、その摘要（正規化済み・完全一致）＋取引先＋カード名義の組み合わせが
+// journal_custom_rulesテーブルに保存される。
+//
+// 適用は既存535件ルール（BANK_RULES・CARD_RULES_DATA）で**一切マッチしなかった
+// （status: 'unmatched'）摘要にのみ**行う。PayPay等、あえて「摘要だけでは分類が一意に
+// 決まらず毎回人間の確認が必要」と設計されているreview状態の項目に学習ルールが割り込み、
+// 意図と違う自動化をしてしまうのを防ぐため。
+
+// 指定した取引先・摘要・カード名義に一致する学習ルールを探す。
+function findCustomRule(institution, normalizedDesc, holder, customRules) {
+  return (customRules || []).find(r =>
+    r.institution === institution &&
+    (r.holder || null) === (holder || null) &&
+    normalizeText(r.pattern) === normalizedDesc
+  )
+}
+
+// classifyDescriptionの結果に、ユーザー登録の学習ルールを適用する。
+//   institution  … 取引先名
+//   description  … 摘要（正規化前の生の文字列）
+//   holder       … カード名義（住友VISA用。'智広'|'恵美'|null）
+//   result       … classifyDescriptionの戻り値（applyEventPeriodOverride適用前）
+//   customRules  … useCustomRulesフックで取得した学習ルールの配列
+//                   （[{ institution, holder, pattern, classification }, ...]）
+// 戻り値: 上書き後の結果（対象外なら引数のresultをそのまま返す）
+export function applyCustomRule(institution, description, holder, result, customRules) {
+  if (result.status !== 'unmatched') return result
+  const normalizedDesc = normalizeText(description)
+  const rule = findCustomRule(institution, normalizedDesc, holder, customRules)
+  if (!rule) return result
+  return {
+    status: 'auto',
+    classification: rule.classification,
+    candidates: [rule.classification],
+    needsConfirmation: false,
+  }
+}

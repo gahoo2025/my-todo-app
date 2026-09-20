@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseBankStatement, billingMonthFromFilename } from '../lib/bankStatementParser'
-import { classifyDescription, applyEventPeriodOverride, ALL_CLASSIFICATIONS } from '../lib/journalRules'
+import { classifyDescription, applyEventPeriodOverride, applyCustomRule, ALL_CLASSIFICATIONS } from '../lib/journalRules'
 
 const CARD_INSTITUTIONS = new Set(['住友VISA', '横浜VISA', '楽天カードえみ'])
 
@@ -129,7 +129,7 @@ function buildPendingRow(userId, r) {
   }
 }
 
-export function useBankStatementImport(userId, onImported, eventPeriods) {
+export function useBankStatementImport(userId, onImported, eventPeriods, customRules) {
   const [folderName, setFolderName] = useState(null)
   const [scanning, setScanning] = useState(false)
   const [unmatchedFiles, setUnmatchedFiles] = useState([]) // 取引先を判別できなかったファイル名
@@ -248,8 +248,10 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
         const key = `${row.institution}|${row.source_file}`
         const prev = previousByInstitutionFile[key]
         const classified = classifyDescription(row.institution, row.description, { previousClassification: prev, holder: row.holder })
+        // 既存535件ルールで一切マッチしなかった摘要には、ユーザー登録の学習ルールを適用する
+        const withCustomRule = applyCustomRule(row.institution, row.description, row.holder, classified, customRules)
         // イベント期間（EVENT_PERIODS）に該当する場合、店名パターンによる分類を上書きする
-        const result = applyEventPeriodOverride(row.institution, row.transaction_date, classified, eventPeriods)
+        const result = applyEventPeriodOverride(row.institution, row.transaction_date, withCustomRule, eventPeriods)
         if (result.classification) previousByInstitutionFile[key] = result.classification
         return { ...row, ...result }
       })
