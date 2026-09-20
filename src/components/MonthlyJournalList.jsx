@@ -1,5 +1,6 @@
 import { Fragment, useState, useMemo, useEffect } from 'react'
 import { JOURNAL_INSTITUTIONS, CARD_INSTITUTIONS } from '../hooks/useJournalEntries'
+import { isTransfer } from '../lib/journalTotals'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
 const PAGE_SIZE = 50
@@ -172,18 +173,27 @@ export default function MonthlyJournalList({ entries, loading }) {
   const summary = useMemo(() => {
     let out = 0
     let inn = 0
+    let balanceExclTransfer = 0
     for (const e of filtered) {
       // 取引先「すべて」表示のときのみ、カード取引先（横浜VISA・住友VISA・楽天カードえみ）を出金合計から除く。
       // カード取引先の利用額は、銀行取引先側に「カード利用額の引き落とし」として同額が別途1行
       // 計上されているため、単純合算すると二重計上になるため。
       const excludedFromOut = institution === 'all' && CARD_INSTITUTIONS.includes(e.institution)
+      const amount = Number(e.amount) || 0
       if (e.direction === '出金') {
-        if (!excludedFromOut) out += Number(e.amount) || 0
+        if (!excludedFromOut) out += amount
       } else {
-        inn += Number(e.amount) || 0
+        inn += amount
       }
+      // 自分名義の口座間の資金移動（移動（出金）／移動（入金））は実質的な収支ではないため、
+      // 「収支（移動を除く）」では除く（収支推移・分類別年間収支と同じ判定をjournalTotals.jsから
+      // 共有し、画面間で数値が食い違わないようにする。2026-09-20、本人からの「収支推移と
+      // 月別明細で5月の収支が違うのはなぜ」という指摘を受けて発覚・対応）。
+      if (isTransfer(e.direction, e.classification)) continue
+      if (excludedFromOut && e.direction === '出金') continue
+      balanceExclTransfer += e.direction === '出金' ? -amount : amount
     }
-    return { count: filtered.length, out, inn, balance: inn - out }
+    return { count: filtered.length, out, inn, balance: inn - out, balanceExclTransfer }
   }, [filtered, institution])
 
   // 取引先「すべて」表示のときだけ使う、取引先×仕訳１分類の集計（JOURNAL_INSTITUTIONSの順で並べる）
@@ -302,11 +312,20 @@ export default function MonthlyJournalList({ entries, loading }) {
       {!loading && (
         <div className="ios-card px-4 py-3.5 space-y-3">
           {/* 収支（入金合計−出金合計）。プラス/マイナスが一目で分かるよう符号・色分けで強調表示する
-              （2026-09-20、本人の指示：「プラスなのかマイナスなのかわからん」） */}
+              （2026-09-20、本人の指示：「プラスなのかマイナスなのかわからん」）。
+              「収支（移動を除く）」は自分名義の口座間の資金移動を除いた実質収支で、収支推移・
+              分類別年間収支と同じ判定（journalTotals.js）を使い数値を揃えている（2026-09-20、
+              本人からの「収支推移と月別明細で5月の収支が違う」という指摘を受けて追加）。 */}
           <div className="flex items-center justify-between">
             <p className="text-[12px] text-[#8E8E93]">収支{institution === 'all' && <span className="text-[10px] text-[#AEAEB2] ml-1">（カード取引先を除く）</span>}</p>
             <p className={`text-[20px] font-bold tabular-nums ${summary.balance >= 0 ? 'text-[#248A3D]' : 'text-[#FF3B30]'}`}>
               {summary.balance >= 0 ? '+' : '−'}{yen.format(Math.abs(summary.balance))}円
+            </p>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] text-[#8E8E93]">収支（移動を除く）</p>
+            <p className={`text-[15px] font-semibold tabular-nums ${summary.balanceExclTransfer >= 0 ? 'text-[#248A3D]' : 'text-[#FF3B30]'}`}>
+              {summary.balanceExclTransfer >= 0 ? '+' : '−'}{yen.format(Math.abs(summary.balanceExclTransfer))}円
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-black/[0.06]">
