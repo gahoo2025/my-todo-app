@@ -47,5 +47,22 @@ export function useJournalEntries(userId) {
 
   useEffect(() => { fetchEntries() }, [fetchEntries])
 
-  return { entries, loading, refetch: fetchEntries }
+  // 仕訳済み明細（journal_entries）1件の分類を後から変更する（2026-09-20、本人の指示：
+  // 「未仕訳を仕訳した後、参照変更ができるようにして欲しい」＝確定後に分類を間違えて
+  // いた場合に、月別明細から直接修正できるようにする）。classification_sourceを
+  // 'manual'にし、以後の自動再分類（自動仕訳ルールの学習等）とは無関係な手動確定である
+  // ことを明示する（resolveQueueItemの手動確定時と同じ扱い、buildEntryRow参照）。
+  // 成功時はローカルstateも更新し、失敗時はエラーを返して呼び出し側で表示できるようにする。
+  const updateClassification = useCallback(async (id, classification) => {
+    const { error } = await supabase
+      .from('journal_entries')
+      .update({ classification, classification_source: 'manual' })
+      .eq('id', id)
+      .eq('user_id', userId)
+    if (error) return { error }
+    setEntries(prev => prev.map(e => (e.id === id ? { ...e, classification } : e)))
+    return { error: null }
+  }, [userId])
+
+  return { entries, loading, refetch: fetchEntries, updateClassification }
 }
