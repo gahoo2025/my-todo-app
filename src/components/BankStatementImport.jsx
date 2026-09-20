@@ -340,7 +340,9 @@ function ScanDetailList({ readyRows, queue }) {
               <div key={i} className="px-3 py-2">
                 <div className="flex items-center justify-between gap-2 text-[11px] text-[#8E8E93]">
                   <span>{row.institution}{row.holder ? `（${row.holder}）` : ''}・{row.transaction_date}</span>
-                  <span className="tabular-nums flex-shrink-0">{row.direction} {yen.format(row.amount)}円</span>
+                  <span className="tabular-nums flex-shrink-0">
+                    {row.direction} {yen.format(Math.abs(row.amount))}円{row.amount < 0 && '（返品）'}
+                  </span>
                 </div>
                 <p className="text-[13px] text-[#1C1C1E] mt-0.5">{row.description || '（摘要なし）'}</p>
                 <p className="text-[11px] mt-0.5">
@@ -474,7 +476,7 @@ export default function BankStatementImport({ onImported }) {
             </p>
             <p className="text-[15px] text-[#1C1C1E] mt-0.5">{current.description || '（摘要なし）'}</p>
             <p className="text-[15px] font-semibold text-[#1C1C1E] mt-0.5">
-              {current.direction} {yen.format(current.amount)}円
+              {current.direction} {yen.format(Math.abs(current.amount))}円{current.amount < 0 && '（返品）'}
             </p>
           </div>
           <input

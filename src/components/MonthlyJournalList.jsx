@@ -20,6 +20,11 @@ function formatMonth(ym) {
 // 個別明細1件分のカード表示（「特定取引先」表示時の一覧と、「すべて」表示時のドリルダウンの
 // 両方から共通で呼び出す。見た目・ロジックはこれまでの一覧表示から変更していない）
 function EntryCard({ e }) {
+  // 出金は返品でamountがマイナスになることがある（2026-09-20、本人の指示で
+  // 「返品はdirection: 出金のまま、amountをマイナス値」に統一したため）。
+  // directionの文字列だけで符号を決めず、実際の符号（Math.abs前の値）で判定する。
+  const isRefund = e.direction === '出金' && Number(e.amount) < 0
+  const isOut = e.direction === '出金' && !isRefund
   return (
     <div className="ios-card px-4 py-3">
       <div className="flex items-center justify-between gap-2">
@@ -32,8 +37,8 @@ function EntryCard({ e }) {
           )}
           <span className="text-[11px] text-[#AEAEB2]">{formatDate(e.transaction_date)}</span>
         </div>
-        <p className={`text-[15px] font-semibold tabular-nums ${e.direction === '出金' ? 'text-[#1C1C1E]' : 'text-[#248A3D]'}`}>
-          {e.direction === '出金' ? '−' : '+'}{yen.format(e.amount)}円
+        <p className={`text-[15px] font-semibold tabular-nums ${isOut ? 'text-[#1C1C1E]' : 'text-[#248A3D]'}`}>
+          {isOut ? '−' : '+'}{yen.format(Math.abs(e.amount))}円{isRefund && <span className="text-[11px] font-normal text-[#AEAEB2] ml-1">（返品）</span>}
         </p>
       </div>
       <p className="text-[14px] text-[#1C1C1E] mt-1.5">{e.description}</p>
