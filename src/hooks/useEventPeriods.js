@@ -17,7 +17,7 @@ export function useEventPeriods(userId) {
       .from('journal_event_periods')
       .select('id, name, date_from, date_to, overrides')
       .eq('user_id', userId)
-      .order('date_from', { ascending: false })
+      .order('date_from', { ascending: true })
 
     if (!error && data) {
       setPeriods(data.map(row => ({
@@ -45,11 +45,22 @@ export function useEventPeriods(userId) {
     await fetchPeriods()
   }
 
+  async function updatePeriod(id, { name, dateFrom, dateTo, overrides }) {
+    const { error } = await supabase.from('journal_event_periods').update({
+      name,
+      date_from: dateFrom,
+      date_to: dateTo,
+      overrides,
+    }).eq('id', id)
+    if (error) throw error
+    await fetchPeriods()
+  }
+
   async function deletePeriod(id) {
     const { error } = await supabase.from('journal_event_periods').delete().eq('id', id)
     if (error) throw error
     await fetchPeriods()
   }
 
-  return { periods, loading, addPeriod, deletePeriod, refetch: fetchPeriods }
+  return { periods, loading, addPeriod, updatePeriod, deletePeriod, refetch: fetchPeriods }
 }
