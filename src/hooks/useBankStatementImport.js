@@ -141,7 +141,7 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
   const [autoSaveError, setAutoSaveError] = useState(null)
   const [autoSaving, setAutoSaving] = useState(false)
   const [queueError, setQueueError] = useState(null)
-  const [resolvingItem, setResolvingItem] = useState(false)
+  const [resolvingPendingId, setResolvingPendingId] = useState(null)
 
   // 確認要キュー（journal_pending_entries）をDBから読み込む。フォルダを選択・
   // スキャンしなくても、アプリを開いた時点で前回の続きが表示されるようにするため
@@ -335,41 +335,43 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
     }
   }
 
-  // 確認キューの先頭1件に分類を確定し、その場でjournal_entriesへ保存する
-  // （未選択のままスキップする場合は classification に null を渡す）。
+  // 確認キューの指定した1件（pendingIdで指定）に分類を確定し、その場でjournal_entriesへ保存する
+  // （未選択のままスキップする場合は classification に null を渡す）。先頭固定ではなく任意の
+  // 1件を選べるようにしてある（2026-09-20、本人の指示：「選んだやつから仕訳させて」）。
   // memo は確認要画面で入力された自由記述メモ（未入力なら null）。
   // 保存に失敗した場合はキューから外さず、次回呼び出し時に再試行できるようにする。
-  async function resolveQueueItem(classification, memo = '') {
-    if (queue.length === 0) return
+  async function resolveQueueItem(pendingId, classification, memo = '') {
+    const target = queue.find(item => item.pendingId === pendingId)
+    if (!target) return
     const manualMemo = memo && memo.trim() ? memo.trim() : null
-    const first = { ...queue[0], classification, classification_source_override: 'manual', manual_memo: manualMemo }
+    const resolved = { ...target, classification, classification_source_override: 'manual', manual_memo: manualMemo }
 
-    setResolvingItem(true)
+    setResolvingPendingId(pendingId)
     setQueueError(null)
     try {
-      const { error } = await supabase.from('journal_entries').insert([buildEntryRow(userId, first)])
+      const { error } = await supabase.from('journal_entries').insert([buildEntryRow(userId, resolved)])
       if (error) throw error
       // journal_entriesへの保存が成功した後、対応するjournal_pending_entriesの行を削除する。
       // ここが失敗しても、正式なデータ（journal_entries）は既に保存済みなので、
       // 表示上はキューから外し、pending側の後始末は諦める（次回スキャンで重複判定に
       // 引っかかりpendingが残っていても実害はない：ready/queueどちらにも入らないため）。
-      if (first.pendingId != null) {
-        await supabase.from('journal_pending_entries').delete().eq('id', first.pendingId)
+      if (resolved.pendingId != null) {
+        await supabase.from('journal_pending_entries').delete().eq('id', resolved.pendingId)
       }
-      setQueue(prev => prev.filter(item => item.pendingId !== first.pendingId))
-      setReadyRows(r => [...r, first])
+      setQueue(prev => prev.filter(item => item.pendingId !== resolved.pendingId))
+      setReadyRows(r => [...r, resolved])
       onImported?.()
     } catch (err) {
       setQueueError(`${err?.name ?? 'Error'}: ${err?.message ?? String(err)}`)
     } finally {
-      setResolvingItem(false)
+      setResolvingPendingId(null)
     }
   }
 
   return {
     folderName, scanning,
     unmatchedFiles, readyRows, queue, duplicateCount, scanResult,
-    autoSaveError, autoSaving, queueError, resolvingItem,
+    autoSaveError, autoSaving, queueError, resolvingPendingId,
     restoreFolder, pickFolder, scan, resolveQueueItem,
     retryAutoSave: () => saveAutoRows(pendingAutoRows),
   }
