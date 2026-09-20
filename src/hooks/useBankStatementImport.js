@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { parseBankStatement, billingMonthFromFilename } from '../lib/bankStatementParser'
 import { classifyDescription, applyEventPeriodOverride, ALL_CLASSIFICATIONS } from '../lib/journalRules'
@@ -67,6 +67,24 @@ function dupKey(institution, date, direction, amount) {
   return `${institution}|${date}|${direction}|${Number(amount)}`
 }
 
+// journal_pending_entries（DBの行）を、queue内部で使っている中間形式に変換する。
+// pendingId を持たせておき、確定時にどの行を削除すればよいか分かるようにする。
+function pendingRowToQueueItem(row) {
+  return {
+    pendingId: row.id,
+    institution: row.institution,
+    holder: row.card_holder,
+    transaction_date: row.transaction_date,
+    description: row.description,
+    direction: row.direction,
+    amount: Number(row.amount),
+    balance: row.balance,
+    candidates: row.candidates || [],
+    needsConfirmation: row.needs_confirmation,
+    source_file: row.source_file,
+  }
+}
+
 // 1件分の明細（scan()やresolveQueueItemが扱う中間形式）をjournal_entriesのinsert用行に変換する。
 // 自動仕訳・手動確定（確認要キュー）の両方から共通で使う（2026-09-19、全件即時保存化で切り出し）。
 function buildEntryRow(userId, r) {
@@ -93,6 +111,24 @@ function buildEntryRow(userId, r) {
   }
 }
 
+// 確認要（要確認）の1件をjournal_pending_entriesのinsert用行に変換する。
+function buildPendingRow(userId, r) {
+  return {
+    user_id: userId,
+    institution: r.institution,
+    card_holder: r.institution === '住友VISA' ? r.holder : null,
+    transaction_date: r.transaction_date,
+    billing_month: billingMonthFor(r.institution, r.transaction_date, r.source_file),
+    description: r.description,
+    direction: r.direction,
+    amount: r.amount,
+    balance: r.balance,
+    candidates: r.candidates,
+    needs_confirmation: !!r.needsConfirmation,
+    source_file: r.source_file,
+  }
+}
+
 export function useBankStatementImport(userId, onImported, eventPeriods) {
   const [folderName, setFolderName] = useState(null)
   const [scanning, setScanning] = useState(false)
@@ -106,6 +142,24 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
   const [autoSaving, setAutoSaving] = useState(false)
   const [queueError, setQueueError] = useState(null)
   const [resolvingItem, setResolvingItem] = useState(false)
+
+  // 確認要キュー（journal_pending_entries）をDBから読み込む。フォルダを選択・
+  // スキャンしなくても、アプリを開いた時点で前回の続きが表示されるようにするため
+  // （2026-09-20、本人の指示：「未仕訳分のデータを持って、あとから再開できる」
+  // ことを、CSVファイルの再スキャンではなくDB保存によって実現する）。
+  const loadPendingQueue = useCallback(async () => {
+    if (!userId) return
+    const { data, error } = await supabase
+      .from('journal_pending_entries')
+      .select('*')
+      .eq('user_id', userId)
+      .order('transaction_date', { ascending: true })
+    if (!error && data) {
+      setQueue(data.map(pendingRowToQueueItem))
+    }
+  }, [userId])
+
+  useEffect(() => { loadPendingQueue() }, [loadPendingQueue])
 
   const restoreFolder = useCallback(async () => {
     try {
@@ -129,7 +183,8 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
     setUnmatchedFiles([])
     setReadyRows([])
     setPendingAutoRows([])
-    setQueue([])
+    // queueはjournal_pending_entries（DB）が保持する永続的な状態なので、
+    // スキャンのたびにクリアしない（2026-09-20、DB保存化にあたり変更）
     setDuplicateCount(0)
     setScanResult(null)
     setAutoSaveError(null)
@@ -228,26 +283,50 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
         existingKeys = new Set(all.map(r => dupKey(r.institution, r.transaction_date, r.direction, r.amount)))
       }
 
+      // 既にjournal_pending_entries（前回までのスキャンで未仕訳のまま残っている分）に
+      // 入っているものは、二重に登録しない（2026-09-20、確認要キューのDB保存化）
+      let pendingKeys = new Set()
+      if (userId && institutions.length > 0) {
+        const { data, error } = await supabase
+          .from('journal_pending_entries')
+          .select('institution,transaction_date,direction,amount')
+          .eq('user_id', userId)
+          .in('institution', institutions)
+        if (error) throw error
+        pendingKeys = new Set((data || []).map(r => dupKey(r.institution, r.transaction_date, r.direction, r.amount)))
+      }
+
       const ready = []
-      const needsReview = []
+      const needsReviewNew = []
       let dupCount = 0
+      let alreadyPendingCount = 0
       for (const row of classified) {
         const key = dupKey(row.institution, row.transaction_date, row.direction, row.amount)
         if (existingKeys.has(key)) { dupCount++; continue }
         if (row.status === 'auto') {
           ready.push(row)
         } else {
-          needsReview.push({
+          if (pendingKeys.has(key)) { alreadyPendingCount++; continue }
+          needsReviewNew.push({
             ...row,
             candidates: row.candidates && row.candidates.length > 0 ? row.candidates : ALL_CLASSIFICATIONS,
           })
         }
       }
 
+      // 新しく見つかった確認要分だけをjournal_pending_entriesへ保存する。
+      // 前回までの未処理分（pendingKeysで除外した分）は既にDBにあるのでそのまま。
+      if (needsReviewNew.length > 0) {
+        const pendingDbRows = needsReviewNew.map(r => buildPendingRow(userId, r))
+        const { error } = await supabase.from('journal_pending_entries').insert(pendingDbRows)
+        if (error) throw error
+      }
+      await loadPendingQueue()
+
       setUnmatchedFiles(unmatched)
-      setQueue(needsReview)
       setDuplicateCount(dupCount)
-      setScanResult({ totalFiles: unmatched.length + institutions.length, institutions, total: classified.length, ready: ready.length, review: needsReview.length, duplicates: dupCount, excluded: excludedCount })
+      const reviewTotal = alreadyPendingCount + needsReviewNew.length
+      setScanResult({ totalFiles: unmatched.length + institutions.length, institutions, total: classified.length, ready: ready.length, review: reviewTotal, duplicates: dupCount, excluded: excludedCount })
       // 自動仕訳分はスキャン直後にその場で保存する（2026-09-19、途中終了時のやり直しを
       // 無くすため「インポート」ボタンを廃止し、確認要キューと同様に即時保存化）
       await saveAutoRows(ready)
@@ -270,7 +349,14 @@ export function useBankStatementImport(userId, onImported, eventPeriods) {
     try {
       const { error } = await supabase.from('journal_entries').insert([buildEntryRow(userId, first)])
       if (error) throw error
-      setQueue(prev => prev.slice(1))
+      // journal_entriesへの保存が成功した後、対応するjournal_pending_entriesの行を削除する。
+      // ここが失敗しても、正式なデータ（journal_entries）は既に保存済みなので、
+      // 表示上はキューから外し、pending側の後始末は諦める（次回スキャンで重複判定に
+      // 引っかかりpendingが残っていても実害はない：ready/queueどちらにも入らないため）。
+      if (first.pendingId != null) {
+        await supabase.from('journal_pending_entries').delete().eq('id', first.pendingId)
+      }
+      setQueue(prev => prev.filter(item => item.pendingId !== first.pendingId))
       setReadyRows(r => [...r, first])
       onImported?.()
     } catch (err) {
