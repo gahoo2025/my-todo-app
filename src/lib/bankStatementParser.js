@@ -45,15 +45,17 @@ function parseAmount(text) {
   return Number.isFinite(n) ? n : null
 }
 
-// カード明細の利用金額列は、まれに負の値になることがある
-// （journal_entries.amountはNOT NULLかつCHECK(amount >= 0)のため、そのまま
-// 出金として保存するとDB制約違反になる。2026-09-20、本人からの
-// 「自動仕訳分の保存に失敗しました：amount_check」報告で発覚）。
-// 当初「負の値＝返金（入金）」として扱ったが、実データ（同じ店名・同額の別取引が
-// 前後の請求月にまたがって存在するだけの分割払い等）で明らかに誤りだったため撤回。
-// 負の値も含め常に出金（絶対値）として扱う（2026-09-20、本人からの指摘で修正）。
+// カード明細の利用金額列は、返品時に負の値になる（journal_entries.amountは
+// NOT NULLかつCHECK(amount >= 0)のため、そのまま出金として保存するとDB制約違反に
+// なる。2026-09-20、本人からの「自動仕訳分の保存に失敗しました：amount_check」
+// 報告で発覚）。一時「分割払い等だろう」との推測で出金・絶対値のみの扱いに変更
+// したが、実際のCSVをShift-JISで確認したところ、負の値の行には必ず摘要欄に
+// 「返品」の注記があり、正真正銘の返金だった（本人指摘により実データで検証・
+// 訂正）。負の値は入金（返金）として扱い、絶対値をamountとする。
 function directionAndAmount(signedAmount) {
-  return { direction: '出金', amount: Math.abs(signedAmount) }
+  return signedAmount < 0
+    ? { direction: '入金', amount: -signedAmount }
+    : { direction: '出金', amount: signedAmount }
 }
 
 // "2026年7月3日" -> "2026-07-03"
