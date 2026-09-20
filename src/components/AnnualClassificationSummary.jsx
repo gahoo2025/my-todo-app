@@ -114,6 +114,57 @@ function PivotTable({ title, rows, months, totalsByMonth, grandTotal, totalsByMo
   )
 }
 
+// 収入−支出の月別収支表。プラス/マイナスを符号・色分けで表示する
+// （2026-09-20、本人の指示：「分類別年間収支の表にも加えてほしい」。月別明細の収支
+// サマリーと同じ考え方で、支出・収入それぞれの表だけでなく差引そのものも見せる）。
+function BalanceTable({ months, totalsByMonth, grandTotal, totalsByMonthExclTransfer, grandTotalExclTransfer }) {
+  function cellClass(v) {
+    return v > 0 ? 'text-[#248A3D]' : v < 0 ? 'text-[#FF3B30]' : 'text-[#1C1C1E]'
+  }
+  function fmt(v) {
+    if (!v) return '—'
+    return `${v > 0 ? '+' : '−'}${yen.format(Math.abs(v))}`
+  }
+  return (
+    <div className="ios-card p-0 overflow-hidden">
+      <p className="px-4 pt-3.5 pb-2 text-[13px] font-semibold text-[#1C1C1E]">収支（月別）</p>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-[12px] tabular-nums">
+          <thead>
+            <tr className="border-t border-black/[0.05]">
+              <th className="sticky left-0 bg-white text-left font-medium text-[#8E8E93] px-3 py-2 whitespace-nowrap">区分</th>
+              <th className="text-right font-semibold text-[#1C1C1E] px-3 py-2 whitespace-nowrap">年合計</th>
+              {months.map(m => (
+                <th key={m} className="text-right font-medium text-[#8E8E93] px-2 py-2 whitespace-nowrap">{m}月</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-t border-black/[0.08] bg-black/[0.02]">
+              <td className="sticky left-0 bg-[#FAFAFA] text-left font-semibold text-[#1C1C1E] px-3 py-2.5 whitespace-nowrap">収支</td>
+              <td className={`text-right font-bold px-3 py-2.5 whitespace-nowrap ${cellClass(grandTotal)}`}>{fmt(grandTotal)}</td>
+              {months.map(m => (
+                <td key={m} className={`text-right font-semibold px-2 py-2.5 whitespace-nowrap ${cellClass(totalsByMonth[m] || 0)}`}>
+                  {fmt(totalsByMonth[m] || 0)}
+                </td>
+              ))}
+            </tr>
+            <tr className="border-t border-black/[0.04]">
+              <td className="sticky left-0 bg-white text-left px-3 py-2 whitespace-nowrap text-[#1C1C1E]">収支（移動を除く）</td>
+              <td className={`text-right font-semibold px-3 py-2 whitespace-nowrap ${cellClass(grandTotalExclTransfer)}`}>{fmt(grandTotalExclTransfer)}</td>
+              {months.map(m => (
+                <td key={m} className={`text-right px-2 py-2 whitespace-nowrap ${cellClass(totalsByMonthExclTransfer[m] || 0)}`}>
+                  {fmt(totalsByMonthExclTransfer[m] || 0)}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // 分類別・月別の年間収支：選んだ年・取引先の範囲を、分類（行）×月（列）のピボット表で出金/入金それぞれ表示する
 export default function AnnualClassificationSummary({ entries, loading }) {
   const { user } = useAuth()
@@ -184,6 +235,18 @@ export default function AnnualClassificationSummary({ entries, loading }) {
     }
     return { out: build('出金'), inn: build('入金') }
   }, [entries, selectedYear, institution, level, classificationMap])
+
+  // 収支（収入−支出）を月別・年合計で算出する（表示用途のみなのでuseMemo化はしない）
+  const balanceByMonth = {}
+  for (const m of FISCAL_MONTHS) {
+    balanceByMonth[m] = (pivot.inn.totalsByMonth[m] || 0) - (pivot.out.totalsByMonth[m] || 0)
+  }
+  const balanceByMonthExclTransfer = {}
+  for (const m of FISCAL_MONTHS) {
+    balanceByMonthExclTransfer[m] = (pivot.inn.totalsByMonthExclTransfer[m] || 0) - (pivot.out.totalsByMonthExclTransfer[m] || 0)
+  }
+  const grandBalance = pivot.inn.grandTotal - pivot.out.grandTotal
+  const grandBalanceExclTransfer = pivot.inn.grandTotalExclTransfer - pivot.out.grandTotalExclTransfer
 
   if (loading || mapLoading) {
     return <p className="px-4 py-6 text-center text-[13px] text-[#AEAEB2]">読み込み中…</p>
@@ -265,6 +328,13 @@ export default function AnnualClassificationSummary({ entries, loading }) {
         ))}
       </div>
 
+      <BalanceTable
+        months={FISCAL_MONTHS}
+        totalsByMonth={balanceByMonth}
+        grandTotal={grandBalance}
+        totalsByMonthExclTransfer={balanceByMonthExclTransfer}
+        grandTotalExclTransfer={grandBalanceExclTransfer}
+      />
       <PivotTable
         title="支出（分類別・月別）"
         rows={pivot.out.rows}
