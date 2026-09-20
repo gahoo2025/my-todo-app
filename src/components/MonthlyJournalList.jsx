@@ -143,7 +143,12 @@ export default function MonthlyJournalList({ entries, loading }) {
   useEffect(() => {
     if (availableMonths.length === 0) return
     if (!selectedMonth || !availableMonths.includes(selectedMonth)) {
-      setSelectedMonth(availableMonths[0])
+      // 初期表示は「先月」を優先する。データに先月分が無ければ、これまで通り
+      // 最新月（availableMonths[0]）にフォールバックする。
+      const now = new Date()
+      const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const lastMonthKey = `${prevMonthDate.getFullYear()}${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`
+      setSelectedMonth(availableMonths.includes(lastMonthKey) ? lastMonthKey : availableMonths[0])
     }
   }, [availableMonths, selectedMonth])
 
