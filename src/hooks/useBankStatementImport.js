@@ -84,6 +84,12 @@ function buildEntryRow(userId, r) {
     classification_source: r.classification_source_override || 'rule_auto',
     memo: r.manual_memo ?? (r.needsConfirmation ? '（要確認：自動仕訳の再確認対象）' : null),
     source_file: r.source_file,
+    // journal_entriesのsource_sheetはNOT NULL制約（デフォルト値なし）。過去の履歴インポート分は
+    // 取引先名がそのままsource_sheetに入っている（元Excelのシート名。楽天カードえみのみ
+    // 「楽天カード」という旧シート名）ため、それに合わせる。2026-09-20、本人からの
+    // 「未分類が保存されない」報告を受けて発覚：この列が未設定だったため、明細インポート機能は
+    // 確認要キュー・自動仕訳とも、これまで一度もinsertが成功していなかった（バグ修正）。
+    source_sheet: r.institution === '楽天カードえみ' ? '楽天カード' : r.institution,
   }
 }
 
