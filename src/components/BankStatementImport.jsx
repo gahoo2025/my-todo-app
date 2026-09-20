@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useBankStatementImport, isFolderPickerSupported } from '../hooks/useBankStatementImport'
 import { useEventPeriods } from '../hooks/useEventPeriods'
+import { useCustomRules } from '../hooks/useCustomRules'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
 
@@ -55,12 +56,13 @@ function ScanDetailList({ readyRows, queue }) {
 export default function BankStatementImport({ onImported }) {
   const { user } = useAuth()
   const { periods } = useEventPeriods(user?.id)
+  const { rules: customRules } = useCustomRules(user?.id)
   const {
     folderName, scanning,
     unmatchedFiles, readyRows, queue, duplicateCount, scanResult,
     autoSaveError, autoSaving,
     restoreFolder, pickFolder, scan, retryAutoSave,
-  } = useBankStatementImport(user?.id, onImported, periods)
+  } = useBankStatementImport(user?.id, onImported, periods, customRules)
 
   useEffect(() => { restoreFolder() }, [restoreFolder])
 
