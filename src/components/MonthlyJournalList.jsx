@@ -183,7 +183,7 @@ export default function MonthlyJournalList({ entries, loading }) {
         inn += Number(e.amount) || 0
       }
     }
-    return { count: filtered.length, out, inn }
+    return { count: filtered.length, out, inn, balance: inn - out }
   }, [filtered, institution])
 
   // 取引先「すべて」表示のときだけ使う、取引先×仕訳１分類の集計（JOURNAL_INSTITUTIONSの順で並べる）
@@ -300,18 +300,28 @@ export default function MonthlyJournalList({ entries, loading }) {
 
       {/* ── サマリー ── */}
       {!loading && (
-        <div className="ios-card px-4 py-3.5 grid grid-cols-3 gap-2">
-          <div>
-            <p className="text-[10px] text-[#AEAEB2]">件数</p>
-            <p className="text-[16px] font-semibold text-[#1C1C1E] tabular-nums">{yen.format(summary.count)}件</p>
+        <div className="ios-card px-4 py-3.5 space-y-3">
+          {/* 収支（入金合計−出金合計）。プラス/マイナスが一目で分かるよう符号・色分けで強調表示する
+              （2026-09-20、本人の指示：「プラスなのかマイナスなのかわからん」） */}
+          <div className="flex items-center justify-between">
+            <p className="text-[12px] text-[#8E8E93]">収支{institution === 'all' && <span className="text-[10px] text-[#AEAEB2] ml-1">（カード取引先を除く）</span>}</p>
+            <p className={`text-[20px] font-bold tabular-nums ${summary.balance >= 0 ? 'text-[#248A3D]' : 'text-[#FF3B30]'}`}>
+              {summary.balance >= 0 ? '+' : '−'}{yen.format(Math.abs(summary.balance))}円
+            </p>
           </div>
-          <div>
-            <p className="text-[10px] text-[#AEAEB2]">出金合計{institution === 'all' && <span className="block">（カード取引先を除く）</span>}</p>
-            <p className="text-[16px] font-semibold text-[#1C1C1E] tabular-nums">{yen.format(summary.out)}円</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-[#AEAEB2]">入金合計</p>
-            <p className="text-[16px] font-semibold text-[#248A3D] tabular-nums">{yen.format(summary.inn)}円</p>
+          <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-black/[0.06]">
+            <div>
+              <p className="text-[10px] text-[#AEAEB2]">件数</p>
+              <p className="text-[16px] font-semibold text-[#1C1C1E] tabular-nums">{yen.format(summary.count)}件</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-[#AEAEB2]">出金合計{institution === 'all' && <span className="block">（カード取引先を除く）</span>}</p>
+              <p className="text-[16px] font-semibold text-[#1C1C1E] tabular-nums">{yen.format(summary.out)}円</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-[#AEAEB2]">入金合計</p>
+              <p className="text-[16px] font-semibold text-[#248A3D] tabular-nums">{yen.format(summary.inn)}円</p>
+            </div>
           </div>
         </div>
       )}
