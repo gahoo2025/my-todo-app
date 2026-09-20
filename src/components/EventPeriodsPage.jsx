@@ -101,6 +101,7 @@ export default function EventPeriodsPage() {
   const [name, setName] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [dateToTouched, setDateToTouched] = useState(false)
   const [rows, setRows] = useState([emptyOverrideRow()])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -110,6 +111,7 @@ export default function EventPeriodsPage() {
     setName('')
     setDateFrom('')
     setDateTo('')
+    setDateToTouched(false)
     setRows([emptyOverrideRow()])
     setError(null)
   }
@@ -119,6 +121,7 @@ export default function EventPeriodsPage() {
     setName(period.name)
     setDateFrom(period.dateFrom)
     setDateTo(period.dateTo)
+    setDateToTouched(true)
     const entries = Object.entries(period.overrides)
     setRows(entries.length > 0
       ? entries.map(([institution, classification]) => ({ institution, classification }))
@@ -213,14 +216,17 @@ export default function EventPeriodsPage() {
               onChange={e => {
                 const v = e.target.value
                 setDateFrom(v)
-                if (!dateTo) setDateTo(v)
+                if (!dateToTouched) setDateTo(v)
               }}
               className="flex-1 px-3 py-2 rounded-[10px] bg-white text-[13px] text-[#1C1C1E] focus:outline-none"
             />
             <input
               type="date"
               value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
+              onChange={e => {
+                setDateTo(e.target.value)
+                setDateToTouched(true)
+              }}
               className="flex-1 px-3 py-2 rounded-[10px] bg-white text-[13px] text-[#1C1C1E] focus:outline-none"
             />
           </div>
