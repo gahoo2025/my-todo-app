@@ -2,9 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useBankStatementImport } from '../hooks/useBankStatementImport'
 import { useJournalClassificationMap } from '../hooks/useJournalClassificationMap'
+import { useEventPeriods } from '../hooks/useEventPeriods'
 import { ALL_CLASSIFICATIONS, classificationsForInstitution } from '../lib/journalRules'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
+
+// 指定日付を含む登録済みイベント期間を全て返す（複数該当も許容）。
+// 2026-09-20、本人の指示：ETC・住友VISAのように取引先だけで内容がわかるものは自動上書きに
+// 任せる一方、摘要だけでは内容が分からない取引の方が多いため、手動仕訳時に「その日イベントが
+// あった」ことを思い出す手がかりとして表示する。上書き先（overrides）の有無は問わない。
+function eventsOnDate(eventPeriods, date) {
+  return (eventPeriods || []).filter(p => date >= p.dateFrom && date <= p.dateTo)
+}
 
 // 確認要の候補ボタン1つ分。ラベル（分類１）の下に、journal_classification_mapから引いた
 // 分類２・分類３を常時小さく表示する（2026-09-19、本人の指示。候補ごとに別の「詳細」ボタンを
@@ -101,6 +110,7 @@ export default function PendingJournalEntries({ onImported }) {
   const { user } = useAuth()
   const { queue, queueError, resolvingPendingId, resolveQueueItem } = useBankStatementImport(user?.id, onImported)
   const { map: classificationMap } = useJournalClassificationMap(user?.id)
+  const { periods: eventPeriods } = useEventPeriods(user?.id)
   const [selectedId, setSelectedId] = useState(null)
 
   // キューが更新されて選択中の項目が無くなった場合（確定済み等）は選択を解除する
@@ -162,6 +172,7 @@ export default function PendingJournalEntries({ onImported }) {
           {queue.map(item => {
             const isOpen = selectedId === item.pendingId
             const isResolving = resolvingPendingId === item.pendingId
+            const matchedEvents = eventsOnDate(eventPeriods, item.transaction_date)
             return (
               <div key={item.pendingId}>
                 <button
@@ -182,6 +193,18 @@ export default function PendingJournalEntries({ onImported }) {
                     </p>
                   </div>
                   <p className="text-[13px] text-[#1C1C1E] mt-1">{item.description || '（摘要なし）'}</p>
+                  {matchedEvents.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {matchedEvents.map(ev => (
+                        <span
+                          key={ev.id}
+                          className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-[#FF9500]/10 text-[#FF9500]"
+                        >
+                          📅 {ev.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </button>
                 {isOpen && (
                   <ResolvePanel

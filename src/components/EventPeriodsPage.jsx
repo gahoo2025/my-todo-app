@@ -87,6 +87,11 @@ function OverrideTemplatePicker({ templates, loading, rows, onApply, onSave, onD
 // journalRules.js内のハードコードからDBテーブル化）。
 // 2026-09-20、本人の指示で「明細インポート」タブから独立タブへ外だしし、
 // 登録済みイベントの編集機能を追加。
+// 2026-09-20、本人の指示で取引先→分類の上書き行を任意化（0件でも登録可能に）。
+// ETCや住友VISAのように取引先だけで内容が分かるものは自動上書きに任せ、摘要だけでは
+// 内容が分からない取引が多いことから、上書き先が無い「名前・期間のみ」のイベントも
+// 登録できるようにし、未仕訳画面での手動仕訳時に「その日イベントがあった」ことを
+// 思い出す手がかりとして使う運用（PendingJournalEntries.jsx参照）。
 export default function EventPeriodsPage() {
   const { user } = useAuth()
   const { periods, loading, addPeriod, updatePeriod, deletePeriod } = useEventPeriods(user?.id)
@@ -145,8 +150,8 @@ export default function EventPeriodsPage() {
   async function handleSubmit() {
     setError(null)
     const validRows = rows.filter(r => r.institution && r.classification.trim())
-    if (!name.trim() || !dateFrom || !dateTo || validRows.length === 0) {
-      setError('名前・開始日・終了日・上書き先分類（少なくとも1件）を入力してください。')
+    if (!name.trim() || !dateFrom || !dateTo) {
+      setError('名前・開始日・終了日を入力してください。')
       return
     }
     if (dateTo < dateFrom) {
@@ -184,8 +189,9 @@ export default function EventPeriodsPage() {
         </button>
       </div>
       <p className="text-[12px] text-[#8E8E93] mb-3">
-        旅行・お出かけに限らず、ピアノの発表会・空手の試合・散髪など、期間中の取引を
-        取引先ごとの分類へ自動で上書きしたい出来事を登録できます（新規インポート時のみ適用。既存データには影響しません）。
+        旅行・お出かけに限らず、ピアノの発表会・空手の試合・散髪など、日付で分かる出来事を登録できます。
+        取引先→分類の上書き（下部）は任意です。設定すると期間中の対象取引先の新規インポート分が自動で分類されます（既存データには影響しません）。
+        上書きを設定しない場合は、名前・期間だけが記録され、「未仕訳」タブでその日の明細を仕訳する際に思い出す手がかりとして表示されます。
       </p>
 
       {showForm && (
