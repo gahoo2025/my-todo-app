@@ -3,6 +3,15 @@ import { niceTicks } from '../lib/chartTicks'
 import { fiscalYearOf, computeNetByBillingMonth } from '../lib/journalTotals'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
+// Y軸目盛りラベル用の簡略表記（例：2,000,000→200万）。スマホ幅でも目盛りの数字が
+// 見えるようにするため、桁数の多い円表記ではなく万円単位で表示する
+// （2026-09-20、本人の指示：「収支推移の横線の金額が欲しい」）。
+function formatManYen(v) {
+  if (v === 0) return '0'
+  const man = v / 10000
+  const rounded = Math.round(man * 10) / 10
+  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}万`
+}
 // 年度＝4月始まり3月終わりで表示する（分類別年間収支と同じ並び）
 const FISCAL_MONTHS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
 // 比較する過去年度の本数（当年度＋この本数だけ過去に遡る。2026-08-30、本人指示で2年度分）
@@ -177,11 +186,12 @@ export default function FiscalYearBalanceChart({ entries, loading }) {
           </div>
 
           {/* ── グラフ本体 ── */}
-          <div className="relative h-[220px] md:pl-16">
-            <div className="hidden md:block absolute left-0 top-0 bottom-0 w-14 text-[10px] text-[#8E8E93] text-right pr-2">
+          <div className="relative h-[220px] pl-9 md:pl-16">
+            <div className="absolute left-0 top-0 bottom-0 w-9 md:w-14 text-[9px] md:text-[10px] text-[#8E8E93] text-right pr-1 md:pr-2">
               {chart.yTicks.map(t => (
-                <span key={t} className="absolute right-2 -translate-y-1/2" style={{ top: `${chart.toY(t)}%` }}>
-                  {yen.format(t)}
+                <span key={t} className="absolute right-1 md:right-2 -translate-y-1/2 whitespace-nowrap" style={{ top: `${chart.toY(t)}%` }}>
+                  <span className="md:hidden">{formatManYen(t)}</span>
+                  <span className="hidden md:inline">{yen.format(t)}</span>
                 </span>
               ))}
             </div>
@@ -244,7 +254,7 @@ export default function FiscalYearBalanceChart({ entries, loading }) {
                 />
               ))}
             </svg>
-            <div className="absolute left-0 md:left-16 right-0 -bottom-5 flex text-[10px] text-[#8E8E93]">
+            <div className="absolute left-9 md:left-16 right-0 -bottom-5 flex text-[10px] text-[#8E8E93]">
               {FISCAL_MONTHS.map((m, i) => (
                 <span key={m} className="flex-1 text-center">{m}月</span>
               ))}
