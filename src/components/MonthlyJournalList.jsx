@@ -1,5 +1,7 @@
 import { Fragment, useState, useMemo, useEffect } from 'react'
+import { useAuth } from '../hooks/useAuth'
 import { JOURNAL_INSTITUTIONS, CARD_INSTITUTIONS } from '../hooks/useJournalEntries'
+import { useEventPeriods } from '../hooks/useEventPeriods'
 import { isTransfer } from '../lib/journalTotals'
 import { ALL_CLASSIFICATIONS, classificationsForInstitution } from '../lib/journalRules'
 
@@ -11,6 +13,14 @@ function formatDate(s) {
   if (!s) return ''
   const [y, m, d] = s.split('-').map(Number)
   return `${y}/${m}/${d}`
+}
+
+// 指定日付を含む登録済みイベント期間を全て返す（複数該当も許容）。
+// PendingJournalEntries.jsxと同じ判定（2026-09-20、本人の指示：日付でイベントを
+// 思い出す手がかりとして使う運用）。月別明細でも同じ手がかりを見られるようにする
+// （2026-09-21、本人の指示：「月別明細にも登録済のイベントをだしてほしい」）。
+function eventsOnDate(eventPeriods, date) {
+  return (eventPeriods || []).filter(p => date >= p.dateFrom && date <= p.dateTo)
 }
 
 // billing_month（YYYYMM）を「2026年7月」形式に整形
@@ -87,13 +97,14 @@ function ClassificationEditPanel({ entry, onSave, onCancel }) {
 // 個別明細1件分のカード表示（「特定取引先」表示時の一覧と、「すべて」表示時のドリルダウンの
 // 両方から共通で呼び出す）。onUpdateClassificationが渡されている場合のみ「変更」ボタンで
 // 分類編集パネルを開ける（2026-09-20、本人の指示で確定後の分類変更に対応）。
-function EntryCard({ e, onUpdateClassification }) {
+function EntryCard({ e, onUpdateClassification, eventPeriods }) {
   // 出金は返品でamountがマイナスになることがある（2026-09-20、本人の指示で
   // 「返品はdirection: 出金のまま、amountをマイナス値」に統一したため）。
   // directionの文字列だけで符号を決めず、実際の符号（Math.abs前の値）で判定する。
   const isRefund = e.direction === '出金' && Number(e.amount) < 0
   const isOut = e.direction === '出金' && !isRefund
   const [editing, setEditing] = useState(false)
+  const matchedEvents = eventsOnDate(eventPeriods, e.transaction_date)
 
   async function handleSave(classification) {
     const result = await onUpdateClassification(e.id, classification)
@@ -135,6 +146,18 @@ function EntryCard({ e, onUpdateClassification }) {
             </button>
           )}
         </div>
+        {matchedEvents.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {matchedEvents.map(ev => (
+              <span
+                key={ev.id}
+                className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-[#FF9500]/10 text-[#FF9500]"
+              >
+                📅 {ev.name}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       {editing && (
         <ClassificationEditPanel entry={e} onSave={handleSave} onCancel={() => setEditing(false)} />
@@ -145,7 +168,7 @@ function EntryCard({ e, onUpdateClassification }) {
 
 // 取引先「すべて」表示：1取引先ぶんの、仕訳１分類ごとの集計表。
 // 分類行タップで、その分類配下の個別明細をアコーディオンで展開する（複数同時展開可）。
-function InstitutionClassificationTable({ institution, rows, expanded, onToggleRow, onUpdateClassification }) {
+function InstitutionClassificationTable({ institution, rows, expanded, onToggleRow, onUpdateClassification, eventPeriods }) {
   const totalCount = rows.reduce((sum, row) => sum + row.count, 0)
   const totalOut = rows.reduce((sum, row) => sum + row.out, 0)
   const totalInn = rows.reduce((sum, row) => sum + row.inn, 0)
@@ -199,7 +222,7 @@ function InstitutionClassificationTable({ institution, rows, expanded, onToggleR
                     <tr>
                       <td colSpan={4} className="px-3 pb-2.5 bg-black/[0.015]">
                         <div className="space-y-1.5 pt-1.5">
-                          {row.entries.map(e => <EntryCard key={e.id} e={e} onUpdateClassification={onUpdateClassification} />)}
+                          {row.entries.map(e => <EntryCard key={e.id} e={e} onUpdateClassification={onUpdateClassification} eventPeriods={eventPeriods} />)}
                         </div>
                       </td>
                     </tr>
@@ -218,6 +241,8 @@ function InstitutionClassificationTable({ institution, rows, expanded, onToggleR
 // billing_monthはカード（横浜VISA・住友VISA・楽天カードえみ）は支払い月、銀行は取引月を保持しているため、
 // この1列で絞り込むだけで「カードは利用日でなく支払い月」という運用がそのまま成立する
 export default function MonthlyJournalList({ entries, loading, onUpdateClassification }) {
+  const { user } = useAuth()
+  const { periods: eventPeriods } = useEventPeriods(user?.id)
   const [query, setQuery] = useState('')
   const [institution, setInstitution] = useState('all')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
@@ -451,12 +476,13 @@ export default function MonthlyJournalList({ entries, loading, onUpdateClassific
               expanded={expandedRows}
               onToggleRow={toggleRow}
               onUpdateClassification={onUpdateClassification}
+              eventPeriods={eventPeriods}
             />
           ))}
         </div>
       ) : (
         <div className="space-y-2">
-          {visible.map(e => <EntryCard key={e.id} e={e} onUpdateClassification={onUpdateClassification} />)}
+          {visible.map(e => <EntryCard key={e.id} e={e} onUpdateClassification={onUpdateClassification} eventPeriods={eventPeriods} />)}
 
           {visibleCount < filtered.length && (
             <button
