@@ -20,7 +20,7 @@ const SUB_FEATURES = [
 
 export default function KakeiboPage({ embedded }) {
   const { user } = useAuth()
-  const { entries, loading, refetch } = useJournalEntries(user?.id)
+  const { entries, loading, refetch, updateClassification } = useJournalEntries(user?.id)
   const [sub, setSub] = useState('monthly')
 
   const body = (
@@ -43,7 +43,7 @@ export default function KakeiboPage({ embedded }) {
       </div>
 
       <div className="mt-3">
-        {sub === 'monthly' && <MonthlyJournalList entries={entries} loading={loading} />}
+        {sub === 'monthly' && <MonthlyJournalList entries={entries} loading={loading} onUpdateClassification={updateClassification} />}
         {sub === 'annual' && <AnnualClassificationSummary entries={entries} loading={loading} />}
         {sub === 'balance' && <FiscalYearBalanceChart entries={entries} loading={loading} />}
         {sub === 'import' && <BankStatementImport onImported={refetch} />}

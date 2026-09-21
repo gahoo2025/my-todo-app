@@ -1,6 +1,7 @@
 import { Fragment, useState, useMemo, useEffect } from 'react'
 import { JOURNAL_INSTITUTIONS, CARD_INSTITUTIONS } from '../hooks/useJournalEntries'
 import { isTransfer } from '../lib/journalTotals'
+import { ALL_CLASSIFICATIONS, classificationsForInstitution } from '../lib/journalRules'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
 const PAGE_SIZE = 50
@@ -18,46 +19,133 @@ function formatMonth(ym) {
   return `${ym.slice(0, 4)}年${Number(ym.slice(4, 6))}月`
 }
 
+// 分類変更パネル（EntryCardの「変更」タップで開く）。まずその取引先で使われている分類、
+// 「その他」タップで全分類に候補を広げる（確認要画面のResolvePanelと同じ段階方式）。
+// 「未分類にする」も選べる（2026-09-20、本人の指示：「未仕訳を仕訳した後、参照変更が
+// できるようにして欲しい」＝確定後の分類間違いを後から直せるようにする）。
+function ClassificationEditPanel({ entry, onSave, onCancel }) {
+  const [stage, setStage] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+
+  const stage0 = useMemo(() => classificationsForInstitution(entry.institution), [entry.institution])
+  const stage1 = useMemo(() => ALL_CLASSIFICATIONS.filter(c => !stage0.includes(c)), [stage0])
+  const shown = stage === 0 ? stage0 : [...stage0, ...stage1]
+
+  async function handlePick(classification) {
+    setSaving(true)
+    setError(null)
+    const { error: err } = await onSave(classification)
+    setSaving(false)
+    if (err) setError(`保存に失敗しました：${err.message ?? String(err)}（もう一度お試しください）`)
+  }
+
+  return (
+    <div className="px-4 pb-3 pt-1 bg-black/[0.015] border-t border-black/[0.06]">
+      <div className="flex flex-wrap gap-2 pt-2">
+        {shown.map(c => (
+          <button
+            key={c}
+            onClick={() => handlePick(c)}
+            disabled={saving}
+            className={`px-3 py-1.5 rounded-[14px] text-[13px] font-medium active:opacity-60 disabled:opacity-40 ${
+              c === entry.classification ? 'bg-[#007AFF] text-white' : 'bg-[#007AFF]/10 text-[#007AFF]'
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+        {stage === 0 && stage1.length > 0 && (
+          <button
+            onClick={() => setStage(1)}
+            disabled={saving}
+            className="px-3 py-1.5 rounded-full bg-black/[0.06] text-[#8E8E93] text-[13px] font-medium active:opacity-60 disabled:opacity-40"
+          >
+            その他
+          </button>
+        )}
+        <button
+          onClick={() => handlePick(null)}
+          disabled={saving}
+          className="px-3 py-1.5 rounded-full bg-black/[0.06] text-[#8E8E93] text-[13px] font-medium active:opacity-60 disabled:opacity-40"
+        >
+          未分類にする
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={saving}
+          className="px-3 py-1.5 rounded-full text-[#AEAEB2] text-[13px] font-medium active:opacity-60 disabled:opacity-40"
+        >
+          キャンセル
+        </button>
+      </div>
+      {error && <p className="mt-2 text-[13px] text-[#FF3B30]">{error}</p>}
+    </div>
+  )
+}
+
 // 個別明細1件分のカード表示（「特定取引先」表示時の一覧と、「すべて」表示時のドリルダウンの
-// 両方から共通で呼び出す。見た目・ロジックはこれまでの一覧表示から変更していない）
-function EntryCard({ e }) {
+// 両方から共通で呼び出す）。onUpdateClassificationが渡されている場合のみ「変更」ボタンで
+// 分類編集パネルを開ける（2026-09-20、本人の指示で確定後の分類変更に対応）。
+function EntryCard({ e, onUpdateClassification }) {
   // 出金は返品でamountがマイナスになることがある（2026-09-20、本人の指示で
   // 「返品はdirection: 出金のまま、amountをマイナス値」に統一したため）。
   // directionの文字列だけで符号を決めず、実際の符号（Math.abs前の値）で判定する。
   const isRefund = e.direction === '出金' && Number(e.amount) < 0
   const isOut = e.direction === '出金' && !isRefund
+  const [editing, setEditing] = useState(false)
+
+  async function handleSave(classification) {
+    const result = await onUpdateClassification(e.id, classification)
+    if (!result?.error) setEditing(false)
+    return result
+  }
+
   return (
-    <div className="ios-card px-4 py-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-[#007AFF]/10 text-[#007AFF]">
-            {e.institution}
-          </span>
-          {e.card_holder && (
-            <span className="text-[11px] text-[#8E8E93]">{e.card_holder}様</span>
-          )}
-          <span className="text-[11px] text-[#AEAEB2]">{formatDate(e.transaction_date)}</span>
+    <div className="ios-card p-0 overflow-hidden">
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-[#007AFF]/10 text-[#007AFF]">
+              {e.institution}
+            </span>
+            {e.card_holder && (
+              <span className="text-[11px] text-[#8E8E93]">{e.card_holder}様</span>
+            )}
+            <span className="text-[11px] text-[#AEAEB2]">{formatDate(e.transaction_date)}</span>
+          </div>
+          <p className={`text-[15px] font-semibold tabular-nums ${isOut ? 'text-[#1C1C1E]' : 'text-[#248A3D]'}`}>
+            {isOut ? '−' : '+'}{yen.format(Math.abs(e.amount))}円{isRefund && <span className="text-[11px] font-normal text-[#AEAEB2] ml-1">（返品）</span>}
+          </p>
         </div>
-        <p className={`text-[15px] font-semibold tabular-nums ${isOut ? 'text-[#1C1C1E]' : 'text-[#248A3D]'}`}>
-          {isOut ? '−' : '+'}{yen.format(Math.abs(e.amount))}円{isRefund && <span className="text-[11px] font-normal text-[#AEAEB2] ml-1">（返品）</span>}
-        </p>
+        <p className="text-[14px] text-[#1C1C1E] mt-1.5">{e.description}</p>
+        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+          {e.classification && (
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-black/[0.05] text-[#636366]">
+              {e.classification}
+            </span>
+          )}
+          {e.memo && <span className="text-[11px] text-[#AEAEB2]">{e.memo}</span>}
+          {onUpdateClassification && (
+            <button
+              onClick={() => setEditing(v => !v)}
+              className="text-[11px] font-medium text-[#007AFF] active:opacity-60"
+            >
+              {editing ? '閉じる' : '変更'}
+            </button>
+          )}
+        </div>
       </div>
-      <p className="text-[14px] text-[#1C1C1E] mt-1.5">{e.description}</p>
-      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-        {e.classification && (
-          <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-black/[0.05] text-[#636366]">
-            {e.classification}
-          </span>
-        )}
-        {e.memo && <span className="text-[11px] text-[#AEAEB2]">{e.memo}</span>}
-      </div>
+      {editing && (
+        <ClassificationEditPanel entry={e} onSave={handleSave} onCancel={() => setEditing(false)} />
+      )}
     </div>
   )
 }
 
 // 取引先「すべて」表示：1取引先ぶんの、仕訳１分類ごとの集計表。
 // 分類行タップで、その分類配下の個別明細をアコーディオンで展開する（複数同時展開可）。
-function InstitutionClassificationTable({ institution, rows, expanded, onToggleRow }) {
+function InstitutionClassificationTable({ institution, rows, expanded, onToggleRow, onUpdateClassification }) {
   const totalCount = rows.reduce((sum, row) => sum + row.count, 0)
   const totalOut = rows.reduce((sum, row) => sum + row.out, 0)
   const totalInn = rows.reduce((sum, row) => sum + row.inn, 0)
@@ -111,7 +199,7 @@ function InstitutionClassificationTable({ institution, rows, expanded, onToggleR
                     <tr>
                       <td colSpan={4} className="px-3 pb-2.5 bg-black/[0.015]">
                         <div className="space-y-1.5 pt-1.5">
-                          {row.entries.map(e => <EntryCard key={e.id} e={e} />)}
+                          {row.entries.map(e => <EntryCard key={e.id} e={e} onUpdateClassification={onUpdateClassification} />)}
                         </div>
                       </td>
                     </tr>
@@ -129,7 +217,7 @@ function InstitutionClassificationTable({ institution, rows, expanded, onToggleR
 // 月別明細：仕訳結果を年月（billing_month）で絞り込んで一覧表示する
 // billing_monthはカード（横浜VISA・住友VISA・楽天カードえみ）は支払い月、銀行は取引月を保持しているため、
 // この1列で絞り込むだけで「カードは利用日でなく支払い月」という運用がそのまま成立する
-export default function MonthlyJournalList({ entries, loading }) {
+export default function MonthlyJournalList({ entries, loading, onUpdateClassification }) {
   const [query, setQuery] = useState('')
   const [institution, setInstitution] = useState('all')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
@@ -362,12 +450,13 @@ export default function MonthlyJournalList({ entries, loading }) {
               rows={t.rows}
               expanded={expandedRows}
               onToggleRow={toggleRow}
+              onUpdateClassification={onUpdateClassification}
             />
           ))}
         </div>
       ) : (
         <div className="space-y-2">
-          {visible.map(e => <EntryCard key={e.id} e={e} />)}
+          {visible.map(e => <EntryCard key={e.id} e={e} onUpdateClassification={onUpdateClassification} />)}
 
           {visibleCount < filtered.length && (
             <button
