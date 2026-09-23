@@ -4,6 +4,7 @@ import { useBankStatementImport } from '../hooks/useBankStatementImport'
 import { useJournalClassificationMap } from '../hooks/useJournalClassificationMap'
 import { useEventPeriods } from '../hooks/useEventPeriods'
 import { useCustomRules } from '../hooks/useCustomRules'
+import { JOURNAL_INSTITUTIONS } from '../hooks/useJournalEntries'
 import { ALL_CLASSIFICATIONS, classificationsForInstitution, classifyDescription } from '../lib/journalRules'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
@@ -115,6 +116,187 @@ function ResolvePanel({ item, classificationMap, resolving, queueError, canLearn
   )
 }
 
+const CARD_HOLDERS = ['智広', '恵美']
+
+function todayStr() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// CSVインポートを経由しない明細（現金払い等）をその場で登録するフォーム（2026-09-21新設、
+// 本人の指示：「未仕訳を仕訳するときに新しい明細を登録できるようにしてほしい」）。
+// 仕訳１は既存分類の候補（datalist）を出しつつ自由入力も可能、仕訳２・仕訳３は
+// journal_classification_mapに既に存在する値のみから選択（新規作成不可）とする。
+// 仕訳１が対応表にマッチする場合は仕訳２・仕訳３をデフォルト補完する。
+function AddManualEntryForm({ classificationMap, classification2Options, classification3Options, saving, onSubmit, onCancel }) {
+  const [institution, setInstitution] = useState(JOURNAL_INSTITUTIONS[0])
+  const [holder, setHolder] = useState(CARD_HOLDERS[0])
+  const [transactionDate, setTransactionDate] = useState(todayStr())
+  const [description, setDescription] = useState('')
+  const [direction, setDirection] = useState('出金')
+  const [amount, setAmount] = useState('')
+  const [memo, setMemo] = useState('')
+  const [classification1, setClassification1] = useState('')
+  const [classification2, setClassification2] = useState('')
+  const [classification3, setClassification3] = useState('')
+  const [error, setError] = useState(null)
+
+  // 仕訳１が対応表にマッチしたら仕訳２・３をデフォルト補完する（本人が後から変更可能）
+  function handleClassification1Change(value) {
+    setClassification1(value)
+    const detail = classificationMap.get(`${institution}|${value}`)
+    if (detail) {
+      setClassification2(detail.classification_2 || '')
+      setClassification3(detail.classification_3 || '')
+    }
+  }
+
+  async function handleSubmit() {
+    setError(null)
+    if (!transactionDate || !amount || !classification1) {
+      setError('取引日・金額・仕訳１は必須です')
+      return
+    }
+    const entry = {
+      institution,
+      holder: institution === '住友VISA' ? holder : null,
+      transaction_date: transactionDate,
+      description: description.trim() || '（摘要なし）',
+      direction,
+      amount: Number(amount),
+      classification: classification1,
+      classification_2: classification2 || null,
+      classification_3: classification3 || null,
+      memo,
+    }
+    const result = await onSubmit(entry)
+    if (result?.error) {
+      setError(result.error)
+    }
+  }
+
+  return (
+    <div className="ios-card px-4 py-4 space-y-2.5">
+      <p className="text-[13px] font-semibold text-[#1C1C1E]">新しい明細を追加</p>
+      <div className="grid grid-cols-2 gap-2">
+        <select
+          value={institution}
+          onChange={e => setInstitution(e.target.value)}
+          disabled={saving}
+          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
+        >
+          {JOURNAL_INSTITUTIONS.map(inst => <option key={inst} value={inst}>{inst}</option>)}
+        </select>
+        {institution === '住友VISA' && (
+          <select
+            value={holder}
+            onChange={e => setHolder(e.target.value)}
+            disabled={saving}
+            className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
+          >
+            {CARD_HOLDERS.map(h => <option key={h} value={h}>{h}様</option>)}
+          </select>
+        )}
+        <input
+          type="date"
+          value={transactionDate}
+          onChange={e => setTransactionDate(e.target.value)}
+          disabled={saving}
+          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
+        />
+        <select
+          value={direction}
+          onChange={e => setDirection(e.target.value)}
+          disabled={saving}
+          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
+        >
+          <option value="出金">出金</option>
+          <option value="入金">入金</option>
+        </select>
+        <input
+          type="number"
+          inputMode="numeric"
+          value={amount}
+          onChange={e => setAmount(e.target.value)}
+          placeholder="金額"
+          disabled={saving}
+          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] disabled:opacity-60"
+        />
+        <input
+          type="text"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder="摘要（任意）"
+          disabled={saving}
+          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] disabled:opacity-60"
+        />
+      </div>
+
+      <input
+        type="text"
+        list="manual-entry-classification1-options"
+        value={classification1}
+        onChange={e => handleClassification1Change(e.target.value)}
+        placeholder="仕訳１（既存から選択、または新規入力）"
+        disabled={saving}
+        className="w-full px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] disabled:opacity-60"
+      />
+      <datalist id="manual-entry-classification1-options">
+        {ALL_CLASSIFICATIONS.map(c => <option key={c} value={c} />)}
+      </datalist>
+
+      <div className="grid grid-cols-2 gap-2">
+        <select
+          value={classification2}
+          onChange={e => setClassification2(e.target.value)}
+          disabled={saving}
+          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
+        >
+          <option value="">仕訳２（未選択）</option>
+          {classification2Options.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select
+          value={classification3}
+          onChange={e => setClassification3(e.target.value)}
+          disabled={saving}
+          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
+        >
+          <option value="">仕訳３（未選択）</option>
+          {classification3Options.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+
+      <input
+        type="text"
+        value={memo}
+        onChange={e => setMemo(e.target.value)}
+        placeholder="メモ（任意）"
+        disabled={saving}
+        className="w-full px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] disabled:opacity-60"
+      />
+
+      {error && <p className="text-[13px] text-[#FF3B30]">{error}</p>}
+
+      <div className="flex gap-2 pt-1">
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
+          className="px-4 py-2 rounded-[10px] bg-[#007AFF] text-white text-[13px] font-medium active:opacity-60 disabled:opacity-40"
+        >
+          {saving ? '登録中…' : '登録する'}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={saving}
+          className="px-4 py-2 rounded-[10px] bg-black/[0.06] text-[#8E8E93] text-[13px] font-medium active:opacity-60 disabled:opacity-40"
+        >
+          キャンセル
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // 「明細インポート」から独立した未仕訳（確認要）タブ。フォルダ選択API（PC専用）には依存しないため、
 // スマホからも仕訳の確認・確定ができる（2026-09-20、本人の指示：「明細インポートの未仕訳も外だし
 // すべき」「スマホから仕訳ができない」。未仕訳キュー（journal_pending_entries）はDB保存されており、
@@ -125,11 +307,15 @@ function ResolvePanel({ item, classificationMap, resolving, queueError, canLearn
 // 先頭から処理させる方式をやめ、リストから選んで確定できるアコーディオン形式にした）。
 export default function PendingJournalEntries({ onImported }) {
   const { user } = useAuth()
-  const { queue, queueError, resolvingPendingId, resolveQueueItem } = useBankStatementImport(user?.id, onImported)
-  const { map: classificationMap } = useJournalClassificationMap(user?.id)
+  const {
+    queue, queueError, resolvingPendingId, resolveQueueItem,
+    addManualEntry, manualSaving,
+  } = useBankStatementImport(user?.id, onImported)
+  const { map: classificationMap, classification2Options, classification3Options } = useJournalClassificationMap(user?.id)
   const { periods: eventPeriods } = useEventPeriods(user?.id)
   const { addRule: addCustomRule } = useCustomRules(user?.id)
   const [selectedId, setSelectedId] = useState(null)
+  const [showAddForm, setShowAddForm] = useState(false)
 
   // キューが更新されて選択中の項目が無くなった場合（確定済み等）は選択を解除する
   useEffect(() => {
@@ -161,6 +347,22 @@ export default function PendingJournalEntries({ onImported }) {
     await resolveQueueItem(item.pendingId, classification, memo)
   }
 
+  // CSVインポートに無い明細（現金払い等）をその場で追加する。重複と思われる明細が
+  // 既に登録済みの場合は確認を挟み、続行が選ばれたらforce=trueで再送する。
+  async function handleAddManualEntry(entry) {
+    const result = await addManualEntry(entry)
+    if (result?.duplicate) {
+      const proceed = window.confirm('同じ内容（取引先・日付・入出金区分・金額）の明細が既に登録されています。続けて登録しますか？')
+      if (!proceed) return {}
+      return addManualEntry(entry, { force: true }).then(r => {
+        if (r?.success) setShowAddForm(false)
+        return r
+      })
+    }
+    if (result?.success) setShowAddForm(false)
+    return result
+  }
+
   return (
     <div className="space-y-3">
       <div className="ios-card px-4 py-4">
@@ -169,6 +371,25 @@ export default function PendingJournalEntries({ onImported }) {
           明細インポートで自動分類できなかった取引です。タップした明細から仕訳を確定できます。
         </p>
       </div>
+
+      {!showAddForm && (
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="w-full ios-card px-4 py-3 text-[13px] font-medium text-[#007AFF] active:opacity-60"
+        >
+          ＋ 新しい明細を追加
+        </button>
+      )}
+      {showAddForm && (
+        <AddManualEntryForm
+          classificationMap={classificationMap}
+          classification2Options={classification2Options}
+          classification3Options={classification3Options}
+          saving={manualSaving}
+          onSubmit={handleAddManualEntry}
+          onCancel={() => setShowAddForm(false)}
+        />
+      )}
 
       {totals.count > 0 && (
         <div className="ios-card px-4 py-3.5 grid grid-cols-3 gap-2">
