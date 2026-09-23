@@ -6,10 +6,12 @@ import { supabase } from '../lib/supabase'
 // 146件程度（2026-08-29時点）なので全件取得で十分。
 export function useJournalClassificationMap(userId) {
   const [map, setMap] = useState(new Map())
-  // 取引先横断の仕訳２・仕訳３のdistinct値一覧（未仕訳の明細手動登録フォームで、
-  // 仕訳２・仕訳３を「既存のものから選択」させるための選択肢。2026-09-21新設）。
+  // 取引先横断の仕訳２・仕訳３・取引先/グループのdistinct値一覧（未仕訳タブの
+  // 「＋ 新しい仕訳分類を追加」フォームで、既存値からの選択・入力候補として使う。
+  // 2026-09-21新設、2026-09-23：明細登録ではなく仕訳分類定義の登録用途に作り直し）。
   const [classification2Options, setClassification2Options] = useState([])
   const [classification3Options, setClassification3Options] = useState([])
+  const [institutionGroupOptions, setInstitutionGroupOptions] = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetchMap = useCallback(async () => {
@@ -24,6 +26,7 @@ export function useJournalClassificationMap(userId) {
       const m = new Map()
       const c2 = new Set()
       const c3 = new Set()
+      const groups = new Set()
       for (const row of data) {
         m.set(`${row.institution_or_group}|${row.classification_1}`, {
           classification_2: row.classification_2,
@@ -31,15 +34,41 @@ export function useJournalClassificationMap(userId) {
         })
         if (row.classification_2) c2.add(row.classification_2)
         if (row.classification_3) c3.add(row.classification_3)
+        if (row.institution_or_group) groups.add(row.institution_or_group)
       }
       setMap(m)
       setClassification2Options([...c2].sort())
       setClassification3Options([...c3].sort())
+      setInstitutionGroupOptions([...groups].sort())
     }
     setLoading(false)
   }, [userId])
 
   useEffect(() => { fetchMap() }, [fetchMap])
 
-  return { map, classification2Options, classification3Options, loading, refetch: fetchMap }
+  // 仕訳分類定義（仕訳１→仕訳２・仕訳３）を新規登録する（2026-09-23新設、本人の指示：
+  // 「未仕訳を仕訳するときに新しい明細を登録できるようにしてほしい」の真意が実は
+  // 「候補に無い仕訳の組み合わせをその場で定義したい」だったと判明したため作り直した。
+  // 実際の取引（journal_entries）とは無関係のため日付・金額は扱わない）。
+  // (user_id, institution_or_group, classification_1)一意制約でupsertし、同じ組み合わせの
+  // 再登録は上書き更新になる（journal_custom_rulesのaddRuleと同じ考え方）。
+  async function addDefinition({ institutionOrGroup, classification1, classification2, classification3, cashflowDirection, note }) {
+    const { error } = await supabase.from('journal_classification_map').upsert({
+      user_id: userId,
+      institution_or_group: institutionOrGroup,
+      classification_1: classification1,
+      classification_2: classification2,
+      classification_3: classification3,
+      cashflow_direction: cashflowDirection,
+      status: '新規',
+      note: note || null,
+    }, { onConflict: 'user_id,institution_or_group,classification_1' })
+    if (error) throw error
+    await fetchMap()
+  }
+
+  return {
+    map, classification2Options, classification3Options, institutionGroupOptions,
+    loading, refetch: fetchMap, addDefinition,
+  }
 }

@@ -99,8 +99,6 @@ function buildEntryRow(userId, r) {
     amount: r.amount,
     balance: r.balance,
     classification: r.classification,
-    classification_2: r.classification_2 ?? null,
-    classification_3: r.classification_3 ?? null,
     classification_source: r.classification_source_override || 'rule_auto',
     memo: r.manual_memo ?? (r.needsConfirmation ? '（要確認：自動仕訳の再確認対象）' : null),
     source_file: r.source_file,
@@ -144,8 +142,6 @@ export function useBankStatementImport(userId, onImported, eventPeriods, customR
   const [autoSaving, setAutoSaving] = useState(false)
   const [queueError, setQueueError] = useState(null)
   const [resolvingPendingId, setResolvingPendingId] = useState(null)
-  const [manualSaving, setManualSaving] = useState(false)
-  const [manualError, setManualError] = useState(null)
 
   // 確認要キュー（journal_pending_entries）をDBから読み込む。フォルダを選択・
   // スキャンしなくても、アプリを開いた時点で前回の続きが表示されるようにするため
@@ -374,68 +370,11 @@ export function useBankStatementImport(userId, onImported, eventPeriods, customR
     }
   }
 
-  // 未仕訳タブから、CSVインポートを経由しない明細（現金払い等）をその場で新規登録する
-  // （2026-09-21、本人の指示：「未仕訳を仕訳するときに新しい明細を登録できるようにしてほしい」）。
-  // resolveQueueItemと異なりjournal_pending_entriesを経由しないため、キューへの削除処理は無い。
-  // 既存明細との重複（取引先・日付・入出金区分・金額が完全一致）があれば、force=trueが
-  // 渡されるまで確定せず{ duplicate: true }を返す（本人に確認を挟むため。ブロックはしない）。
-  async function addManualEntry(entry, { force = false } = {}) {
-    if (!userId) return { error: 'ユーザーが未確定です' }
-    setManualSaving(true)
-    setManualError(null)
-    try {
-      if (!force) {
-        const { data, error } = await supabase
-          .from('journal_entries')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('institution', entry.institution)
-          .eq('transaction_date', entry.transaction_date)
-          .eq('direction', entry.direction)
-          .eq('amount', entry.amount)
-          .limit(1)
-        if (error) throw error
-        if (data && data.length > 0) return { duplicate: true }
-      }
-
-      const row = buildEntryRow(userId, {
-        institution: entry.institution,
-        holder: entry.holder,
-        transaction_date: entry.transaction_date,
-        description: entry.description,
-        direction: entry.direction,
-        amount: entry.amount,
-        balance: null,
-        classification: entry.classification,
-        classification_2: entry.classification_2,
-        classification_3: entry.classification_3,
-        classification_source_override: 'manual',
-        manual_memo: entry.memo,
-        // journal_entries.source_fileはNOT NULL制約（デフォルト値はCSVインポート由来の
-        // 旧ファイル名）のため、CSVを経由しない手動登録であることが分かる固定値を入れる
-        // （2026-09-21、実データ確認insertで発覚：nullを渡すとNOT NULL制約違反になる）。
-        source_file: '手動登録',
-      })
-      const { error } = await supabase.from('journal_entries').insert([row])
-      if (error) throw error
-      setReadyRows(r => [...r, row])
-      onImported?.()
-      return { success: true }
-    } catch (err) {
-      const message = `${err?.name ?? 'Error'}: ${err?.message ?? String(err)}`
-      setManualError(message)
-      return { error: message }
-    } finally {
-      setManualSaving(false)
-    }
-  }
-
   return {
     folderName, scanning,
     unmatchedFiles, readyRows, queue, duplicateCount, scanResult,
     autoSaveError, autoSaving, queueError, resolvingPendingId,
-    manualSaving, manualError,
-    restoreFolder, pickFolder, scan, resolveQueueItem, addManualEntry,
+    restoreFolder, pickFolder, scan, resolveQueueItem,
     retryAutoSave: () => saveAutoRows(pendingAutoRows),
   }
 }
