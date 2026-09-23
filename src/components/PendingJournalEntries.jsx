@@ -4,7 +4,6 @@ import { useBankStatementImport } from '../hooks/useBankStatementImport'
 import { useJournalClassificationMap } from '../hooks/useJournalClassificationMap'
 import { useEventPeriods } from '../hooks/useEventPeriods'
 import { useCustomRules } from '../hooks/useCustomRules'
-import { JOURNAL_INSTITUTIONS } from '../hooks/useJournalEntries'
 import { ALL_CLASSIFICATIONS, classificationsForInstitution, classifyDescription } from '../lib/journalRules'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
@@ -116,35 +115,26 @@ function ResolvePanel({ item, classificationMap, resolving, queueError, canLearn
   )
 }
 
-const CARD_HOLDERS = ['智広', '恵美']
-
-function todayStr() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// CSVインポートを経由しない明細（現金払い等）をその場で登録するフォーム（2026-09-21新設、
-// 本人の指示：「未仕訳を仕訳するときに新しい明細を登録できるようにしてほしい」）。
+// 仕訳分類定義（仕訳１→仕訳２・仕訳３の組み合わせ）を新規登録するフォーム
+// （2026-09-23、本人の指示：「未仕訳を仕訳するときに新しい明細を登録できるようにしてほしい」の
+// 真意が「実際の取引ではなく、候補に無い仕訳の組み合わせをその場で定義したい」だったと判明し
+// 作り直した。実際の取引ではないため日付・金額は扱わない）。
 // 仕訳１は既存分類の候補（datalist）を出しつつ自由入力も可能、仕訳２・仕訳３は
-// journal_classification_mapに既に存在する値のみから選択（新規作成不可）とする。
+// journal_classification_mapに既に存在する値のみから選択（新規作成不可、必須）とする。
 // 仕訳１が対応表にマッチする場合は仕訳２・仕訳３をデフォルト補完する。
-function AddManualEntryForm({ classificationMap, classification2Options, classification3Options, saving, onSubmit, onCancel }) {
-  const [institution, setInstitution] = useState(JOURNAL_INSTITUTIONS[0])
-  const [holder, setHolder] = useState(CARD_HOLDERS[0])
-  const [transactionDate, setTransactionDate] = useState(todayStr())
-  const [description, setDescription] = useState('')
-  const [direction, setDirection] = useState('出金')
-  const [amount, setAmount] = useState('')
-  const [memo, setMemo] = useState('')
+function AddClassificationDefinitionForm({ classificationMap, classification2Options, classification3Options, institutionGroupOptions, saving, onSubmit, onCancel }) {
+  const [institutionOrGroup, setInstitutionOrGroup] = useState('')
   const [classification1, setClassification1] = useState('')
   const [classification2, setClassification2] = useState('')
   const [classification3, setClassification3] = useState('')
+  const [cashflowDirection, setCashflowDirection] = useState('出金')
+  const [note, setNote] = useState('')
   const [error, setError] = useState(null)
 
   // 仕訳１が対応表にマッチしたら仕訳２・３をデフォルト補完する（本人が後から変更可能）
   function handleClassification1Change(value) {
     setClassification1(value)
-    const detail = classificationMap.get(`${institution}|${value}`)
+    const detail = classificationMap.get(`${institutionOrGroup}|${value}`)
     if (detail) {
       setClassification2(detail.classification_2 || '')
       setClassification3(detail.classification_3 || '')
@@ -153,23 +143,18 @@ function AddManualEntryForm({ classificationMap, classification2Options, classif
 
   async function handleSubmit() {
     setError(null)
-    if (!transactionDate || !amount || !classification1) {
-      setError('取引日・金額・仕訳１は必須です')
+    if (!institutionOrGroup.trim() || !classification1.trim() || !classification2 || !classification3) {
+      setError('取引先・グループ、仕訳１～３はすべて必須です')
       return
     }
-    const entry = {
-      institution,
-      holder: institution === '住友VISA' ? holder : null,
-      transaction_date: transactionDate,
-      description: description.trim() || '（摘要なし）',
-      direction,
-      amount: Number(amount),
-      classification: classification1,
-      classification_2: classification2 || null,
-      classification_3: classification3 || null,
-      memo,
-    }
-    const result = await onSubmit(entry)
+    const result = await onSubmit({
+      institutionOrGroup: institutionOrGroup.trim(),
+      classification1: classification1.trim(),
+      classification2,
+      classification3,
+      cashflowDirection,
+      note,
+    })
     if (result?.error) {
       setError(result.error)
     }
@@ -177,71 +162,34 @@ function AddManualEntryForm({ classificationMap, classification2Options, classif
 
   return (
     <div className="ios-card px-4 py-4 space-y-2.5">
-      <p className="text-[13px] font-semibold text-[#1C1C1E]">新しい明細を追加</p>
-      <div className="grid grid-cols-2 gap-2">
-        <select
-          value={institution}
-          onChange={e => setInstitution(e.target.value)}
-          disabled={saving}
-          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
-        >
-          {JOURNAL_INSTITUTIONS.map(inst => <option key={inst} value={inst}>{inst}</option>)}
-        </select>
-        {institution === '住友VISA' && (
-          <select
-            value={holder}
-            onChange={e => setHolder(e.target.value)}
-            disabled={saving}
-            className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
-          >
-            {CARD_HOLDERS.map(h => <option key={h} value={h}>{h}様</option>)}
-          </select>
-        )}
-        <input
-          type="date"
-          value={transactionDate}
-          onChange={e => setTransactionDate(e.target.value)}
-          disabled={saving}
-          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
-        />
-        <select
-          value={direction}
-          onChange={e => setDirection(e.target.value)}
-          disabled={saving}
-          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
-        >
-          <option value="出金">出金</option>
-          <option value="入金">入金</option>
-        </select>
-        <input
-          type="number"
-          inputMode="numeric"
-          value={amount}
-          onChange={e => setAmount(e.target.value)}
-          placeholder="金額"
-          disabled={saving}
-          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] disabled:opacity-60"
-        />
-        <input
-          type="text"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder="摘要（任意）"
-          disabled={saving}
-          className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] disabled:opacity-60"
-        />
-      </div>
+      <p className="text-[13px] font-semibold text-[#1C1C1E]">新しい仕訳分類を追加</p>
+      <p className="text-[12px] text-[#8E8E93]">
+        候補に無い「仕訳１→仕訳２・仕訳３」の組み合わせをここで定義できます（実際の取引の登録ではありません）。
+      </p>
 
       <input
         type="text"
-        list="manual-entry-classification1-options"
+        list="classification-definition-institution-options"
+        value={institutionOrGroup}
+        onChange={e => setInstitutionOrGroup(e.target.value)}
+        placeholder="取引先・グループ（既存から選択、または新規入力）"
+        disabled={saving}
+        className="w-full px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] disabled:opacity-60"
+      />
+      <datalist id="classification-definition-institution-options">
+        {institutionGroupOptions.map(g => <option key={g} value={g} />)}
+      </datalist>
+
+      <input
+        type="text"
+        list="classification-definition-classification1-options"
         value={classification1}
         onChange={e => handleClassification1Change(e.target.value)}
         placeholder="仕訳１（既存から選択、または新規入力）"
         disabled={saving}
         className="w-full px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] disabled:opacity-60"
       />
-      <datalist id="manual-entry-classification1-options">
+      <datalist id="classification-definition-classification1-options">
         {ALL_CLASSIFICATIONS.map(c => <option key={c} value={c} />)}
       </datalist>
 
@@ -252,7 +200,7 @@ function AddManualEntryForm({ classificationMap, classification2Options, classif
           disabled={saving}
           className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
         >
-          <option value="">仕訳２（未選択）</option>
+          <option value="">仕訳２（必須）</option>
           {classification2Options.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select
@@ -261,16 +209,26 @@ function AddManualEntryForm({ classificationMap, classification2Options, classif
           disabled={saving}
           className="px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
         >
-          <option value="">仕訳３（未選択）</option>
+          <option value="">仕訳３（必須）</option>
           {classification3Options.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
+      <select
+        value={cashflowDirection}
+        onChange={e => setCashflowDirection(e.target.value)}
+        disabled={saving}
+        className="w-full px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] disabled:opacity-60"
+      >
+        <option value="出金">出金</option>
+        <option value="入金">入金</option>
+      </select>
+
       <input
         type="text"
-        value={memo}
-        onChange={e => setMemo(e.target.value)}
-        placeholder="メモ（任意）"
+        value={note}
+        onChange={e => setNote(e.target.value)}
+        placeholder="備考（任意）"
         disabled={saving}
         className="w-full px-3 py-2 rounded-[10px] bg-black/[0.04] text-[13px] text-[#1C1C1E] placeholder:text-[#AEAEB2] disabled:opacity-60"
       />
@@ -307,15 +265,16 @@ function AddManualEntryForm({ classificationMap, classification2Options, classif
 // 先頭から処理させる方式をやめ、リストから選んで確定できるアコーディオン形式にした）。
 export default function PendingJournalEntries({ onImported }) {
   const { user } = useAuth()
+  const { queue, queueError, resolvingPendingId, resolveQueueItem } = useBankStatementImport(user?.id, onImported)
   const {
-    queue, queueError, resolvingPendingId, resolveQueueItem,
-    addManualEntry, manualSaving,
-  } = useBankStatementImport(user?.id, onImported)
-  const { map: classificationMap, classification2Options, classification3Options } = useJournalClassificationMap(user?.id)
+    map: classificationMap, classification2Options, classification3Options, institutionGroupOptions,
+    addDefinition,
+  } = useJournalClassificationMap(user?.id)
   const { periods: eventPeriods } = useEventPeriods(user?.id)
   const { addRule: addCustomRule } = useCustomRules(user?.id)
   const [selectedId, setSelectedId] = useState(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [addFormSaving, setAddFormSaving] = useState(false)
 
   // キューが更新されて選択中の項目が無くなった場合（確定済み等）は選択を解除する
   useEffect(() => {
@@ -347,20 +306,19 @@ export default function PendingJournalEntries({ onImported }) {
     await resolveQueueItem(item.pendingId, classification, memo)
   }
 
-  // CSVインポートに無い明細（現金払い等）をその場で追加する。重複と思われる明細が
-  // 既に登録済みの場合は確認を挟み、続行が選ばれたらforce=trueで再送する。
-  async function handleAddManualEntry(entry) {
-    const result = await addManualEntry(entry)
-    if (result?.duplicate) {
-      const proceed = window.confirm('同じ内容（取引先・日付・入出金区分・金額）の明細が既に登録されています。続けて登録しますか？')
-      if (!proceed) return {}
-      return addManualEntry(entry, { force: true }).then(r => {
-        if (r?.success) setShowAddForm(false)
-        return r
-      })
+  // 候補に無い仕訳分類定義（仕訳１→仕訳２・仕訳３）を新規登録する。同じ
+  // （取引先・グループ、仕訳１）の組み合わせが既にあれば上書き更新される（addDefinition側でupsert）。
+  async function handleAddDefinition(definition) {
+    setAddFormSaving(true)
+    try {
+      await addDefinition(definition)
+      setShowAddForm(false)
+      return { success: true }
+    } catch (err) {
+      return { error: `${err?.name ?? 'Error'}: ${err?.message ?? String(err)}` }
+    } finally {
+      setAddFormSaving(false)
     }
-    if (result?.success) setShowAddForm(false)
-    return result
   }
 
   return (
@@ -377,16 +335,17 @@ export default function PendingJournalEntries({ onImported }) {
           onClick={() => setShowAddForm(true)}
           className="w-full ios-card px-4 py-3 text-[13px] font-medium text-[#007AFF] active:opacity-60"
         >
-          ＋ 新しい明細を追加
+          ＋ 新しい仕訳分類を追加
         </button>
       )}
       {showAddForm && (
-        <AddManualEntryForm
+        <AddClassificationDefinitionForm
           classificationMap={classificationMap}
           classification2Options={classification2Options}
           classification3Options={classification3Options}
-          saving={manualSaving}
-          onSubmit={handleAddManualEntry}
+          institutionGroupOptions={institutionGroupOptions}
+          saving={addFormSaving}
+          onSubmit={handleAddDefinition}
           onCancel={() => setShowAddForm(false)}
         />
       )}
