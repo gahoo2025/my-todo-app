@@ -37,11 +37,20 @@ function CandidateButton({ classification, institution, classificationMap, disab
 
 // 確認要の候補を3段階（摘要固有→取引先全体→全取引先共通）で組み立てる。
 // stageが進むごとに、既に表示済みの候補は重複させない（2026-09-19新設）。
-function candidatesForStage(item, stage) {
+// 取引先全体・全取引先共通の候補は、journalRules.js（535ルール）由来の一覧に加えて、
+// journal_classification_mapへ本人が新規登録した仕訳１も候補として含める（2026-09-26、
+// 本人報告「新しい仕訳分類を登録できたが、未仕訳の分類で出てこない」への対応。従来は
+// journal_classification_mapが候補生成に一切関与しておらず、新規登録した仕訳１が
+// 永久に選択できないバグだった）。
+function candidatesForStage(item, stage, extraClassifications) {
   const stage0 = item.candidates
-  const stage1All = classificationsForInstitution(item.institution)
+  const stage1All = [...new Set([
+    ...classificationsForInstitution(item.institution),
+    ...(extraClassifications.forInstitution || []),
+  ])]
   const stage1 = stage1All.filter(c => !stage0.includes(c))
-  const stage2 = ALL_CLASSIFICATIONS.filter(c => !stage0.includes(c) && !stage1All.includes(c))
+  const stage2All = [...new Set([...ALL_CLASSIFICATIONS, ...extraClassifications.all])]
+  const stage2 = stage2All.filter(c => !stage0.includes(c) && !stage1All.includes(c))
   if (stage === 0) return { shown: stage0, hasMore: stage1.length > 0 }
   if (stage === 1) return { shown: [...stage0, ...stage1], hasMore: stage2.length > 0 }
   return { shown: [...stage0, ...stage1, ...stage2], hasMore: false }
@@ -52,12 +61,12 @@ function candidatesForStage(item, stage) {
 // 自動仕訳する」チェックボックスを表示する（2026-09-20、本人の指示：「未仕訳を仕訳する際、
 // 今後は自動仕訳に登録できる仕組みが欲しい」）。PayPay等、あえて毎回確認が必要な設計の
 // 摘要（review状態）ではチェックしても効果が無く紛らわしいため、その場合は表示しない。
-function ResolvePanel({ item, classificationMap, resolving, queueError, canLearnRule, onResolve }) {
+function ResolvePanel({ item, classificationMap, extraClassifications, resolving, queueError, canLearnRule, onResolve }) {
   const [memoInput, setMemoInput] = useState('')
   const [otherStage, setOtherStage] = useState(0)
   const [saveAsRule, setSaveAsRule] = useState(false)
 
-  const { shown, hasMore } = candidatesForStage(item, otherStage)
+  const { shown, hasMore } = candidatesForStage(item, otherStage, extraClassifications)
 
   return (
     <div className="px-3 pb-3 pt-1 bg-black/[0.015]">
@@ -268,6 +277,7 @@ export default function PendingJournalEntries({ onImported }) {
   const { queue, queueError, resolvingPendingId, resolveQueueItem } = useBankStatementImport(user?.id, onImported)
   const {
     map: classificationMap, classification2Options, classification3Options, institutionGroupOptions,
+    classification1ByInstitution, allClassification1,
     addDefinition,
   } = useJournalClassificationMap(user?.id)
   const { periods: eventPeriods } = useEventPeriods(user?.id)
@@ -417,6 +427,10 @@ export default function PendingJournalEntries({ onImported }) {
                   <ResolvePanel
                     item={item}
                     classificationMap={classificationMap}
+                    extraClassifications={{
+                      forInstitution: classification1ByInstitution.get(item.institution) || [],
+                      all: allClassification1,
+                    }}
                     resolving={isResolving}
                     queueError={isResolving ? queueError : null}
                     canLearnRule={canLearnRule}
