@@ -1,8 +1,8 @@
 import { Fragment, useState, useMemo, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { JOURNAL_INSTITUTIONS, CARD_INSTITUTIONS } from '../hooks/useJournalEntries'
+import { JOURNAL_INSTITUTIONS } from '../hooks/useJournalEntries'
 import { useEventPeriods } from '../hooks/useEventPeriods'
-import { isTransfer } from '../lib/journalTotals'
+import { isCardSettlementDup, isTransfer } from '../lib/journalTotals'
 import { ALL_CLASSIFICATIONS, classificationsForInstitution } from '../lib/journalRules'
 
 const yen = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
@@ -288,10 +288,15 @@ export default function MonthlyJournalList({ entries, loading, onUpdateClassific
     let inn = 0
     let balanceExclTransfer = 0
     for (const e of filtered) {
-      // 取引先「すべて」表示のときのみ、カード取引先（横浜VISA・住友VISA・楽天カードえみ）を出金合計から除く。
-      // カード取引先の利用額は、銀行取引先側に「カード利用額の引き落とし」として同額が別途1行
-      // 計上されているため、単純合算すると二重計上になるため。
-      const excludedFromOut = institution === 'all' && CARD_INSTITUTIONS.includes(e.institution)
+      // 取引先「すべて」表示のときのみ、銀行取引先側の「カード利用額の引き落とし」1行
+      // （分類１がカード取引先名そのもの）を出金合計から除く。カード取引先の明細
+      // （食費・ETC等）と同じお金を指しており、単純合算すると二重計上になるため。
+      // 分類別年間収支・収支推移と同じ判定（journalTotals.jsのisCardSettlementDup）を
+      // 使う（2026-09-26、本人からの「月別明細と分類別年間収支で8月の収支がずれている」
+      // という指摘を受けて発覚・修正：本コンポーネントは従来、カード取引先側の明細を
+      // 丸ごと除外する独自ロジックだったため、カード利用額の一部がポイント交換等で
+      // 相殺され銀行引落額と一致しない月に、2画面の数値が食い違っていた）。
+      const excludedFromOut = isCardSettlementDup(e.institution, e.classification, institution)
       const amount = Number(e.amount) || 0
       if (e.direction === '出金') {
         if (!excludedFromOut) out += amount
