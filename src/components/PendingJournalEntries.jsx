@@ -37,18 +37,21 @@ function CandidateButton({ classification, institution, classificationMap, disab
 
 // 確認要の候補を3段階（摘要固有→取引先全体→全取引先共通）で組み立てる。
 // stageが進むごとに、既に表示済みの候補は重複させない（2026-09-19新設）。
-// 取引先全体・全取引先共通の候補は、journalRules.js（535ルール）由来の一覧に加えて、
-// journal_classification_mapへ本人が新規登録した仕訳１も候補として含める（2026-09-26、
-// 本人報告「新しい仕訳分類を登録できたが、未仕訳の分類で出てこない」への対応。従来は
-// journal_classification_mapが候補生成に一切関与しておらず、新規登録した仕訳１が
-// 永久に選択できないバグだった）。
+//
+// journal_classification_mapへ本人が新規登録した仕訳１のうち、その取引先向けのもの
+// （extraClassifications.forInstitution）は常にstage0（初期表示）へ含める（2026-09-26、
+// 本人報告「登録できたが未仕訳の分類で出てこない」への対応）。
+// 経緯：確認要キューのcandidatesはスキャン時点のスナップショットで、自動仕訳が
+// 一致しなかった明細は候補が0件のためALL_CLASSIFICATIONS全件（当時88件）がそのまま
+// stage0として保存されている。一度目の修正でstage1（「その他」ボタン後）に追加した
+// ところ、①「その他」を押さないと出ない、②押しても88件超に埋もれて見つからない、
+// という状態だったため、取引先向けの新規登録分はstage0に直接混ぜる形に変更した。
+// 全取引先共通分（extraClassifications.all）は従来どおりstage2（さらに「その他」）に留める。
 function candidatesForStage(item, stage, extraClassifications) {
-  const stage0 = item.candidates
-  const stage1All = [...new Set([
-    ...classificationsForInstitution(item.institution),
-    ...(extraClassifications.forInstitution || []),
-  ])]
-  const stage1 = stage1All.filter(c => !stage0.includes(c))
+  const stage0Extra = (extraClassifications.forInstitution || []).filter(c => !item.candidates.includes(c))
+  const stage0 = [...item.candidates, ...stage0Extra]
+  const stage1All = classificationsForInstitution(item.institution).filter(c => !stage0.includes(c))
+  const stage1 = stage1All
   const stage2All = [...new Set([...ALL_CLASSIFICATIONS, ...extraClassifications.all])]
   const stage2 = stage2All.filter(c => !stage0.includes(c) && !stage1All.includes(c))
   if (stage === 0) return { shown: stage0, hasMore: stage1.length > 0 }
