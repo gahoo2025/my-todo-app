@@ -22,7 +22,10 @@ export function useCategories() {
       .order('position', { ascending: true })
       .order('created_at', { ascending: true })
 
-    if (error || !data || data.length === 0) {
+    if (error) {
+      // 取得失敗時は初回扱いにしない（デフォルトカテゴリの重複挿入を防ぐ）
+      console.error('カテゴリの取得に失敗しました', error)
+    } else if (!data || data.length === 0) {
       // 初回: デフォルトカテゴリを挿入
       const inserts = DEFAULTS.map((name, i) => ({ name, user_id: user.id, position: i }))
       const { data: inserted } = await supabase
