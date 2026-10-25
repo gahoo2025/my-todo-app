@@ -219,6 +219,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'filesが指定されていません' })
     }
 
+    // 日付またぎセット用の記録日上書き：実在するYYYY-MM-DDのみ許可。不正値は一部だけ保存されないよう全体を拒否する
+    const isValidIsoDate = v => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false
+      const d = new Date(`${v}T00:00:00Z`)
+      return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v
+    }
+    const badOverride = files.find(f => f.recordedAtOverride != null && !isValidIsoDate(String(f.recordedAtOverride)))
+    if (badOverride) {
+      return res.status(400).json({ error: `recordedAtOverrideの形式が不正です（${badOverride.filename}）` })
+    }
+
     const allHoldings = []
     const allTotals = []
     const fileResults = []
@@ -226,11 +237,6 @@ export default async function handler(req, res) {
     const VALID_TYPES = ['assetbalanceall', 'assetbalanceinvst', 'balancesummary', 'stockposition']
     for (const f of files) {
       const { person, broker, filename, text, type, recordedAtOverride } = f
-      // 日付またぎセット用の記録日上書き（YYYY-MM-DDのみ許可。stockpositionはCSV内の日付を使うため対象外）
-      if (recordedAtOverride != null && !/^\d{4}-\d{2}-\d{2}$/.test(recordedAtOverride)) {
-        fileResults.push({ filename, error: 'recordedAtOverrideの形式が不正です（YYYY-MM-DD）' })
-        continue
-      }
       if (!person || !broker || !text || !VALID_TYPES.includes(type)) {
         fileResults.push({ filename, error: 'person/broker/text/typeが不足しています' })
         continue

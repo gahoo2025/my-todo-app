@@ -116,3 +116,40 @@ test('⑧完全な日の前日が不揃いでも、完全な日を巻き込ま�
   assert.equal(gs[1].ok, true)
   assert.equal(gs[1].spansDates, undefined)
 })
+
+test('⑨A+Bは不一致だがB+Cで一致 → AはスキップしてB+Cを合算', () => {
+  const files = [
+    mk('stockposition_20261023.csv'),
+    mk('assetbalance(all)_20261024_235900.csv'),
+    mk('balance-summary_20261024235930.csv'),
+    mk('assetbalance(all)_20261025_000100.csv'),
+    mk('assetbalance(INVST)_20261025_000200.csv'),
+    mk('assetbalance(INVST)_20261025_000300.csv'),
+    mk('assetbalance(INVST)_20261025_000400.csv'),
+    mk('stockposition_20261025.csv'),
+  ]
+  const gs = buildGroups(files)
+  assert.equal(gs.length, 2)
+  assert.equal(gs[0].ok, false)
+  assert.equal(gs[1].ok, true)
+  assert.equal(gs[1].date, '20261024')
+  assert.equal(gs[1].endDate, '20261025')
+})
+
+test('⑩1日目が揃い、2日目+3日目が合算で揃う → 1日目は単独、2〜3日目が日付またぎ', () => {
+  const files = [
+    ...day('20261023'),
+    mk('assetbalance(all)_20261024_235900.csv'),
+    mk('balance-summary_20261024235930.csv'),
+    mk('stockposition_20261024.csv'),
+    mk('assetbalance(all)_20261025_000100.csv'),
+    mk('assetbalance(INVST)_20261025_000200.csv'),
+    mk('assetbalance(INVST)_20261025_000300.csv'),
+    mk('assetbalance(INVST)_20261025_000400.csv'),
+  ]
+  const gs = buildGroups(files)
+  assert.equal(gs.length, 2)
+  assert.equal(gs[0].spansDates, undefined)
+  assert.equal(gs[1].spansDates, true)
+  assert.equal(gs[1].date, '20261024')
+})
