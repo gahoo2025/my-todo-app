@@ -76,11 +76,11 @@ export default function AssetHoldingsImport({ onImported }) {
 
       {groups.length > 0 && (
         <div className="mt-3 space-y-2">
-          <p className="text-[11px] text-[#AEAEB2]">1日付につき {REQUIRED_LABELS} が揃っている必要があります</p>
+          <p className="text-[11px] text-[#AEAEB2]">1日付（深夜0時をまたぐ場合は連続する2日分の合計）で {REQUIRED_LABELS} が揃っている必要があります</p>
           {groups.map(g => (
             <div key={g.date} className={`p-2.5 rounded-[10px] ${g.ok ? 'bg-black/[0.03]' : 'bg-[#FF3B30]/[0.06]'}`}>
               <div className="flex items-center justify-between">
-                <p className="text-[13px] font-semibold text-[#1C1C1E]">{formatDate(g.date)}</p>
+                <p className="text-[13px] font-semibold text-[#1C1C1E]">{formatDate(g.date)}{g.spansDates && `〜${formatDate(g.endDate).slice(5)}（日付またぎ）`}</p>
                 <p className={`text-[11px] font-medium ${g.ok ? 'text-[#34C759]' : 'text-[#FF3B30]'}`}>
                   {g.ok ? '取り込み対象' : 'スキップ（ファイル不足）'}
                 </p>

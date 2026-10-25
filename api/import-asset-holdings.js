@@ -80,9 +80,9 @@ function dateFromFilename(filename) {
   return `${m[1]}-${m[2]}-${m[3]}`
 }
 
-function parseBalanceSummary(text, filename) {
+function parseBalanceSummary(text, filename, recordedAtOverride) {
   const rows = parseCsv(text).filter(r => r.length > 1 && r[0])
-  const recordedAt = dateFromFilename(filename)
+  const recordedAt = recordedAtOverride || dateFromFilename(filename)
   const holdings = []
   for (const row of rows.slice(1)) {
     holdings.push({
@@ -110,9 +110,9 @@ function sumTotal(holdings) {
   return [{ total_value: total, recorded_at: recordedAt }]
 }
 
-function parseInvst(text, filename) {
+function parseInvst(text, filename, recordedAtOverride) {
   const rows = parseCsv(text).filter(r => r.length > 1 && r[0])
-  const recordedAt = dateFromFilename(filename)
+  const recordedAt = recordedAtOverride || dateFromFilename(filename)
   const holdings = []
   for (const row of rows.slice(1)) {
     if (row[0] !== '投資信託') continue
@@ -156,9 +156,9 @@ function parseStockPosition(text) {
   return { holdings, totals: sumTotal(holdings) }
 }
 
-function parseAssetBalanceAll(text, filename) {
+function parseAssetBalanceAll(text, filename, recordedAtOverride) {
   const rows = parseCsv(text)
-  const recordedAt = dateFromFilename(filename)
+  const recordedAt = recordedAtOverride || dateFromFilename(filename)
 
   const totals = []
   const totalRow = rows.find(r => r[0] === '資産合計')
@@ -219,21 +219,32 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'filesが指定されていません' })
     }
 
+    // 日付またぎセット用の記録日上書き：実在するYYYY-MM-DDのみ許可。不正値は一部だけ保存されないよう全体を拒否する
+    const isValidIsoDate = v => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false
+      const d = new Date(`${v}T00:00:00Z`)
+      return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v
+    }
+    const badOverride = files.find(f => f.recordedAtOverride != null && !isValidIsoDate(String(f.recordedAtOverride)))
+    if (badOverride) {
+      return res.status(400).json({ error: `recordedAtOverrideの形式が不正です（${badOverride.filename}）` })
+    }
+
     const allHoldings = []
     const allTotals = []
     const fileResults = []
 
     const VALID_TYPES = ['assetbalanceall', 'assetbalanceinvst', 'balancesummary', 'stockposition']
     for (const f of files) {
-      const { person, broker, filename, text, type } = f
+      const { person, broker, filename, text, type, recordedAtOverride } = f
       if (!person || !broker || !text || !VALID_TYPES.includes(type)) {
         fileResults.push({ filename, error: 'person/broker/text/typeが不足しています' })
         continue
       }
       let parsed
-      if (type === 'assetbalanceall') parsed = parseAssetBalanceAll(text, filename)
-      else if (type === 'assetbalanceinvst') parsed = parseInvst(text, filename)
-      else if (type === 'balancesummary') parsed = parseBalanceSummary(text, filename)
+      if (type === 'assetbalanceall') parsed = parseAssetBalanceAll(text, filename, recordedAtOverride)
+      else if (type === 'assetbalanceinvst') parsed = parseInvst(text, filename, recordedAtOverride)
+      else if (type === 'balancesummary') parsed = parseBalanceSummary(text, filename, recordedAtOverride)
       else parsed = parseStockPosition(text)
 
       for (const h of parsed.holdings) {

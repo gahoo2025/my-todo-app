@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { buildGroups, detectTypeFromFilename, parseFilenameStamp } from '../lib/assetImportGroups'
 
 const DB_NAME = 'asset-import-folder'
 const STORE = 'handles'
@@ -47,55 +48,6 @@ function decodeText(buf) {
   }
 }
 
-// ファイル名の先頭パターンで種別を判定する（資産管理アプリの手動ダウンロード手順で固定）
-function detectTypeFromFilename(filename) {
-  if (/^assetbalance\(all\)_/i.test(filename)) return 'assetbalanceall'
-  if (/^assetbalance\(invst\)_/i.test(filename)) return 'assetbalanceinvst'
-  if (/^balance-summary_/i.test(filename)) return 'balancesummary'
-  if (/^stockposition/i.test(filename)) return 'stockposition'
-  return null
-}
-
-// ファイル名から日付(YYYYMMDD)とその後ろのタイムスタンプ(あれば)を取り出す
-function parseFilenameStamp(filename) {
-  const m = /_(\d{8})_?(\d{6})?/.exec(filename)
-  if (!m) return null
-  return { date: m[1], time: m[2] || '' }
-}
-
-const REQUIRED_COUNTS = { assetbalanceall: 2, assetbalanceinvst: 3, balancesummary: 1, stockposition: 1 }
-
-// 日付ごとにグループ化し、各種別のタイムスタンプ順で人物・証券会社を自動割り当てする
-function buildGroups(files) {
-  const byDate = {}
-  for (const f of files) {
-    const stamp = parseFilenameStamp(f.filename)
-    if (!f.type || !stamp) continue
-    byDate[stamp.date] ??= { assetbalanceall: [], assetbalanceinvst: [], balancesummary: [], stockposition: [] }
-    byDate[stamp.date][f.type].push({ ...f, time: stamp.time })
-  }
-
-  const groups = []
-  for (const [date, byType] of Object.entries(byDate)) {
-    const counts = Object.fromEntries(Object.keys(REQUIRED_COUNTS).map(t => [t, byType[t].length]))
-    const ok = Object.entries(REQUIRED_COUNTS).every(([t, n]) => counts[t] === n)
-    const assigned = []
-    if (ok) {
-      const sorted = t => [...byType[t]].sort((a, b) => a.time.localeCompare(b.time))
-      const all = sorted('assetbalanceall')
-      assigned.push({ ...all[0], person: 'パパ', broker: '楽天' })
-      assigned.push({ ...all[1], person: 'ママ', broker: '楽天' })
-      const invst = sorted('assetbalanceinvst')
-      const invstPersons = ['長女', '次女', '長男']
-      invst.forEach((f, i) => assigned.push({ ...f, person: invstPersons[i], broker: '楽天' }))
-      assigned.push({ ...byType.balancesummary[0], person: 'パパ', broker: '大和' })
-      assigned.push({ ...byType.stockposition[0], person: 'パパ', broker: 'マネックス' })
-    }
-    groups.push({ date, ok, counts, files: ok ? assigned : [...byType.assetbalanceall, ...byType.assetbalanceinvst, ...byType.balancesummary, ...byType.stockposition] })
-  }
-  return groups.sort((a, b) => a.date.localeCompare(b.date))
-}
-
 export function useAssetHoldingsImport(onImported) {
   const [folderName, setFolderName] = useState(null)
   const [groups, setGroups] = useState([])
@@ -138,7 +90,7 @@ export function useAssetHoldingsImport(onImported) {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          files: readyFiles.map(({ filename, text, type, person, broker }) => ({ filename, text, type, person, broker })),
+          files: readyFiles.map(({ filename, text, type, person, broker, recordedAtOverride }) => ({ filename, text, type, person, broker, recordedAtOverride })),
         }),
       })
       const text = await r.text()
